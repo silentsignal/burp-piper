@@ -90,7 +90,7 @@ class BurpExtender : IBurpExtender {
                 }
             }
             messageDetails[MessageSource(rr, true)] = miWithHeaders
-            if (!miWithoutHeaders.isEmpty()) {
+            if (miWithoutHeaders.isNotEmpty()) {
                 messageDetails[MessageSource(rr, false)] = miWithoutHeaders
             }
         }
