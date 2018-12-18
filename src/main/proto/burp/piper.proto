@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package burp;
+
+message RegularExpression {
+    string pattern = 1;
+    int32 flags = 2;
+}
+
+message HeaderMatch {
+    string header = 1;
+    RegularExpression regex = 2;
+}
+
+message CommandInvocation {
+    repeated string prefix = 1;
+    repeated string postfix = 2;
+    enum InputMethod {
+        STDIN = 0;
+        FILENAME = 1;
+    }
+    InputMethod inputMethod = 3;
+}
+
+message CommandMatch {
+    CommandInvocation cmd = 1;
+    repeated int32 exitCode = 2;
+    MessageMatch stdout = 3;
+    MessageMatch stderr = 4;
+}
+
+message MessageMatch {
+    bytes prefix = 1;
+    bytes postfix = 2;
+    RegularExpression regex = 3;
+    HeaderMatch header = 4;
+    CommandMatch cmd = 5;
+    bool negation = 6;
+    repeated MessageMatch andAlso = 7;
+    repeated MessageMatch orElse = 8;
+}
+
+message MinimalTool {
+    string name = 1;
+    CommandInvocation cmd = 2;
+    MessageMatch filter = 3;
+    bool passHeaders = 4;
+    bool enabled = 5;
+}
+
+message UserActionTool {
+    MinimalTool common = 1;
+    bool hasGUI = 2;
+    int32 maxInputs = 3;
+}
+
+message Config {
+    repeated MinimalTool macro = 1;
+    repeated MinimalTool messageViewer = 2;
+    repeated UserActionTool menuItem = 3;
+}
