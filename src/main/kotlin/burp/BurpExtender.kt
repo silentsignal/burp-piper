@@ -12,7 +12,7 @@ import kotlin.concurrent.thread
 
 const val NAME = "Piper"
 
-data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?);
+data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 
 class BurpExtender : IBurpExtender {
 
@@ -72,7 +72,7 @@ class BurpExtender : IBurpExtender {
     private fun generateContextMenu(messages: Array<IHttpRequestResponse>): JMenuItem {
         val topLevel = JMenu(NAME)
         val cfg = loadConfig()
-        val msize = messages.size;
+        val msize = messages.size
         val plural = if (msize == 1) "" else "s"
 
         val messageDetails = HashMap<MessageSource, List<MessageInfo>>()
@@ -224,7 +224,7 @@ fun Piper.CommandMatch.matches(subject: ByteArray, helpers: IExtensionHelpers): 
     val inputs = listOf(subject)
     val (process, tempFiles) = this.cmd.execute(inputs)
     if ((this.hasStderr() && !this.stderr.matches(process.errorStream, helpers)) ||
-            (this.hasStdout() && !this.stdout.matches(process.inputStream, helpers))) return false;
+            (this.hasStdout() && !this.stdout.matches(process.inputStream, helpers))) return false
     val exitCode = process.waitFor()
     tempFiles.forEach { it.delete() }
     return (this.exitCodeCount == 0) || this.exitCodeList.contains(exitCode)
