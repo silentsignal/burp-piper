@@ -2,17 +2,66 @@ package burp
 
 import com.google.protobuf.ByteString
 import sun.misc.BASE64Encoder
+import java.awt.Component
 import java.io.File
 import java.io.InputStream
 import java.util.*
 import java.util.regex.Pattern
 import javax.swing.JMenu
 import javax.swing.JMenuItem
+import javax.swing.SwingUtilities
 import kotlin.concurrent.thread
 
 const val NAME = "Piper"
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
+
+class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
+    private var msg: ByteArray? = null
+    private val editor = callbacks.createTextEditor()
+
+    init {
+        editor.setEditable(false)
+    }
+
+    override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
+        return content != null && content.isNotEmpty() && (!tool.hasFilter() || tool.filter.matches(content, helpers))
+    }
+
+    override fun getMessage(): ByteArray? {
+        return msg
+    }
+
+    override fun isModified(): Boolean {
+        return false
+    }
+
+    override fun getTabCaption(): String {
+        return tool.name
+    }
+
+    override fun getSelectedData(): ByteArray {
+        return editor.selectedText
+    }
+
+    override fun getUiComponent(): Component {
+        return editor.component
+    }
+
+    override fun setMessage(content: ByteArray?, isRequest: Boolean) {
+        msg = content
+        if (content == null) return
+        thread {
+            val (process, tempFiles) = tool.cmd.execute(listOf(content))
+            process.inputStream.use {
+                val bytes = it.readBytes()
+                SwingUtilities.invokeLater { editor.text = bytes }
+            }
+            process.waitFor()
+            tempFiles.forEach { it.delete() }
+        }.start()
+    }
+}
 
 class BurpExtender : IBurpExtender {
 
@@ -22,6 +71,7 @@ class BurpExtender : IBurpExtender {
     override fun registerExtenderCallbacks(callbacks: IBurpExtenderCallbacks) {
         this.callbacks = callbacks
         helpers = callbacks.helpers
+        val cfg = loadConfig()
 
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
@@ -30,6 +80,14 @@ class BurpExtender : IBurpExtender {
             val topLevel = generateContextMenu(messages)
             if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory Collections.emptyList()
             return@registerContextMenuFactory Collections.singletonList(topLevel)
+        }
+
+        cfg.messageViewerList.forEach {
+            if (it.enabled) {
+                callbacks.registerMessageEditorTabFactory { controller, editable ->
+                    PiperEditor(it, helpers, callbacks)
+                }
+            }
         }
     }
 
@@ -154,6 +212,16 @@ class BurpExtender : IBurpExtender {
                     )
                     .setHasGUI(true)
                     .setMaxInputs(2)
+    ).addMessageViewer(
+            Piper.MinimalTool.newBuilder()
+                    .setName("rev")
+                    .setCmd(
+                            Piper.CommandInvocation.newBuilder()
+                                    .addAllPrefix(mutableListOf("rev"))
+                                    .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                    )
+                    .setEnabled(true)
+                    .setPassHeaders(true)
     ).build()
 
     private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>) {
