@@ -230,10 +230,11 @@ fun Piper.CommandMatch.matches(subject: ByteArray, helpers: IExtensionHelpers): 
     return (this.exitCodeCount == 0) || this.exitCodeList.contains(exitCode)
 }
 
-fun Piper.MessageMatch.matches(stream: InputStream, helpers: IExtensionHelpers): Boolean {
-    val bytes = stream.readBytes()
-    return this.matches(MessageInfo(bytes, helpers.bytesToString(bytes), null), helpers)
-}
+fun Piper.MessageMatch.matches(stream: InputStream, helpers: IExtensionHelpers): Boolean =
+    this.matches(stream.readBytes(), helpers)
+
+fun Piper.MessageMatch.matches(data: ByteArray, helpers: IExtensionHelpers): Boolean =
+    this.matches(MessageInfo(data, helpers.bytesToString(data), null), helpers)
 
 fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
     it.startsWith("${this.header}: ", true) &&
