@@ -1,5 +1,7 @@
 package burp
 
+const val NAME = "Piper"
+
 class BurpExtender : IBurpExtender {
 
     lateinit var callbacks: IBurpExtenderCallbacks
@@ -9,6 +11,6 @@ class BurpExtender : IBurpExtender {
         this.callbacks = callbacks
         helpers = callbacks.helpers
 
-        callbacks.setExtensionName("Piper")
+        callbacks.setExtensionName(NAME)
     }
 }
