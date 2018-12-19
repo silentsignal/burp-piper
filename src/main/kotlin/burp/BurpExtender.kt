@@ -248,15 +248,15 @@ fun Piper.UserActionTool.canProcess(messages: List<MessageInfo>, helpers: IExten
         !this.common.hasFilter() || messages.all { this.common.filter.matches(it, helpers) }
 
 fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers): Boolean = (
-        (this.prefix != null  && this.prefix.size() > 0  && !message.content.startsWith(this.prefix)) ||
-        (this.postfix != null && this.postfix.size() > 0 && !message.content.endsWith(this.postfix)) ||
-        (this.hasRegex() && !this.regex.matches(message.text)) ||
-        (this.hasCmd()   && !this.cmd.matches(message.content, helpers)) ||
+        (this.prefix == null  || this.prefix.size() == 0  || message.content.startsWith(this.prefix)) &&
+        (this.postfix == null || this.postfix.size() == 0 || message.content.endsWith(this.postfix)) &&
+        (!this.hasRegex() || this.regex.matches(message.text)) &&
+        (!this.hasCmd()   || this.cmd.matches(message.content, helpers)) &&
 
-        (message.headers != null && this.hasHeader() && !this.header.matches(message.headers)) ||
+        (message.headers == null || !this.hasHeader() || this.header.matches(message.headers)) &&
 
-        (this.andAlsoCount > 0 && !this.andAlsoList.all { it.matches(message, helpers) }) ||
-        (this.orElseCount  > 0 && !this.orElseList.any  { it.matches(message, helpers) })
+        (this.andAlsoCount == 0 || this.andAlsoList.all { it.matches(message, helpers) }) &&
+        (this.orElseCount  == 0 || this.orElseList.any  { it.matches(message, helpers) })
 ) xor this.negation
 
 fun ByteArray.startsWith(value: ByteString): Boolean {
