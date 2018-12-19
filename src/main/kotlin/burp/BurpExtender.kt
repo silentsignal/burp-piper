@@ -7,9 +7,7 @@ import java.io.File
 import java.io.InputStream
 import java.util.*
 import java.util.regex.Pattern
-import javax.swing.JMenu
-import javax.swing.JMenuItem
-import javax.swing.SwingUtilities
+import javax.swing.*
 import kotlin.concurrent.thread
 
 const val NAME = "Piper"
