@@ -266,6 +266,21 @@ class BurpExtender : IBurpExtender {
                     )
                     .setEnabled(true)
                     .setPassHeaders(false)
+    ).addMessageViewer(
+            Piper.MinimalTool.newBuilder()
+                    .setName("Python JSON formatter")
+                    .setCmd(
+                            Piper.CommandInvocation.newBuilder()
+                                    .addAllPrefix(mutableListOf("python", "-m", "json.tool"))
+                                    .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                    )
+                    .setFilter(
+                            Piper.MessageMatch.newBuilder()
+                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFromUtf8("{")).setPostfix(ByteString.copyFromUtf8("}")))
+                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFromUtf8("[")).setPostfix(ByteString.copyFromUtf8("]")))
+                    )
+                    .setEnabled(true)
+                    .setPassHeaders(false)
     ).build()
 
     private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>) {
