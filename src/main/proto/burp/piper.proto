@@ -55,8 +55,13 @@ message UserActionTool {
     int32 minInputs = 4;
 }
 
+message MessageViewer {
+    MinimalTool common = 1;
+    bool usesColors = 2;
+}
+
 message Config {
     repeated MinimalTool macro = 1;
-    repeated MinimalTool messageViewer = 2;
+    repeated MessageViewer messageViewer = 2;
     repeated UserActionTool menuItem = 3;
 }

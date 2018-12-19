@@ -54,23 +54,24 @@ val IS_REQUEST_MAP = mapOf(
         false to RequestResponse.RESPONSE
 )
 
-class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
+class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
     private var msg: ByteArray? = null
-    private val editor = callbacks.createTextEditor()
+    private val terminal = JTerminal()
+    private val scrollPane = JScrollPane()
 
     init {
-        editor.setEditable(false)
+        scrollPane.setViewportView(terminal)
     }
 
     override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
         if (content == null) return false
-        if (!tool.hasFilter()) return true
+        if (!tool.common.hasFilter()) return true
         val payload = transformContent(content, isRequest)
-        return payload.isNotEmpty() && tool.filter.matches(payload, helpers)
+        return payload.isNotEmpty() && tool.common.filter.matches(payload, helpers)
     }
 
     private fun transformContent(content: ByteArray, isRequest: Boolean): ByteArray {
-        if (tool.passHeaders) return content
+        if (tool.common.passHeaders) return content
         val rr = IS_REQUEST_MAP[isRequest]!!
         val bo = rr.getBodyOffset(content, helpers)
         return content.copyOfRange(bo, content.size)
@@ -85,7 +86,70 @@ class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExt
     }
 
     override fun getTabCaption(): String {
-        return tool.name
+        return tool.common.name
+    }
+
+    override fun getSelectedData(): ByteArray {
+        return helpers.stringToBytes(terminal.selectedText)
+    }
+
+    override fun getUiComponent(): Component {
+        return terminal
+    }
+
+    override fun setMessage(content: ByteArray?, isRequest: Boolean) {
+        msg = content
+        if (content == null) return
+        terminal.text = ""
+        thread {
+            val (process, tempFiles) = tool.common.cmd.execute(listOf(transformContent(content, isRequest)))
+            for (stream in arrayOf(process.inputStream, process.errorStream)) {
+                thread {
+                    val reader = stream.bufferedReader()
+                    while (true) {
+                        val line = reader.readLine() ?: break
+                        terminal.append("$line\n")
+                    }
+                }.start()
+            }
+            process.waitFor()
+            tempFiles.forEach { it.delete() }
+        }.start()
+    }
+}
+
+class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
+    private var msg: ByteArray? = null
+    private val editor = callbacks.createTextEditor()
+
+    init {
+        editor.setEditable(false)
+    }
+
+    override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
+        if (content == null) return false
+        if (!tool.common.hasFilter()) return true
+        val payload = transformContent(content, isRequest)
+        return payload.isNotEmpty() && tool.common.filter.matches(payload, helpers)
+    }
+
+    private fun transformContent(content: ByteArray, isRequest: Boolean): ByteArray {
+        if (tool.common.passHeaders) return content
+        val rr = IS_REQUEST_MAP[isRequest]!!
+        val bo = rr.getBodyOffset(content, helpers)
+        return content.copyOfRange(bo, content.size)
+    }
+
+    override fun getMessage(): ByteArray? {
+        return msg
+    }
+
+    override fun isModified(): Boolean {
+        return false
+    }
+
+    override fun getTabCaption(): String {
+        return tool.common.name
     }
 
     override fun getSelectedData(): ByteArray {
@@ -100,7 +164,7 @@ class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExt
         msg = content
         if (content == null) return
         thread {
-            val (process, tempFiles) = tool.cmd.execute(listOf(transformContent(content, isRequest)))
+            val (process, tempFiles) = tool.common.cmd.execute(listOf(transformContent(content, isRequest)))
             process.inputStream.use {
                 val bytes = it.readBytes()
                 SwingUtilities.invokeLater { editor.text = bytes }
@@ -131,9 +195,10 @@ class BurpExtender : IBurpExtender {
         }
 
         cfg.messageViewerList.forEach {
-            if (it.enabled) {
-                callbacks.registerMessageEditorTabFactory { controller, editable ->
-                    PiperEditor(it, helpers, callbacks)
+            if (it.common.enabled) {
+                callbacks.registerMessageEditorTabFactory { _, _ ->
+                    if (it.usesColors) TerminalEditor(it, helpers, callbacks)
+                    else TextEditor(it, helpers, callbacks)
                 }
             }
         }
@@ -178,9 +243,9 @@ class BurpExtender : IBurpExtender {
                 }
                 if (!cfgItem.common.passHeaders && !cfgItem.common.hasFilter()) {
                     cfg.messageViewerList.forEach { mv ->
-                        if (mv.passHeaders == msrc.includeHeaders && mv.canProcess(md, helpers)) {
+                        if (mv.common.passHeaders == msrc.includeHeaders && mv.common.canProcess(md, helpers)) {
                             val noun = msrc.direction.toString().toLowerCase()
-                            val outItem = JMenuItem("${mv.name} | ${cfgItem.common.name} ($noun$plural)")
+                            val outItem = JMenuItem("${mv.common.name} | ${cfgItem.common.name} ($noun$plural)")
                             outItem.addActionListener { performMenuAction(cfgItem, md, mv) }
                             topLevel.add(outItem)
                         }
@@ -253,54 +318,73 @@ class BurpExtender : IBurpExtender {
                     .setMinInputs(2)
                     .setMaxInputs(2)
     ).addMessageViewer(
-            Piper.MinimalTool.newBuilder()
-                    .setName("rev")
-                    .setCmd(
-                            Piper.CommandInvocation.newBuilder()
-                                    .addAllPrefix(mutableListOf("rev"))
-                                    .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
-                    )
-                    .setEnabled(true)
-                    .setPassHeaders(true)
+            Piper.MessageViewer.newBuilder().setCommon(
+                    Piper.MinimalTool.newBuilder()
+                            .setName("rev")
+                            .setCmd(
+                                    Piper.CommandInvocation.newBuilder()
+                                            .addAllPrefix(mutableListOf("rev"))
+                                            .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                            )
+                            .setEnabled(true)
+                            .setPassHeaders(true)
+            )
     ).addMessageViewer(
-            Piper.MinimalTool.newBuilder()
-                    .setName("OpenSSL ASN.1 decoder")
-                    .setCmd(
-                            Piper.CommandInvocation.newBuilder()
-                                    .addAllPrefix(mutableListOf("openssl", "asn1parse", "-inform", "DER", "-i"))
-                                    .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+            Piper.MessageViewer.newBuilder().setCommon(
+                    Piper.MinimalTool.newBuilder()
+                            .setName("Pygmentize")
+                            .setCmd(
+                                    Piper.CommandInvocation.newBuilder()
+                                            .addAllPrefix(mutableListOf("pygmentize", "-g"))
+                                            .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                            )
+                            .setEnabled(true)
+                            .setPassHeaders(false)
                     )
-                    .setFilter(
-                            Piper.MessageMatch.newBuilder()
-                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFrom(byteArrayOf(0x30, 0x82.toByte()))))
-                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFrom(byteArrayOf(0x30, 0x80.toByte()))))
-                    )
-                    .setEnabled(true)
-                    .setPassHeaders(false)
+                    .setUsesColors(true)
     ).addMessageViewer(
-            Piper.MinimalTool.newBuilder()
-                    .setName("Python JSON formatter")
-                    .setCmd(
-                            Piper.CommandInvocation.newBuilder()
-                                    .addAllPrefix(mutableListOf("python", "-m", "json.tool"))
-                                    .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
-                    )
-                    .setFilter(
-                            Piper.MessageMatch.newBuilder()
-                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFromUtf8("{")).setPostfix(ByteString.copyFromUtf8("}")))
-                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFromUtf8("[")).setPostfix(ByteString.copyFromUtf8("]")))
-                    )
-                    .setEnabled(true)
-                    .setPassHeaders(false)
+            Piper.MessageViewer.newBuilder().setCommon(
+                    Piper.MinimalTool.newBuilder()
+                            .setName("OpenSSL ASN.1 decoder")
+                            .setCmd(
+                                    Piper.CommandInvocation.newBuilder()
+                                            .addAllPrefix(mutableListOf("openssl", "asn1parse", "-inform", "DER", "-i"))
+                                            .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                            )
+                            .setFilter(
+                                    Piper.MessageMatch.newBuilder()
+                                            .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFrom(byteArrayOf(0x30, 0x82.toByte()))))
+                                            .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFrom(byteArrayOf(0x30, 0x80.toByte()))))
+                            )
+                            .setEnabled(true)
+                            .setPassHeaders(false)
+            )
+    ).addMessageViewer(
+            Piper.MessageViewer.newBuilder().setCommon(
+                    Piper.MinimalTool.newBuilder()
+                            .setName("Python JSON formatter")
+                            .setCmd(
+                                    Piper.CommandInvocation.newBuilder()
+                                            .addAllPrefix(mutableListOf("python", "-m", "json.tool"))
+                                            .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                            )
+                            .setFilter(
+                                    Piper.MessageMatch.newBuilder()
+                                            .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFromUtf8("{")).setPostfix(ByteString.copyFromUtf8("}")))
+                                            .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFromUtf8("[")).setPostfix(ByteString.copyFromUtf8("]")))
+                            )
+                            .setEnabled(true)
+                            .setPassHeaders(false)
+            )
     ).build()
 
-    private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>, messageViewer: Piper.MinimalTool? = null) {
+    private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>, messageViewer: Piper.MessageViewer? = null) {
         thread {
             val input = if (messageViewer == null) {
                 messages.map(MessageInfo::content)
             } else {
                 messages.map { msg ->
-                    val (process, tempFiles) = messageViewer.cmd.execute(listOf(msg.content))
+                    val (process, tempFiles) = messageViewer.common.cmd.execute(listOf(msg.content))
                     val bytes = process.inputStream.use {
                         it.readBytes()
                     }
