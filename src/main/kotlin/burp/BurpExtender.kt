@@ -73,7 +73,7 @@ class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExt
         if (tool.passHeaders) return content
         val rr = IS_REQUEST_MAP[isRequest]!!
         val bo = rr.getBodyOffset(content, helpers)
-        return content.sliceArray(IntRange(bo, content.size - 1))
+        return content.copyOfRange(bo, content.size)
     }
 
     override fun getMessage(): ByteArray? {
@@ -157,7 +157,7 @@ class BurpExtender : IBurpExtender {
                 miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers))
                 val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
-                    val body = bytes.sliceArray(IntRange(bo, bytes.size - 1))
+                    val body = bytes.copyOfRange(bo, bytes.size)
                     miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers))
                 }
             }
@@ -290,13 +290,13 @@ fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers)
 
 fun ByteArray.startsWith(value: ByteString): Boolean {
     val mps = value.size()
-    return this.size >= mps && this.sliceArray(IntRange(0, mps - 1)).contentEquals(value.toByteArray())
+    return this.size >= mps && this.copyOfRange(0, mps).contentEquals(value.toByteArray())
 }
 
 fun ByteArray.endsWith(value: ByteString): Boolean {
     val mps = value.size()
     val mbs = this.size
-    return this.size >= mps && !this.sliceArray(IntRange(mbs - mps, mbs - 1)).contentEquals(value.toByteArray())
+    return this.size >= mps && !this.copyOfRange(mbs - mps, mbs).contentEquals(value.toByteArray())
 }
 
 fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List<File>> {
@@ -335,7 +335,7 @@ fun Piper.MessageMatch.matches(data: ByteArray, helpers: IExtensionHelpers): Boo
 
 fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
     it.startsWith("${this.header}: ", true) &&
-            this.regex.matches(it.slice(IntRange(this.header.length + 2, it.length - 1)))
+            this.regex.matches(it.substring(this.header.length + 2, it.length))
 }
 
 fun Piper.RegularExpression.matches(subject: String): Boolean =
