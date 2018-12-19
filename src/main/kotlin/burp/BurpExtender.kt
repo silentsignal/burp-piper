@@ -16,7 +16,7 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
 
 enum class RequestResponse {
     REQUEST {
-        override fun getMessage(rr: IHttpRequestResponse): ByteArray {
+        override fun getMessage(rr: IHttpRequestResponse): ByteArray? {
             return rr.request
         }
 
@@ -30,7 +30,7 @@ enum class RequestResponse {
     },
 
     RESPONSE {
-        override fun getMessage(rr: IHttpRequestResponse): ByteArray {
+        override fun getMessage(rr: IHttpRequestResponse): ByteArray? {
             return rr.response
         }
 
@@ -43,7 +43,7 @@ enum class RequestResponse {
         }
     };
 
-    abstract fun getMessage(rr: IHttpRequestResponse): ByteArray
+    abstract fun getMessage(rr: IHttpRequestResponse): ByteArray?
     abstract fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int
     abstract fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String>
 }
@@ -150,7 +150,7 @@ class BurpExtender : IBurpExtender {
             val miWithHeaders = ArrayList<MessageInfo>(messages.size)
             val miWithoutHeaders = ArrayList<MessageInfo>(messages.size)
             messages.forEach {
-                val bytes = rr.getMessage(it)
+                val bytes = rr.getMessage(it) ?: return@forEach
                 val headers = rr.getHeaders(it, helpers)
                 miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers))
                 val bo = rr.getBodyOffset(bytes, helpers)
