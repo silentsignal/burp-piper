@@ -236,6 +236,21 @@ class BurpExtender : IBurpExtender {
                     )
                     .setEnabled(true)
                     .setPassHeaders(true)
+    ).addMessageViewer(
+            Piper.MinimalTool.newBuilder()
+                    .setName("OpenSSL ASN.1 decoder")
+                    .setCmd(
+                            Piper.CommandInvocation.newBuilder()
+                                    .addAllPrefix(mutableListOf("openssl", "asn1parse", "-inform", "DER", "-i"))
+                                    .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                    )
+                    .setFilter(
+                            Piper.MessageMatch.newBuilder()
+                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFrom(byteArrayOf(0x30, 0x82.toByte()))))
+                                    .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFrom(byteArrayOf(0x30, 0x80.toByte()))))
+                    )
+                    .setEnabled(true)
+                    .setPassHeaders(false)
     ).build()
 
     private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>) {
