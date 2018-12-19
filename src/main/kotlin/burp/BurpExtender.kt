@@ -63,7 +63,8 @@ class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExt
     }
 
     override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
-        if (content == null || !tool.hasFilter()) return false
+        if (content == null) return false
+        if (!tool.hasFilter()) return true
         val payload = transformContent(content, isRequest)
         return payload.isNotEmpty() && tool.filter.matches(payload, helpers)
     }
