@@ -225,6 +225,22 @@ class BurpExtender : IBurpExtender {
                     )
                     .setHasGUI(true)
                     .setMaxInputs(2)
+    ).addMenuItem(
+            Piper.UserActionTool.newBuilder()
+                    .setCommon(
+                            Piper.MinimalTool.newBuilder()
+                                    .setName("git diff")
+                                    .setCmd(
+                                            Piper.CommandInvocation.newBuilder()
+                                                    .addAllPrefix(mutableListOf("git", "diff", "--color=always"))
+                                                    .setInputMethod(Piper.CommandInvocation.InputMethod.FILENAME)
+                                    )
+                                    .setEnabled(true)
+                                    .setPassHeaders(false)
+                    )
+                    .setHasGUI(false)
+                    .setMinInputs(2)
+                    .setMaxInputs(2)
     ).addMessageViewer(
             Piper.MinimalTool.newBuilder()
                     .setName("rev")
