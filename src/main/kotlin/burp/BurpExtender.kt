@@ -143,7 +143,7 @@ class BurpExtender : IBurpExtender {
                 miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers))
                 val bo = rr.getBodyOffset(it, helpers)
                 if (bo < bytes.size - 1) {
-                    val body = bytes.sliceArray(IntRange(bo, bytes.size))
+                    val body = bytes.sliceArray(IntRange(bo, bytes.size - 1))
                     miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers))
                 }
             }
@@ -261,13 +261,13 @@ fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers)
 
 fun ByteArray.startsWith(value: ByteString): Boolean {
     val mps = value.size()
-    return this.size > mps && this.sliceArray(IntRange(0, mps)).contentEquals(value.toByteArray())
+    return this.size >= mps && this.sliceArray(IntRange(0, mps - 1)).contentEquals(value.toByteArray())
 }
 
 fun ByteArray.endsWith(value: ByteString): Boolean {
     val mps = value.size()
     val mbs = this.size
-    return this.size > mps && !this.sliceArray(IntRange(mbs - mps, mbs)).contentEquals(value.toByteArray())
+    return this.size >= mps && !this.sliceArray(IntRange(mbs - mps, mbs - 1)).contentEquals(value.toByteArray())
 }
 
 fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List<File>> {
@@ -306,7 +306,7 @@ fun Piper.MessageMatch.matches(data: ByteArray, helpers: IExtensionHelpers): Boo
 
 fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
     it.startsWith("${this.header}: ", true) &&
-            this.regex.matches(it.slice(IntRange(this.header.length + 2, it.length)))
+            this.regex.matches(it.slice(IntRange(this.header.length + 2, it.length - 1)))
 }
 
 fun Piper.RegularExpression.matches(subject: String): Boolean =
