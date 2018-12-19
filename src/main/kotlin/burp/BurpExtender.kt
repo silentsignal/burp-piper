@@ -1,6 +1,7 @@
 package burp
 
 import com.google.protobuf.ByteString
+import com.redpois0n.terminal.JTerminal
 import sun.misc.BASE64Encoder
 import java.awt.Component
 import java.io.File
@@ -255,11 +256,36 @@ class BurpExtender : IBurpExtender {
         thread {
             val (process, tempFiles) = cfgItem.common.cmd.execute(messages.map(MessageInfo::content))
             if (!cfgItem.hasGUI) {
-                // TODO show it in textual interface, sync with UI thread
+                handleGUI(process, cfgItem.common)
             }
             process.waitFor()
             tempFiles.forEach { it.delete() }
         }.start()
+    }
+
+    private fun handleGUI(process: Process, tool: Piper.MinimalTool) {
+        val terminal = JTerminal()
+        val scrollPane = JScrollPane()
+        scrollPane.setViewportView(terminal)
+        val frame = JFrame()
+        with(frame) {
+            defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+            addKeyListener(terminal.keyListener)
+            add(scrollPane)
+            setSize(675, 300)
+            isVisible = true
+            title = tool.name
+        }
+
+        for (stream in arrayOf(process.inputStream, process.errorStream)) {
+            thread {
+                val reader = stream.bufferedReader()
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    terminal.append("$line\n")
+                }
+            }.start()
+        }
     }
 
     companion object {
