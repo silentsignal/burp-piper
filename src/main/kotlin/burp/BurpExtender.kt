@@ -176,6 +176,16 @@ class BurpExtender : IBurpExtender {
                     outItem.addActionListener { performMenuAction(cfgItem, md) }
                     topLevel.add(outItem)
                 }
+                if (!cfgItem.common.passHeaders && !cfgItem.common.hasFilter()) {
+                    cfg.messageViewerList.forEach { mv ->
+                        if (mv.passHeaders == msrc.includeHeaders && mv.canProcess(md, helpers)) {
+                            val noun = msrc.direction.toString().toLowerCase()
+                            val outItem = JMenuItem("${mv.name} | ${cfgItem.common.name} ($noun$plural)")
+                            outItem.addActionListener { performMenuAction(cfgItem, md, mv) }
+                            topLevel.add(outItem)
+                        }
+                    }
+                }
             }
         }
         return topLevel
@@ -284,9 +294,22 @@ class BurpExtender : IBurpExtender {
                     .setPassHeaders(false)
     ).build()
 
-    private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>) {
+    private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>, messageViewer: Piper.MinimalTool? = null) {
         thread {
-            val (process, tempFiles) = cfgItem.common.cmd.execute(messages.map(MessageInfo::content))
+            val input = if (messageViewer == null) {
+                messages.map(MessageInfo::content)
+            } else {
+                messages.map { msg ->
+                    val (process, tempFiles) = messageViewer.cmd.execute(listOf(msg.content))
+                    val bytes = process.inputStream.use {
+                        it.readBytes()
+                    }
+                    process.waitFor()
+                    tempFiles.forEach { it.delete() }
+                    bytes
+                }
+            }
+            val (process, tempFiles) = cfgItem.common.cmd.execute(input)
             if (!cfgItem.hasGUI) {
                 handleGUI(process, cfgItem.common)
             }
