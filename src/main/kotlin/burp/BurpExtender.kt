@@ -166,7 +166,7 @@ class BurpExtender : IBurpExtender {
         }
 
         for (cfgItem in cfg.menuItemList) {
-            if (cfgItem.maxInputs < msize || !cfgItem.common.enabled) continue
+            if (cfgItem.maxInputs < msize || cfgItem.minInputs > msize || !cfgItem.common.enabled) continue
             for ((msrc, md) in messageDetails) {
                 if (cfgItem.common.passHeaders == msrc.includeHeaders && cfgItem.canProcess(md, helpers)) {
                     val noun = msrc.direction.toString().toLowerCase()

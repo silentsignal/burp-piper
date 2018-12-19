@@ -52,6 +52,7 @@ message UserActionTool {
     MinimalTool common = 1;
     bool hasGUI = 2;
     int32 maxInputs = 3;
+    int32 minInputs = 4;
 }
 
 message Config {
