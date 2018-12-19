@@ -16,6 +16,40 @@ const val NAME = "Piper"
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 
+enum class RequestResponse {
+    REQUEST {
+        override fun getMessage(rr: IHttpRequestResponse): ByteArray {
+            return rr.request
+        }
+
+        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int {
+            return helpers.analyzeRequest(data).bodyOffset
+        }
+
+        override fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String> {
+            return helpers.analyzeRequest(rr).headers
+        }
+    },
+
+    RESPONSE {
+        override fun getMessage(rr: IHttpRequestResponse): ByteArray {
+            return rr.response
+        }
+
+        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int {
+            return helpers.analyzeResponse(data).bodyOffset
+        }
+
+        override fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String> {
+            return helpers.analyzeResponse(rr.response).headers
+        }
+    };
+
+    abstract fun getMessage(rr: IHttpRequestResponse): ByteArray
+    abstract fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int
+    abstract fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String>
+}
+
 class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
     private var msg: ByteArray? = null
     private val editor = callbacks.createTextEditor()
@@ -91,40 +125,6 @@ class BurpExtender : IBurpExtender {
         }
     }
 
-    private enum class RequestResponse {
-        REQUEST {
-            override fun getMessage(rr: IHttpRequestResponse): ByteArray {
-                return rr.request
-            }
-
-            override fun getBodyOffset(rr: IHttpRequestResponse, helpers: IExtensionHelpers): Int {
-                return helpers.analyzeRequest(rr).bodyOffset
-            }
-
-            override fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String> {
-                return helpers.analyzeRequest(rr).headers
-            }
-        },
-
-        RESPONSE {
-            override fun getMessage(rr: IHttpRequestResponse): ByteArray {
-                return rr.response
-            }
-
-            override fun getBodyOffset(rr: IHttpRequestResponse, helpers: IExtensionHelpers): Int {
-                return helpers.analyzeResponse(rr.response).bodyOffset
-            }
-
-            override fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String> {
-                return helpers.analyzeResponse(rr.response).headers
-            }
-        };
-
-        abstract fun getMessage(rr: IHttpRequestResponse): ByteArray
-        abstract fun getBodyOffset(rr: IHttpRequestResponse, helpers: IExtensionHelpers): Int
-        abstract fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String>
-    }
-
     private data class MessageSource(val direction: RequestResponse, val includeHeaders: Boolean)
 
     private fun generateContextMenu(messages: Array<IHttpRequestResponse>): JMenuItem {
@@ -141,7 +141,7 @@ class BurpExtender : IBurpExtender {
                 val bytes = rr.getMessage(it)
                 val headers = rr.getHeaders(it, helpers)
                 miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers))
-                val bo = rr.getBodyOffset(it, helpers)
+                val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
                     val body = bytes.sliceArray(IntRange(bo, bytes.size - 1))
                     miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers))
