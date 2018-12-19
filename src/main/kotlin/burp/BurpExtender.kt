@@ -336,7 +336,7 @@ fun ByteArray.startsWith(value: ByteString): Boolean {
 fun ByteArray.endsWith(value: ByteString): Boolean {
     val mps = value.size()
     val mbs = this.size
-    return this.size >= mps && !this.copyOfRange(mbs - mps, mbs).contentEquals(value.toByteArray())
+    return mbs >= mps && this.copyOfRange(mbs - mps, mbs).contentEquals(value.toByteArray())
 }
 
 fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List<File>> {
