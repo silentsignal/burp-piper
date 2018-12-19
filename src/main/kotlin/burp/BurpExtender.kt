@@ -50,6 +50,11 @@ enum class RequestResponse {
     abstract fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String>
 }
 
+val IS_REQUEST_MAP = mapOf(
+        true to RequestResponse.REQUEST,
+        false to RequestResponse.RESPONSE
+)
+
 class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
     private var msg: ByteArray? = null
     private val editor = callbacks.createTextEditor()
@@ -59,7 +64,16 @@ class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExt
     }
 
     override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
-        return content != null && content.isNotEmpty() && (!tool.hasFilter() || tool.filter.matches(content, helpers))
+        if (content == null || !tool.hasFilter()) return false
+        val payload = transformContent(content, isRequest)
+        return payload.isNotEmpty() && tool.filter.matches(payload, helpers)
+    }
+
+    private fun transformContent(content: ByteArray, isRequest: Boolean): ByteArray {
+        if (tool.passHeaders) return content
+        val rr = IS_REQUEST_MAP[isRequest]!!
+        val bo = rr.getBodyOffset(content, helpers)
+        return content.sliceArray(IntRange(bo, content.size - 1))
     }
 
     override fun getMessage(): ByteArray? {
@@ -86,7 +100,7 @@ class PiperEditor(private val tool: Piper.MinimalTool, private val helpers: IExt
         msg = content
         if (content == null) return
         thread {
-            val (process, tempFiles) = tool.cmd.execute(listOf(content))
+            val (process, tempFiles) = tool.cmd.execute(listOf(transformContent(content, isRequest)))
             process.inputStream.use {
                 val bytes = it.readBytes()
                 SwingUtilities.invokeLater { editor.text = bytes }
