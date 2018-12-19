@@ -170,7 +170,7 @@ class BurpExtender : IBurpExtender {
         for (cfgItem in cfg.menuItemList) {
             if (cfgItem.maxInputs < msize || cfgItem.minInputs > msize || !cfgItem.common.enabled) continue
             for ((msrc, md) in messageDetails) {
-                if (cfgItem.common.passHeaders == msrc.includeHeaders && cfgItem.canProcess(md, helpers)) {
+                if (cfgItem.common.passHeaders == msrc.includeHeaders && cfgItem.common.canProcess(md, helpers)) {
                     val noun = msrc.direction.toString().toLowerCase()
                     val outItem = JMenuItem("${cfgItem.common.name} ($noun$plural)")
                     outItem.addActionListener { performMenuAction(cfgItem, md) }
@@ -329,8 +329,8 @@ class BurpExtender : IBurpExtender {
     }
 }
 
-fun Piper.UserActionTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
-        !this.common.hasFilter() || messages.all { this.common.filter.matches(it, helpers) }
+fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
+        !this.hasFilter() || messages.all { this.filter.matches(it, helpers) }
 
 fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers): Boolean = (
         (this.prefix == null  || this.prefix.size() == 0  || message.content.startsWith(this.prefix)) &&
