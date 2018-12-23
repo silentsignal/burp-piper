@@ -18,6 +18,9 @@
 
 package burp
 
+import com.amihaiemil.eoyaml.Yaml
+import com.amihaiemil.eoyaml.YamlMapping
+import com.amihaiemil.eoyaml.YamlNode
 import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
 import sun.misc.BASE64Encoder
@@ -448,8 +451,7 @@ class BurpExtender : IBurpExtender {
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
-            val obj = Piper.RegularExpression.newBuilder().setPattern("teszt").setFlags(Pattern.CASE_INSENSITIVE).build()
-            println(BASE64Encoder().encode(obj.toByteArray()))
+            print(BurpExtender().loadConfig().toYaml().toString())
         }
     }
 }
@@ -521,3 +523,52 @@ fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
 
 fun Piper.RegularExpression.matches(subject: String): Boolean =
         Pattern.compile(this.pattern, this.flags).matcher(subject).matches()
+
+fun Piper.Config.toYaml(): YamlNode {
+    return Yaml.createYamlMappingBuilder()
+            .add("messageViewers", this.messageViewerList.fold(Yaml.createYamlSequenceBuilder(), {acc, messageViewer ->
+                acc.add(messageViewer.toYaml())
+            }).build())
+            .build()
+}
+
+fun Piper.MessageViewer.toYaml(): YamlNode {
+    return Yaml.createYamlMappingBuilder()
+            .add("common", this.common.toYaml())
+            .add("usesColors", this.usesColors.toString())
+            .build()
+}
+
+fun Piper.MinimalTool.toYaml(): YamlNode {
+    var mb = Yaml.createYamlMappingBuilder()
+            .add("name", this.name)
+            .add("cmd", this.cmd.toYaml())
+    if (this.hasFilter()) mb = mb.add("filter", this.filter.toYaml())
+    return mb.build()
+}
+
+fun Piper.CommandInvocation.toYaml(): YamlNode {
+    var mb = Yaml.createYamlMappingBuilder()
+    if (this.prefixCount > 0) mb = mb.add("prefix", this.prefixList.fold(
+            Yaml.createYamlSequenceBuilder(), { acc, s -> acc.add(s) }).build())
+    if (this.postfixCount > 0) mb = mb.add("postfix", this.postfixList.fold(
+            Yaml.createYamlSequenceBuilder(), { acc, s -> acc.add(s) }).build())
+    return mb.add("inputMethod", this.inputMethod.toString())
+            .add("passHeaders", this.passHeaders.toString())
+            .build()
+}
+
+fun Piper.MessageMatch.toYaml(): YamlNode {
+    var mb = Yaml.createYamlMappingBuilder()
+    if (!this.prefix .isEmpty) mb = mb.add("prefix",  this.prefix .toByteArray().joinToString(separator=":",
+            transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
+    if (!this.postfix.isEmpty) mb = mb.add("postfix", this.postfix.toByteArray().joinToString(separator=":",
+            transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
+    // TODO regex, header, cmd
+    if (this.negation) mb = mb.add("negation", this.negation.toString())
+    if (this.andAlsoCount > 0) mb = mb.add("andAlso", this.andAlsoList.fold(
+            Yaml.createYamlSequenceBuilder(), { acc, mm -> acc.add(mm.toYaml()) }).build())
+    if (this.orElseCount  > 0) mb = mb.add("orElse",  this.orElseList .fold(
+            Yaml.createYamlSequenceBuilder(), { acc, mm -> acc.add(mm.toYaml()) }).build())
+    return mb.build()
+}
