@@ -526,9 +526,7 @@ fun Piper.RegularExpression.matches(subject: String): Boolean =
 
 fun Piper.Config.toYaml(): YamlNode {
     return Yaml.createYamlMappingBuilder()
-            .add("messageViewers", this.messageViewerList.fold(Yaml.createYamlSequenceBuilder(), {acc, messageViewer ->
-                acc.add(messageViewer.toYaml())
-            }).build())
+            .add("messageViewers", mapListToYamlSequence(this.messageViewerList, Piper.MessageViewer::toYaml))
             .build()
 }
 
@@ -549,10 +547,8 @@ fun Piper.MinimalTool.toYaml(): YamlNode {
 
 fun Piper.CommandInvocation.toYaml(): YamlNode {
     var mb = Yaml.createYamlMappingBuilder()
-    if (this.prefixCount > 0) mb = mb.add("prefix", this.prefixList.fold(
-            Yaml.createYamlSequenceBuilder(), { acc, s -> acc.add(s) }).build())
-    if (this.postfixCount > 0) mb = mb.add("postfix", this.postfixList.fold(
-            Yaml.createYamlSequenceBuilder(), { acc, s -> acc.add(s) }).build())
+    if (this.prefixCount > 0) mb = mb.add("prefix", mapListToYamlSequence(this.prefixList))
+    if (this.postfixCount > 0) mb = mb.add("postfix", mapListToYamlSequence(this.postfixList))
     return mb.add("inputMethod", this.inputMethod.toString())
             .add("passHeaders", this.passHeaders.toString())
             .build()
@@ -566,9 +562,13 @@ fun Piper.MessageMatch.toYaml(): YamlNode {
             transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
     // TODO regex, header, cmd
     if (this.negation) mb = mb.add("negation", this.negation.toString())
-    if (this.andAlsoCount > 0) mb = mb.add("andAlso", this.andAlsoList.fold(
-            Yaml.createYamlSequenceBuilder(), { acc, mm -> acc.add(mm.toYaml()) }).build())
-    if (this.orElseCount  > 0) mb = mb.add("orElse",  this.orElseList .fold(
-            Yaml.createYamlSequenceBuilder(), { acc, mm -> acc.add(mm.toYaml()) }).build())
+    if (this.andAlsoCount > 0) mb = mb.add("andAlso", mapListToYamlSequence(this.andAlsoList, Piper.MessageMatch::toYaml))
+    if (this.orElseCount  > 0) mb = mb.add("orElse",  mapListToYamlSequence(this.orElseList, Piper.MessageMatch::toYaml))
     return mb.build()
 }
+
+fun <E> mapListToYamlSequence(source: Iterable<E>, transform: (E) -> YamlNode): YamlNode =
+    source.fold(Yaml.createYamlSequenceBuilder(), { acc, e -> acc.add(transform(e)) }).build()
+
+fun mapListToYamlSequence(source: Iterable<String>): YamlNode =
+    source.fold(Yaml.createYamlSequenceBuilder(), { acc, e -> acc.add(e) }).build()
