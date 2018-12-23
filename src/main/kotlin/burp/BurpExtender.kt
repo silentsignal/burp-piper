@@ -547,7 +547,7 @@ fun Piper.MinimalTool.toYaml(): YamlNode {
 
 fun Piper.CommandInvocation.toYaml(): YamlNode {
     var mb = Yaml.createYamlMappingBuilder()
-    if (this.prefixCount > 0) mb = mb.add("prefix", mapListToYamlSequence(this.prefixList))
+    if (this.prefixCount  > 0) mb = mb.add("prefix",  mapListToYamlSequence(this.prefixList ))
     if (this.postfixCount > 0) mb = mb.add("postfix", mapListToYamlSequence(this.postfixList))
     return mb.add("inputMethod", this.inputMethod.toString())
             .add("passHeaders", this.passHeaders.toString())
