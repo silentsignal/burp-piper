@@ -471,13 +471,13 @@ fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers)
 
 fun ByteArray.startsWith(value: ByteString): Boolean {
     val mps = value.size()
-    return this.size >= mps && this.copyOfRange(0, mps).contentEquals(value.toByteArray())
+    return this.size >= mps && this.copyOfRange(0, mps) == value.toByteArray()
 }
 
 fun ByteArray.endsWith(value: ByteString): Boolean {
     val mps = value.size()
     val mbs = this.size
-    return mbs >= mps && this.copyOfRange(mbs - mps, mbs).contentEquals(value.toByteArray())
+    return mbs >= mps && this.copyOfRange(mbs - mps, mbs) == value.toByteArray()
 }
 
 fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List<File>> {
