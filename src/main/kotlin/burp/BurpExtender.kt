@@ -89,7 +89,7 @@ class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers:
     }
 
     private fun transformContent(content: ByteArray, isRequest: Boolean): ByteArray {
-        if (tool.common.passHeaders) return content
+        if (tool.common.cmd.passHeaders) return content
         val rr = IS_REQUEST_MAP[isRequest]!!
         val bo = rr.getBodyOffset(content, helpers)
         return content.copyOfRange(bo, content.size)
@@ -152,7 +152,7 @@ class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IEx
     }
 
     private fun transformContent(content: ByteArray, isRequest: Boolean): ByteArray {
-        if (tool.common.passHeaders) return content
+        if (tool.common.cmd.passHeaders) return content
         val rr = IS_REQUEST_MAP[isRequest]!!
         val bo = rr.getBodyOffset(content, helpers)
         return content.copyOfRange(bo, content.size)
@@ -253,15 +253,15 @@ class BurpExtender : IBurpExtender {
         for (cfgItem in cfg.menuItemList) {
             if (cfgItem.maxInputs < msize || cfgItem.minInputs > msize || !cfgItem.common.enabled) continue
             for ((msrc, md) in messageDetails) {
-                if (cfgItem.common.passHeaders == msrc.includeHeaders && cfgItem.common.canProcess(md, helpers)) {
+                if (cfgItem.common.cmd.passHeaders == msrc.includeHeaders && cfgItem.common.canProcess(md, helpers)) {
                     val noun = msrc.direction.toString().toLowerCase()
                     val outItem = JMenuItem("${cfgItem.common.name} ($noun$plural)")
                     outItem.addActionListener { performMenuAction(cfgItem, md) }
                     topLevel.add(outItem)
                 }
-                if (!cfgItem.common.passHeaders && !cfgItem.common.hasFilter()) {
+                if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
                     cfg.messageViewerList.forEach { mv ->
-                        if (mv.common.passHeaders == msrc.includeHeaders && mv.common.canProcess(md, helpers)) {
+                        if (mv.common.cmd.passHeaders == msrc.includeHeaders && mv.common.canProcess(md, helpers)) {
                             val noun = msrc.direction.toString().toLowerCase()
                             val outItem = JMenuItem("${mv.common.name} | ${cfgItem.common.name} ($noun$plural)")
                             outItem.addActionListener { performMenuAction(cfgItem, md, mv) }
@@ -283,9 +283,9 @@ class BurpExtender : IBurpExtender {
                                             Piper.CommandInvocation.newBuilder()
                                                     .addAllPrefix(mutableListOf("urxvt", "-e", "hexcurse"))
                                                     .setInputMethod(Piper.CommandInvocation.InputMethod.FILENAME)
+                                                    .setPassHeaders(false)
                                     )
                                     .setEnabled(true)
-                                    .setPassHeaders(false)
                     )
                     .setHasGUI(true)
                     .setMaxInputs(1)
@@ -298,9 +298,9 @@ class BurpExtender : IBurpExtender {
                                             Piper.CommandInvocation.newBuilder()
                                             .addAllPrefix(mutableListOf("urxvt", "-e", "vbindiff"))
                                             .setInputMethod(Piper.CommandInvocation.InputMethod.FILENAME)
+                                            .setPassHeaders(false)
                                     )
                                     .setEnabled(true)
-                                    .setPassHeaders(false)
                     )
                     .setHasGUI(true)
                     .setMaxInputs(2)
@@ -313,9 +313,9 @@ class BurpExtender : IBurpExtender {
                                             Piper.CommandInvocation.newBuilder()
                                                     .addAllPrefix(mutableListOf("urxvt", "-e", "vbindiff"))
                                                     .setInputMethod(Piper.CommandInvocation.InputMethod.FILENAME)
+                                                    .setPassHeaders(true)
                                     )
                                     .setEnabled(true)
-                                    .setPassHeaders(true)
                     )
                     .setHasGUI(true)
                     .setMaxInputs(2)
@@ -328,9 +328,9 @@ class BurpExtender : IBurpExtender {
                                             Piper.CommandInvocation.newBuilder()
                                                     .addAllPrefix(mutableListOf("git", "diff", "--color=always"))
                                                     .setInputMethod(Piper.CommandInvocation.InputMethod.FILENAME)
+                                                    .setPassHeaders(false)
                                     )
                                     .setEnabled(true)
-                                    .setPassHeaders(false)
                     )
                     .setHasGUI(false)
                     .setMinInputs(2)
@@ -343,9 +343,9 @@ class BurpExtender : IBurpExtender {
                                     Piper.CommandInvocation.newBuilder()
                                             .addAllPrefix(mutableListOf("rev"))
                                             .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                                            .setPassHeaders(true)
                             )
                             .setEnabled(true)
-                            .setPassHeaders(true)
             )
     ).addMessageViewer(
             Piper.MessageViewer.newBuilder().setCommon(
@@ -355,9 +355,9 @@ class BurpExtender : IBurpExtender {
                                     Piper.CommandInvocation.newBuilder()
                                             .addAllPrefix(mutableListOf("pygmentize", "-g"))
                                             .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                                            .setPassHeaders(false)
                             )
                             .setEnabled(true)
-                            .setPassHeaders(false)
                     )
                     .setUsesColors(true)
     ).addMessageViewer(
@@ -368,6 +368,7 @@ class BurpExtender : IBurpExtender {
                                     Piper.CommandInvocation.newBuilder()
                                             .addAllPrefix(mutableListOf("openssl", "asn1parse", "-inform", "DER", "-i"))
                                             .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                                            .setPassHeaders(false)
                             )
                             .setFilter(
                                     Piper.MessageMatch.newBuilder()
@@ -375,7 +376,6 @@ class BurpExtender : IBurpExtender {
                                             .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFrom(byteArrayOf(0x30, 0x80.toByte()))))
                             )
                             .setEnabled(true)
-                            .setPassHeaders(false)
             )
     ).addMessageViewer(
             Piper.MessageViewer.newBuilder().setCommon(
@@ -385,6 +385,7 @@ class BurpExtender : IBurpExtender {
                                     Piper.CommandInvocation.newBuilder()
                                             .addAllPrefix(mutableListOf("python", "-m", "json.tool"))
                                             .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                                            .setPassHeaders(false)
                             )
                             .setFilter(
                                     Piper.MessageMatch.newBuilder()
@@ -392,7 +393,6 @@ class BurpExtender : IBurpExtender {
                                             .addOrElse(Piper.MessageMatch.newBuilder().setPrefix(ByteString.copyFromUtf8("[")).setPostfix(ByteString.copyFromUtf8("]")))
                             )
                             .setEnabled(true)
-                            .setPassHeaders(false)
             )
     ).build()
 
