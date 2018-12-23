@@ -556,16 +556,17 @@ fun Piper.CommandInvocation.toYaml(): YamlNode {
 
 fun Piper.MessageMatch.toYaml(): YamlNode {
     var mb = Yaml.createYamlMappingBuilder()
-    if (!this.prefix .isEmpty) mb = mb.add("prefix",  this.prefix .toByteArray().joinToString(separator=":",
-            transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
-    if (!this.postfix.isEmpty) mb = mb.add("postfix", this.postfix.toByteArray().joinToString(separator=":",
-            transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
+    if (!this.prefix .isEmpty) mb = mb.add("prefix",  this.prefix .toYaml())
+    if (!this.postfix.isEmpty) mb = mb.add("postfix", this.postfix.toYaml())
     // TODO regex, header, cmd
     if (this.negation) mb = mb.add("negation", this.negation.toString())
     if (this.andAlsoCount > 0) mb = mb.add("andAlso", mapListToYamlSequence(this.andAlsoList, Piper.MessageMatch::toYaml))
     if (this.orElseCount  > 0) mb = mb.add("orElse",  mapListToYamlSequence(this.orElseList, Piper.MessageMatch::toYaml))
     return mb.build()
 }
+
+fun ByteString.toYaml(): String =
+    this.toByteArray().joinToString(separator=":", transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') })
 
 fun <E> mapListToYamlSequence(source: Iterable<E>, transform: (E) -> YamlNode): YamlNode =
     source.fold(Yaml.createYamlSequenceBuilder(), { acc, e -> acc.add(transform(e)) }).build()
