@@ -20,6 +20,7 @@ package burp
 
 import com.amihaiemil.eoyaml.Yaml
 import com.amihaiemil.eoyaml.YamlMapping
+import com.amihaiemil.eoyaml.YamlMappingBuilder
 import com.amihaiemil.eoyaml.YamlNode
 import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
@@ -524,52 +525,51 @@ fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
 fun Piper.RegularExpression.matches(subject: String): Boolean =
         Pattern.compile(this.pattern, this.flags).matcher(subject).matches()
 
-fun Piper.Config.toYaml(): YamlNode {
-    return Yaml.createYamlMappingBuilder()
-            .add("messageViewers", mapListToYamlSequence(this.messageViewerList, Piper.MessageViewer::toYaml))
-            .build()
-}
+fun Piper.Config.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("messageViewers", this.messageViewerList, Piper.MessageViewer::toYaml)
+        .build()
 
-fun Piper.MessageViewer.toYaml(): YamlNode {
-    return Yaml.createYamlMappingBuilder()
-            .add("common", this.common.toYaml())
-            .add("usesColors", this.usesColors.toString())
-            .build()
-}
+fun Piper.MessageViewer.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("common", this.common.toYaml())
+        .add("usesColors", this.usesColors)
+        .build()
 
-fun Piper.MinimalTool.toYaml(): YamlNode {
-    var mb = Yaml.createYamlMappingBuilder()
-            .add("name", this.name)
-            .add("cmd", this.cmd.toYaml())
-    if (this.hasFilter()) mb = mb.add("filter", this.filter.toYaml())
-    return mb.build()
-}
+fun Piper.MinimalTool.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("name", this.name)
+        .add("cmd", this.cmd.toYaml())
+        .addIfNotNull("filter", this.filter?.toYaml())
+        .build()
 
-fun Piper.CommandInvocation.toYaml(): YamlNode {
-    var mb = Yaml.createYamlMappingBuilder()
-    if (this.prefixCount  > 0) mb = mb.add("prefix",  mapListToYamlSequence(this.prefixList ))
-    if (this.postfixCount > 0) mb = mb.add("postfix", mapListToYamlSequence(this.postfixList))
-    return mb.add("inputMethod", this.inputMethod.toString())
-            .add("passHeaders", this.passHeaders.toString())
-            .build()
-}
+fun Piper.CommandInvocation.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("prefix", this.prefixList)
+        .add("postfix", this.postfixList)
+        .add("inputMethod", this.inputMethod.toString())
+        .add("passHeaders", this.passHeaders)
+        .build()
 
-fun Piper.MessageMatch.toYaml(): YamlNode {
-    var mb = Yaml.createYamlMappingBuilder()
-    if (!this.prefix .isEmpty) mb = mb.add("prefix",  this.prefix .toYaml())
-    if (!this.postfix.isEmpty) mb = mb.add("postfix", this.postfix.toYaml())
-    // TODO regex, header, cmd
-    if (this.negation) mb = mb.add("negation", this.negation.toString())
-    if (this.andAlsoCount > 0) mb = mb.add("andAlso", mapListToYamlSequence(this.andAlsoList, Piper.MessageMatch::toYaml))
-    if (this.orElseCount  > 0) mb = mb.add("orElse",  mapListToYamlSequence(this.orElseList, Piper.MessageMatch::toYaml))
-    return mb.build()
-}
+fun Piper.MessageMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("prefix", this.prefix)
+        .add("postfix", this.postfix)
+        // TODO regex, header, cmd
+        .add("negation", this.negation)
+        .add("andAlso", this.andAlsoList, Piper.MessageMatch::toYaml)
+        .add("orElse", this.orElseList, Piper.MessageMatch::toYaml)
+        .build()
 
-fun ByteString.toYaml(): String =
-    this.toByteArray().joinToString(separator=":", transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') })
+fun YamlMappingBuilder.add(key: String, value: ByteString) =
+        if (value.isEmpty) this else this.add(key, value.toByteArray().joinToString(separator=":",
+                transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
 
-fun <E> mapListToYamlSequence(source: Iterable<E>, transform: (E) -> YamlNode): YamlNode =
-    source.fold(Yaml.createYamlSequenceBuilder(), { acc, e -> acc.add(transform(e)) }).build()
+fun YamlMappingBuilder.addIfNotNull(key: String, value: YamlNode?) =
+        if (value == null) this else this.add(key, value)
 
-fun mapListToYamlSequence(source: Iterable<String>): YamlNode =
-    source.fold(Yaml.createYamlSequenceBuilder(), { acc, e -> acc.add(e) }).build()
+fun YamlMappingBuilder.add(key: String, value: Boolean) =
+        if (value) this.add(key, "true") else this
+
+fun <E> YamlMappingBuilder.add(key: String, value: List<E>, transform: (E) -> YamlNode): YamlMappingBuilder =
+        if (value.isEmpty()) this else this.add(key, value.fold(
+                Yaml.createYamlSequenceBuilder()) { acc, e -> acc.add(transform(e)) }.build())
+
+fun YamlMappingBuilder.add(key: String, value: List<String>): YamlMappingBuilder =
+        if (value.isEmpty()) this else this.add(key, value.fold(
+                Yaml.createYamlSequenceBuilder()) { acc, e -> acc.add(e) }.build())
