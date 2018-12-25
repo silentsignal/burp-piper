@@ -292,6 +292,26 @@ class BurpExtender : IBurpExtender {
             Piper.UserActionTool.newBuilder()
                     .setCommon(
                             Piper.MinimalTool.newBuilder()
+                                    .setName("Okular")
+                                    .setCmd(
+                                            Piper.CommandInvocation.newBuilder()
+                                                    .addPrefix("okular")
+                                                    .setInputMethod(Piper.CommandInvocation.InputMethod.FILENAME)
+                                    )
+                                    .setFilter(
+                                            Piper.MessageMatch.newBuilder()
+                                                    .setRegex(Piper.RegularExpression.newBuilder()
+                                                            .setPattern("^%PDF-1\\.[0-9]")
+                                                            .setFlags(Pattern.CASE_INSENSITIVE or Pattern.DOTALL)
+                                                    )
+                                    )
+                                    .setEnabled(true)
+                    )
+                    .setHasGUI(true)
+    ).addMenuItem(
+            Piper.UserActionTool.newBuilder()
+                    .setCommon(
+                            Piper.MinimalTool.newBuilder()
                                     .setName("feh")
                                     .setCmd(
                                             Piper.CommandInvocation.newBuilder()
