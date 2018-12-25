@@ -463,7 +463,9 @@ class BurpExtender : IBurpExtender {
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
-            print(BurpExtender().loadConfig().toYaml().toString())
+            val cfg = BurpExtender().loadConfig()
+            println(Base64.getEncoder().encodeToString(cfg.toByteArray()))
+            println(cfg.toYaml().toString())
         }
     }
 }
