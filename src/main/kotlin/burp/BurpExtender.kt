@@ -556,6 +556,15 @@ fun Piper.RegularExpression.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
 
 fun Piper.Config.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("messageViewers", this.messageViewerList, Piper.MessageViewer::toYaml)
+        .add("menuItems", this.menuItemList, Piper.UserActionTool::toYaml)
+        .add("macros", this.macroList, Piper.MinimalTool::toYaml)
+        .build()
+
+fun Piper.UserActionTool.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("common", this.common.toYaml())
+        .add("hasGUI", this.hasGUI)
+        .add("maxInputs", this.maxInputs)
+        .add("minInputs", this.minInputs)
         .build()
 
 fun Piper.MessageViewer.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
@@ -574,13 +583,23 @@ fun Piper.CommandInvocation.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("postfix", this.postfixList)
         .add("inputMethod", this.inputMethod.name.toLowerCase())
         .add("passHeaders", this.passHeaders)
+        .add("requiredInPath", this.requiredInPathList)
+        .add("exitCode", this.exitCodeList.map(Int::toString))
+        .addIf(this.hasStdout(), "stdout", this.stdout::toYaml)
+        .addIf(this.hasStderr(), "stderr", this.stderr::toYaml)
+        .build()
+
+fun Piper.HeaderMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("header", this.header)
+        .add("regex", this.regex.toYaml())
         .build()
 
 fun Piper.MessageMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("prefix", this.prefix)
         .add("postfix", this.postfix)
-        // TODO header, cmd
         .addIf(this.hasRegex(), "regex", this.regex::toYaml)
+        .addIf(this.hasHeader(), "header", this.header::toYaml)
+        .addIf(this.hasCmd(), "cmd", this.cmd::toYaml)
         .add("negation", this.negation)
         .add("andAlso", this.andAlsoList, Piper.MessageMatch::toYaml)
         .add("orElse", this.orElseList, Piper.MessageMatch::toYaml)
@@ -595,6 +614,9 @@ fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, producer: () -> Yaml
 
 fun YamlMappingBuilder.add(key: String, value: Boolean) =
         if (value) this.add(key, "true") else this
+
+fun YamlMappingBuilder.add(key: String, value: Int) =
+        if (value == 0) this else this.add(key, value.toString())
 
 fun <E> YamlMappingBuilder.add(key: String, value: List<E>, transform: (E) -> YamlNode): YamlMappingBuilder =
         if (value.isEmpty()) this else this.add(key, value.fold(
