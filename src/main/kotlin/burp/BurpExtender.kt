@@ -358,6 +358,17 @@ class BurpExtender : IBurpExtender {
                                             .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
                                             .setPassHeaders(true)
                             )
+                            .setFilter(
+                                    Piper.MessageMatch.newBuilder()
+                                            .setHeader(
+                                                    Piper.HeaderMatch.newBuilder()
+                                                            .setHeader("content-type")
+                                                            .setRegex(
+                                                                    Piper.RegularExpression.newBuilder()
+                                                                            .setPattern("^text/")
+                                                            )
+                                            )
+                            )
                             .setEnabled(true)
             )
     ).addMessageViewer(
