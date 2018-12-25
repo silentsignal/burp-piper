@@ -58,8 +58,8 @@ enum class RequestResponse {
             return helpers.analyzeRequest(data).bodyOffset
         }
 
-        override fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String> {
-            return helpers.analyzeRequest(rr).headers
+        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> {
+            return helpers.analyzeRequest(data).headers
         }
     },
 
@@ -72,14 +72,14 @@ enum class RequestResponse {
             return helpers.analyzeResponse(data).bodyOffset
         }
 
-        override fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String> {
-            return helpers.analyzeResponse(rr.response).headers
+        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> {
+            return helpers.analyzeResponse(data).headers
         }
     };
 
     abstract fun getMessage(rr: IHttpRequestResponse): ByteArray?
     abstract fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int
-    abstract fun getHeaders(rr: IHttpRequestResponse, helpers: IExtensionHelpers): List<String>
+    abstract fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String>
 }
 
 val IS_REQUEST_MAP = mapOf(
@@ -163,14 +163,14 @@ class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IEx
         if (content == null) return false
         if (!tool.common.hasFilter()) return true
         val payload = transformContent(content, isRequest)
-        return payload.isNotEmpty() && tool.common.filter.matches(payload, helpers)
+        return payload.content.isNotEmpty() && tool.common.filter.matches(payload, helpers)
     }
 
-    private fun transformContent(content: ByteArray, isRequest: Boolean): ByteArray {
-        if (tool.common.cmd.passHeaders) return content
+    private fun transformContent(content: ByteArray, isRequest: Boolean): MessageInfo {
         val rr = IS_REQUEST_MAP[isRequest]!!
-        val bo = rr.getBodyOffset(content, helpers)
-        return content.copyOfRange(bo, content.size)
+        var payload = if (tool.common.cmd.passHeaders) content
+            else content.copyOfRange(rr.getBodyOffset(content, helpers), content.size)
+        return MessageInfo(payload, helpers.bytesToString(payload), rr.getHeaders(content, helpers))
     }
 
     override fun getMessage(): ByteArray? {
@@ -251,7 +251,7 @@ class BurpExtender : IBurpExtender {
             val miWithoutHeaders = ArrayList<MessageInfo>(messages.size)
             messages.forEach {
                 val bytes = rr.getMessage(it) ?: return@forEach
-                val headers = rr.getHeaders(it, helpers)
+                val headers = rr.getHeaders(bytes, helpers)
                 miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers))
                 val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
