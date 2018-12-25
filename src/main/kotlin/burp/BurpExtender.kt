@@ -37,6 +37,17 @@ const val NAME = "Piper"
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 
+enum class RegExpFlag {
+    CASE_INSENSITIVE, MULTILINE, DOTALL, UNICODE_CASE, CANON_EQ,
+    UNIX_LINES, LITERAL, UNICODE_CHARACTER_CLASS, COMMENTS;
+
+    val value = Pattern::class.java.getField(name).getInt(null)
+
+    override fun toString(): String {
+        return name.toLowerCase().replace('_', ' ')
+    }
+}
+
 enum class RequestResponse {
     REQUEST {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? {
@@ -527,6 +538,18 @@ fun Piper.RegularExpression.matches(subject: String): Boolean =
 
 fun Piper.RegularExpression.compile(): Pattern = Pattern.compile(this.pattern, this.flags)
 
+val Piper.RegularExpression.flagSet: Set<RegExpFlag>
+    get() = if (this.flags == 0) EnumSet.noneOf(RegExpFlag::class.java)
+            else EnumSet.copyOf(RegExpFlag.values().filter { this.flags.and(it.value) != 0 })
+
+fun Piper.RegularExpression.Builder.setFlagSet(flags: Set<RegExpFlag>) =
+        this.setFlags(flags.fold(0) { acc: Int, regExpFlag: RegExpFlag -> acc or regExpFlag.value })
+
+fun Piper.RegularExpression.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
+        .add("pattern", this.pattern)
+        .add("flags", this.flagSet.asSequence().map(RegExpFlag::toString).sorted().toList())
+        .build()
+
 fun Piper.Config.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("messageViewers", this.messageViewerList, Piper.MessageViewer::toYaml)
         .build()
@@ -552,7 +575,8 @@ fun Piper.CommandInvocation.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
 fun Piper.MessageMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("prefix", this.prefix)
         .add("postfix", this.postfix)
-        // TODO regex, header, cmd
+        // TODO header, cmd
+        .addIf(this.hasRegex(), "regex", this.regex?.toYaml())
         .add("negation", this.negation)
         .add("andAlso", this.andAlsoList, Piper.MessageMatch::toYaml)
         .add("orElse", this.orElseList, Piper.MessageMatch::toYaml)
