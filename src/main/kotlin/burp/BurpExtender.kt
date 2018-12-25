@@ -135,18 +135,17 @@ class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers:
         if (content == null) return
         terminal.text = ""
         thread {
-            val (process, tempFiles) = tool.common.cmd.execute(listOf(transformContent(content, isRequest)))
-            for (stream in arrayOf(process.inputStream, process.errorStream)) {
-                thread {
-                    val reader = stream.bufferedReader()
-                    while (true) {
-                        val line = reader.readLine() ?: break
-                        terminal.append("$line\n")
-                    }
-                }.start()
+            tool.common.cmd.execute(listOf(transformContent(content, isRequest))).processOutput { process ->
+                for (stream in arrayOf(process.inputStream, process.errorStream)) {
+                    thread {
+                        val reader = stream.bufferedReader()
+                        while (true) {
+                            val line = reader.readLine() ?: break
+                            terminal.append("$line\n")
+                        }
+                    }.start()
+                }
             }
-            process.waitFor()
-            tempFiles.forEach { it.delete() }
         }.start()
     }
 }
@@ -197,13 +196,12 @@ class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IEx
         msg = content
         if (content == null) return
         thread {
-            val (process, tempFiles) = tool.common.cmd.execute(listOf(transformContent(content, isRequest)))
-            process.inputStream.use {
-                val bytes = it.readBytes()
-                SwingUtilities.invokeLater { editor.text = bytes }
+            tool.common.cmd.execute(listOf(transformContent(content, isRequest).content)).processOutput { process ->
+                process.inputStream.use {
+                    val bytes = it.readBytes()
+                    SwingUtilities.invokeLater { editor.text = bytes }
+                }
             }
-            process.waitFor()
-            tempFiles.forEach { it.delete() }
         }.start()
     }
 }
@@ -417,21 +415,14 @@ class BurpExtender : IBurpExtender {
                 messages.map(MessageInfo::content)
             } else {
                 messages.map { msg ->
-                    val (process, tempFiles) = messageViewer.common.cmd.execute(listOf(msg.content))
-                    val bytes = process.inputStream.use {
-                        it.readBytes()
+                    messageViewer.common.cmd.execute(listOf(msg.content)).processOutput { process ->
+                        process.inputStream.use { it.readBytes() }
                     }
-                    process.waitFor()
-                    tempFiles.forEach { it.delete() }
-                    bytes
                 }
             }
-            val (process, tempFiles) = cfgItem.common.cmd.execute(input)
-            if (!cfgItem.hasGUI) {
-                handleGUI(process, cfgItem.common)
+            cfgItem.common.cmd.execute(input).processOutput { process ->
+                if (!cfgItem.hasGUI) handleGUI(process, cfgItem.common)
             }
-            process.waitFor()
-            tempFiles.forEach { it.delete() }
         }.start()
     }
 
@@ -601,3 +592,10 @@ fun <E> YamlMappingBuilder.add(key: String, value: List<E>, transform: (E) -> Ya
 fun YamlMappingBuilder.add(key: String, value: List<String>): YamlMappingBuilder =
         if (value.isEmpty()) this else this.add(key, value.fold(
                 Yaml.createYamlSequenceBuilder()) { acc, e -> acc.add(e) }.build())
+
+fun <E> Pair<Process, List<File>>.processOutput(processor: (Process) -> E): E {
+    val output = processor(this.first)
+    this.first.waitFor()
+    this.second.forEach { it.delete() }
+    return output
+}
