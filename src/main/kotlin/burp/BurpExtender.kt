@@ -501,9 +501,9 @@ fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List
     return p to tempFiles
 }
 
-fun Piper.CommandMatch.matches(subject: ByteArray, helpers: IExtensionHelpers): Boolean {
+fun Piper.CommandInvocation.matches(subject: ByteArray, helpers: IExtensionHelpers): Boolean {
     val inputs = listOf(subject)
-    val (process, tempFiles) = this.cmd.execute(inputs)
+    val (process, tempFiles) = this.execute(inputs)
     if ((this.hasStderr() && !this.stderr.matches(process.errorStream, helpers)) ||
             (this.hasStdout() && !this.stdout.matches(process.inputStream, helpers))) return false
     val exitCode = process.waitFor()

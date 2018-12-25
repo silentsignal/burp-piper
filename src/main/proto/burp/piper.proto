@@ -39,13 +39,10 @@ message CommandInvocation {
     }
     InputMethod inputMethod = 3;
     bool passHeaders = 4;
-}
-
-message CommandMatch {
-    CommandInvocation cmd = 1;
-    repeated int32 exitCode = 2;
-    MessageMatch stdout = 3;
-    MessageMatch stderr = 4;
+    repeated string requiredInPath = 5;
+    repeated int32 exitCode = 6;
+    MessageMatch stdout = 7;
+    MessageMatch stderr = 8;
 }
 
 message MessageMatch {
@@ -53,7 +50,7 @@ message MessageMatch {
     bytes postfix = 2;
     RegularExpression regex = 3;
     HeaderMatch header = 4;
-    CommandMatch cmd = 5;
+    CommandInvocation cmd = 5;
     bool negation = 6;
     repeated MessageMatch andAlso = 7;
     repeated MessageMatch orElse = 8;
