@@ -258,7 +258,7 @@ class BurpExtender : IBurpExtender {
             if (cfgItem.maxInputs < msize || cfgItem.minInputs > msize || !cfgItem.common.enabled) continue
             for ((msrc, md) in messageDetails) {
                 if (cfgItem.common.cmd.passHeaders == msrc.includeHeaders && cfgItem.common.canProcess(md, helpers)) {
-                    val noun = msrc.direction.toString().toLowerCase()
+                    val noun = msrc.direction.name.toLowerCase()
                     val outItem = JMenuItem("${cfgItem.common.name} ($noun$plural)")
                     outItem.addActionListener { performMenuAction(cfgItem, md) }
                     topLevel.add(outItem)
@@ -266,7 +266,7 @@ class BurpExtender : IBurpExtender {
                 if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
                     cfg.messageViewerList.forEach { mv ->
                         if (mv.common.cmd.passHeaders == msrc.includeHeaders && mv.common.canProcess(md, helpers)) {
-                            val noun = msrc.direction.toString().toLowerCase()
+                            val noun = msrc.direction.name.toLowerCase()
                             val outItem = JMenuItem("${mv.common.name} | ${cfgItem.common.name} ($noun$plural)")
                             outItem.addActionListener { performMenuAction(cfgItem, md, mv) }
                             topLevel.add(outItem)
@@ -543,7 +543,7 @@ fun Piper.MinimalTool.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
 fun Piper.CommandInvocation.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("prefix", this.prefixList)
         .add("postfix", this.postfixList)
-        .add("inputMethod", this.inputMethod.toString().toLowerCase())
+        .add("inputMethod", this.inputMethod.name.toLowerCase())
         .add("passHeaders", this.passHeaders)
         .build()
 
