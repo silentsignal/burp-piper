@@ -446,7 +446,7 @@ class BurpExtender : IBurpExtender {
             add(scrollPane)
             setSize(675, 300)
             isVisible = true
-            title = tool.name
+            title = "$NAME - ${tool.name}"
         }
 
         for (stream in arrayOf(process.inputStream, process.errorStream)) {
