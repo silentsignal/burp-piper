@@ -539,7 +539,7 @@ fun Piper.MessageViewer.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
 fun Piper.MinimalTool.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("name", this.name)
         .add("cmd", this.cmd.toYaml())
-        .addIfNotNull("filter", this.filter?.toYaml())
+        .addIf(this.hasFilter(), "filter", this.filter?.toYaml())
         .build()
 
 fun Piper.CommandInvocation.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
@@ -562,8 +562,8 @@ fun YamlMappingBuilder.add(key: String, value: ByteString) =
         if (value.isEmpty) this else this.add(key, value.toByteArray().joinToString(separator=":",
                 transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
 
-fun YamlMappingBuilder.addIfNotNull(key: String, value: YamlNode?) =
-        if (value == null) this else this.add(key, value)
+fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, value: YamlNode?) =
+        if (enabled) this.add(key, value) else this
 
 fun YamlMappingBuilder.add(key: String, value: Boolean) =
         if (value) this.add(key, "true") else this
