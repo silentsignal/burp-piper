@@ -543,7 +543,7 @@ fun Piper.MinimalTool.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
 fun Piper.CommandInvocation.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("prefix", this.prefixList)
         .add("postfix", this.postfixList)
-        .add("inputMethod", this.inputMethod.toString())
+        .add("inputMethod", this.inputMethod.toString().toLowerCase())
         .add("passHeaders", this.passHeaders)
         .build()
 
