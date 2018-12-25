@@ -562,7 +562,7 @@ fun Piper.MessageViewer.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
 fun Piper.MinimalTool.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("name", this.name)
         .add("cmd", this.cmd.toYaml())
-        .addIf(this.hasFilter(), "filter", this.filter?.toYaml())
+        .addIf(this.hasFilter(), "filter", this.filter::toYaml)
         .build()
 
 fun Piper.CommandInvocation.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
@@ -576,7 +576,7 @@ fun Piper.MessageMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("prefix", this.prefix)
         .add("postfix", this.postfix)
         // TODO header, cmd
-        .addIf(this.hasRegex(), "regex", this.regex?.toYaml())
+        .addIf(this.hasRegex(), "regex", this.regex::toYaml)
         .add("negation", this.negation)
         .add("andAlso", this.andAlsoList, Piper.MessageMatch::toYaml)
         .add("orElse", this.orElseList, Piper.MessageMatch::toYaml)
@@ -586,8 +586,8 @@ fun YamlMappingBuilder.add(key: String, value: ByteString) =
         if (value.isEmpty) this else this.add(key, value.toByteArray().joinToString(separator=":",
                 transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
 
-fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, value: YamlNode?) =
-        if (enabled) this.add(key, value) else this
+fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, producer: () -> YamlNode) =
+        if (enabled) this.add(key, producer()) else this
 
 fun YamlMappingBuilder.add(key: String, value: Boolean) =
         if (value) this.add(key, "true") else this
