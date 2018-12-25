@@ -534,7 +534,7 @@ fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
 }
 
 fun Piper.RegularExpression.matches(subject: String): Boolean =
-        this.compile().matcher(subject).matches()
+        this.compile().matcher(subject).find()
 
 fun Piper.RegularExpression.compile(): Pattern = Pattern.compile(this.pattern, this.flags)
 
