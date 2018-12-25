@@ -523,7 +523,9 @@ fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
 }
 
 fun Piper.RegularExpression.matches(subject: String): Boolean =
-        Pattern.compile(this.pattern, this.flags).matcher(subject).matches()
+        this.compile().matcher(subject).matches()
+
+fun Piper.RegularExpression.compile(): Pattern = Pattern.compile(this.pattern, this.flags)
 
 fun Piper.Config.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("messageViewers", this.messageViewerList, Piper.MessageViewer::toYaml)
