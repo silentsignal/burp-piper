@@ -523,7 +523,7 @@ fun Piper.MessageMatch.matches(data: ByteArray, helpers: IExtensionHelpers): Boo
 
 fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
     it.startsWith("${this.header}: ", true) &&
-            this.regex.matches(it.substring(this.header.length + 2, it.length))
+            this.regex.matches(it.substring(this.header.length + 2))
 }
 
 fun Piper.RegularExpression.matches(subject: String): Boolean =
