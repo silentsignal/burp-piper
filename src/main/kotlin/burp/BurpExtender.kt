@@ -291,6 +291,35 @@ class BurpExtender : IBurpExtender {
             Piper.UserActionTool.newBuilder()
                     .setCommon(
                             Piper.MinimalTool.newBuilder()
+                                    .setName("feh")
+                                    .setCmd(
+                                            Piper.CommandInvocation.newBuilder()
+                                                    .addAllPrefix(mutableListOf("feh", "-FZ"))
+                                                    .setInputMethod(Piper.CommandInvocation.InputMethod.FILENAME)
+                                                    .setPassHeaders(false)
+                                    )
+                                    .setFilter(
+                                            Piper.MessageMatch.newBuilder()
+                                                    .setCmd(Piper.CommandInvocation.newBuilder()
+                                                            .addAllPrefix(mutableListOf("file", "-i", "-"))
+                                                            .setInputMethod(Piper.CommandInvocation.InputMethod.STDIN)
+                                                            .setStdout(
+                                                                    Piper.MessageMatch.newBuilder()
+                                                                            .setRegex(
+                                                                                    Piper.RegularExpression.newBuilder()
+                                                                                            .setPattern("image/")
+                                                                            )
+                                                            )
+                                                    )
+                                    )
+                                    .setEnabled(true)
+                    )
+                    .setHasGUI(true)
+                    .setMaxInputs(1)
+    ).addMenuItem(
+            Piper.UserActionTool.newBuilder()
+                    .setCommon(
+                            Piper.MinimalTool.newBuilder()
                                     .setName("hexcurse")
                                     .setCmd(
                                             Piper.CommandInvocation.newBuilder()
