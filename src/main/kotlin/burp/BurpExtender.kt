@@ -19,12 +19,10 @@
 package burp
 
 import com.amihaiemil.eoyaml.Yaml
-import com.amihaiemil.eoyaml.YamlMapping
 import com.amihaiemil.eoyaml.YamlMappingBuilder
 import com.amihaiemil.eoyaml.YamlNode
 import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
-import sun.misc.BASE64Encoder
 import java.awt.Component
 import java.io.File
 import java.io.InputStream
