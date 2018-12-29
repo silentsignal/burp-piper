@@ -654,17 +654,17 @@ fun Piper.MessageMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
         .add("orElse", this.orElseList, Piper.MessageMatch::toYaml)
         .build()
 
-fun YamlMappingBuilder.add(key: String, value: ByteString) =
+fun YamlMappingBuilder.add(key: String, value: ByteString): YamlMappingBuilder =
         if (value.isEmpty) this else this.add(key, value.toByteArray().joinToString(separator=":",
                 transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
 
-fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, producer: () -> YamlNode) =
+fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, producer: () -> YamlNode): YamlMappingBuilder =
         if (enabled) this.add(key, producer()) else this
 
-fun YamlMappingBuilder.add(key: String, value: Boolean) =
+fun YamlMappingBuilder.add(key: String, value: Boolean): YamlMappingBuilder =
         if (value) this.add(key, "true") else this
 
-fun YamlMappingBuilder.add(key: String, value: Int) =
+fun YamlMappingBuilder.add(key: String, value: Int): YamlMappingBuilder =
         if (value == 0) this else this.add(key, value.toString())
 
 fun <E> YamlMappingBuilder.add(key: String, value: List<E>, transform: (E) -> YamlNode): YamlMappingBuilder =
