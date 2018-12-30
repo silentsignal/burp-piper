@@ -18,19 +18,13 @@
 
 package burp
 
-import com.amihaiemil.eoyaml.Yaml
-import com.amihaiemil.eoyaml.YamlMappingBuilder
-import com.amihaiemil.eoyaml.YamlNode
 import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
 import java.awt.Component
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.util.*
 import java.util.regex.Pattern
-import java.util.zip.InflaterInputStream
-import java.util.zip.DeflaterOutputStream
 import javax.swing.*
 import kotlin.concurrent.thread
 import org.zeromq.codec.Z85
@@ -527,23 +521,6 @@ class BurpExtender : IBurpExtender {
     }
 }
 
-fun pad4(value: ByteArray): ByteArray {
-    val pad = (4 - value.size % 4).toByte()
-    return value + pad.downTo(1).map { pad }.toByteArray()
-}
-
-fun unpad4(value: ByteArray): ByteArray =
-    value.dropLast(value.last().toInt()).toByteArray()
-
-fun compress(value: ByteArray): ByteArray {
-    val bos = ByteArrayOutputStream()
-    DeflaterOutputStream(bos).use { it.write(value) }
-    return bos.toByteArray()
-}
-
-fun decompress(value: ByteArray): ByteArray =
-    InflaterInputStream(value.inputStream()).use { it.readBytes() }
-
 fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
         !this.hasFilter() || messages.all { this.filter.matches(it, helpers) }
 
@@ -561,13 +538,13 @@ fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers)
 
 fun ByteArray.startsWith(value: ByteString): Boolean {
     val mps = value.size()
-    return this.size >= mps && this.copyOfRange(0, mps) == value.toByteArray()
+    return this.size >= mps && this.copyOfRange(0, mps) contentEquals value.toByteArray()
 }
 
 fun ByteArray.endsWith(value: ByteString): Boolean {
     val mps = value.size()
     val mbs = this.size
-    return mbs >= mps && this.copyOfRange(mbs - mps, mbs) == value.toByteArray()
+    return mbs >= mps && this.copyOfRange(mbs - mps, mbs) contentEquals value.toByteArray()
 }
 
 fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List<File>> {
@@ -620,82 +597,6 @@ val Piper.RegularExpression.flagSet: Set<RegExpFlag>
 
 fun Piper.RegularExpression.Builder.setFlagSet(flags: Set<RegExpFlag>) =
         this.setFlags(flags.fold(0) { acc: Int, regExpFlag: RegExpFlag -> acc or regExpFlag.value })
-
-fun Piper.RegularExpression.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("pattern", this.pattern)
-        .add("flags", this.flagSet.asSequence().map(RegExpFlag::toString).sorted().toList())
-        .build()
-
-fun Piper.Config.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("messageViewers", this.messageViewerList, Piper.MessageViewer::toYaml)
-        .add("menuItems", this.menuItemList, Piper.UserActionTool::toYaml)
-        .add("macros", this.macroList, Piper.MinimalTool::toYaml)
-        .build()
-
-fun Piper.UserActionTool.toYaml(): YamlNode = this.common.toYamlBuilder()
-        .add("hasGUI", this.hasGUI)
-        .add("maxInputs", this.maxInputs)
-        .add("minInputs", this.minInputs)
-        .build()
-
-fun Piper.MessageViewer.toYaml(): YamlNode = this.common.toYamlBuilder()
-        .add("usesColors", this.usesColors)
-        .build()
-
-fun Piper.MinimalTool.toYaml(): YamlNode = this.toYamlBuilder().build()
-
-fun Piper.MinimalTool.toYamlBuilder(): YamlMappingBuilder = this.cmd.toYamlBuilder()
-        .add("name", this.name)
-        .addIf(this.hasFilter(), "filter", this.filter::toYaml)
-
-fun Piper.CommandInvocation.toYaml(): YamlNode = this.toYamlBuilder().build()
-
-fun Piper.CommandInvocation.toYamlBuilder(): YamlMappingBuilder = Yaml.createYamlMappingBuilder()
-        .add("prefix", this.prefixList)
-        .add("postfix", this.postfixList)
-        .add("inputMethod", this.inputMethod.name.toLowerCase())
-        .add("passHeaders", this.passHeaders)
-        .add("requiredInPath", this.requiredInPathList)
-        .add("exitCode", this.exitCodeList.map(Int::toString))
-        .addIf(this.hasStdout(), "stdout", this.stdout::toYaml)
-        .addIf(this.hasStderr(), "stderr", this.stderr::toYaml)
-
-fun Piper.HeaderMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("header", this.header)
-        .add("regex", this.regex.toYaml())
-        .build()
-
-fun Piper.MessageMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("prefix", this.prefix)
-        .add("postfix", this.postfix)
-        .addIf(this.hasRegex(), "regex", this.regex::toYaml)
-        .addIf(this.hasHeader(), "header", this.header::toYaml)
-        .addIf(this.hasCmd(), "cmd", this.cmd::toYaml)
-        .add("negation", this.negation)
-        .add("andAlso", this.andAlsoList, Piper.MessageMatch::toYaml)
-        .add("orElse", this.orElseList, Piper.MessageMatch::toYaml)
-        .build()
-
-fun YamlMappingBuilder.add(key: String, value: ByteString): YamlMappingBuilder =
-        if (value.isEmpty) this else this.add(key, value.toByteArray().joinToString(separator=":",
-                transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
-
-fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, producer: () -> YamlNode): YamlMappingBuilder =
-        if (enabled) this.add(key, producer()) else this
-
-fun YamlMappingBuilder.add(key: String, value: Boolean): YamlMappingBuilder =
-        if (value) this.add(key, "true") else this
-
-fun YamlMappingBuilder.add(key: String, value: Int): YamlMappingBuilder =
-        if (value == 0) this else this.add(key, value.toString())
-
-fun <E> YamlMappingBuilder.add(key: String, value: List<E>, transform: (E) -> YamlNode): YamlMappingBuilder =
-        if (value.isEmpty()) this else this.add(key, value.fold(
-                Yaml.createYamlSequenceBuilder()) { acc, e -> acc.add(transform(e)) }.build())
-
-fun YamlMappingBuilder.add(key: String, value: List<String>): YamlMappingBuilder =
-        if (value.isEmpty()) this else this.add(key, value.fold(
-                Yaml.createYamlSequenceBuilder()) { acc, e -> acc.add(e) }.build())
 
 fun <E> Pair<Process, List<File>>.processOutput(processor: (Process) -> E): E {
     val output = processor(this.first)
