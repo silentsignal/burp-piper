@@ -24,12 +24,16 @@ import com.amihaiemil.eoyaml.YamlNode
 import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
 import java.awt.Component
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.util.*
 import java.util.regex.Pattern
+import java.util.zip.InflaterInputStream
+import java.util.zip.DeflaterOutputStream
 import javax.swing.*
 import kotlin.concurrent.thread
+import org.zeromq.codec.Z85
 
 const val NAME = "Piper"
 
@@ -514,11 +518,31 @@ class BurpExtender : IBurpExtender {
         @JvmStatic
         fun main (args: Array<String>) {
             val cfg = BurpExtender().loadConfig()
-            println(Base64.getEncoder().encodeToString(cfg.toByteArray()))
+            val ba = cfg.toByteArray()
+            val z = Z85.Z85Encoder(pad4(compress(ba)))
+            println(z)
+            println(decompress(unpad4(Z85.Z85Decoder(z))) contentEquals ba)
             println(cfg.toYaml().toString())
         }
     }
 }
+
+fun pad4(value: ByteArray): ByteArray {
+    val pad = (4 - value.size % 4).toByte()
+    return value + pad.downTo(1).map { pad }.toByteArray()
+}
+
+fun unpad4(value: ByteArray): ByteArray =
+    value.dropLast(value.last().toInt()).toByteArray()
+
+fun compress(value: ByteArray): ByteArray {
+    val bos = ByteArrayOutputStream()
+    DeflaterOutputStream(bos).use { it.write(value) }
+    return bos.toByteArray()
+}
+
+fun decompress(value: ByteArray): ByteArray =
+    InflaterInputStream(value.inputStream()).use { it.readBytes() }
 
 fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
         !this.hasFilter() || messages.all { this.filter.matches(it, helpers) }
