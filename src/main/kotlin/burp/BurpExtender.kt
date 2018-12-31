@@ -554,7 +554,7 @@ fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List
             f.writeBytes(it)
             f
         }
-    } else Collections.emptyList()
+    } else emptyList()
     val args = this.prefixList + tempFiles.map { it.absolutePath } + this.postfixList
     val p = Runtime.getRuntime().exec(args.toTypedArray())
     if (this.inputMethod == Piper.CommandInvocation.InputMethod.STDIN) {
