@@ -595,7 +595,7 @@ val Piper.RegularExpression.flagSet: Set<RegExpFlag>
     get() = if (this.flags == 0) EnumSet.noneOf(RegExpFlag::class.java)
             else EnumSet.copyOf(RegExpFlag.values().filter { this.flags.and(it.value) != 0 })
 
-fun Piper.RegularExpression.Builder.setFlagSet(flags: Set<RegExpFlag>) =
+fun Piper.RegularExpression.Builder.setFlagSet(flags: Set<RegExpFlag>): Piper.RegularExpression.Builder =
         this.setFlags(flags.fold(0) { acc: Int, regExpFlag: RegExpFlag -> acc or regExpFlag.value })
 
 fun <E> Pair<Process, List<File>>.processOutput(processor: (Process) -> E): E {
