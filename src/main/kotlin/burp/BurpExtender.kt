@@ -517,6 +517,7 @@ class BurpExtender : IBurpExtender {
             println(z)
             println(decompress(unpad4(Z85.Z85Decoder(z))) contentEquals ba)
             println(cfg.toYaml().toString())
+            val parsed = configFromYaml(cfg.toYaml().toString())
         }
     }
 }
