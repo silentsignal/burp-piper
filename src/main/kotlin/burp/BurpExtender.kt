@@ -20,6 +20,9 @@ package burp
 
 import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
+import org.snakeyaml.engine.v1.api.Dump
+import org.snakeyaml.engine.v1.api.DumpSettingsBuilder
+import org.snakeyaml.engine.v1.common.ScalarStyle
 import java.awt.Component
 import java.io.File
 import java.io.InputStream
@@ -516,8 +519,11 @@ class BurpExtender : IBurpExtender {
             val z = Z85.Z85Encoder(pad4(compress(ba)))
             println(z)
             println(decompress(unpad4(Z85.Z85Decoder(z))) contentEquals ba)
-            println(cfg.toYaml().toString())
-            val parsed = configFromYaml(cfg.toYaml().toString())
+            val yaml = Dump(DumpSettingsBuilder().build())
+                    .dumpToString(cfg.toSettings())
+            println(yaml)
+            val parsed = configFromYaml(yaml)
+            println(parsed)
         }
     }
 }

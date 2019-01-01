@@ -1,39 +1,69 @@
 package burp
 
-import com.amihaiemil.eoyaml.*
 import com.google.protobuf.ByteString
+import org.snakeyaml.engine.v1.api.Load
+import org.snakeyaml.engine.v1.api.LoadSettingsBuilder
 import java.io.ByteArrayOutputStream
 import java.lang.RuntimeException
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.InflaterInputStream
 
 fun configFromYaml(value: String): Piper.Config {
-    val ym = Yaml.createYamlInput(value).readYamlMapping()!!
+    var ls = Load(LoadSettingsBuilder().build())
+    var parsed = ls.loadFromString(value) as Map<String, List<Map<String, Any>>>
     return Piper.Config.newBuilder()
-            .addAllMessageViewer(ym.yamlSequence("messageViewers")?.map(MessageViewerFromYaml) ?: emptyList())
-            // TODO macro
-            // TODO menuItem
+            .addAllMessageViewer(parsed["messageViewers"]?.map(MessageViewerFromMap) ?: emptyList())
+            .addAllMacro(parsed["macros"]?.map(MinimalToolFromMap) ?: emptyList())
+            .addAllMenuItem(parsed["menuItems"]?.map(UserActionToolFromMap) ?: emptyList())
             .build()
 }
 
-object MessageViewerFromYaml : (YamlMapping) -> Piper.MessageViewer {
-    override fun invoke(source: YamlMapping): Piper.MessageViewer {
+object MessageViewerFromMap : (Map<String, Any>) -> Piper.MessageViewer {
+    override fun invoke(source: Map<String, Any>): Piper.MessageViewer {
         val b = Piper.MessageViewer.newBuilder()!!
         source.copyBooleanFlag("usesColors", b::setUsesColors)
-        return b.setCommon(minimalToolFromYaml(source)).build()
+        return b.setCommon(MinimalToolFromMap(source)).build()
     }
 }
 
-object MessageMatchFromYaml : (YamlMapping) -> Piper.MessageMatch {
-    override fun invoke(source: YamlMapping): Piper.MessageMatch {
+object MinimalToolFromMap : (Map<String, Any>) -> Piper.MinimalTool {
+    override fun invoke(source: Map<String, Any>): Piper.MinimalTool {
+        val b = Piper.MinimalTool.newBuilder()!!
+                .setName(source.stringOrDie("name"))
+                .setCmd(CommandInvocationFromMap.invoke(source))
+        source.copyStructured("filter", b::setFilter, MessageMatchFromMap)
+        return b.build()
+    }
+}
+
+object CommandInvocationFromMap : (Map<String, Any>) -> Piper.CommandInvocation {
+    override fun invoke(source: Map<String, Any>): Piper.CommandInvocation {
+        val b = Piper.CommandInvocation.newBuilder()!!
+                .addAllPrefix(source.stringSequence("prefix"))
+                .addAllPostfix(source.stringSequence("postfix", required = false))
+                .setInputMethod(enumFromString(source.stringOrDie("inputMethod"),
+                        Piper.CommandInvocation.InputMethod::class.java))
+                .addAllRequiredInPath(source.stringSequence("requiredInPath", required = false))
+                .addAllExitCode(source.intSequence("exitCode"))
+        with(source) {
+            copyBooleanFlag("passHeaders", b::setPassHeaders)
+            copyStructured("stdout", b::setStdout, MessageMatchFromMap)
+            copyStructured("stderr", b::setStderr, MessageMatchFromMap)
+        }
+        return b.build()
+    }
+}
+
+object MessageMatchFromMap : (Map<String, Any>) -> Piper.MessageMatch {
+    override fun invoke(source: Map<String, Any>): Piper.MessageMatch {
         val b = Piper.MessageMatch.newBuilder()!!
         with(source) {
             copyBytes("prefix", b::setPrefix)
             copyBytes("postfix", b::setPostfix)
             copyBooleanFlag("negation", b::setNegation)
-            copyStructured("regex", b::setRegex, RegExpFromYaml)
-            // TODO header
-            copyStructured("cmd", b::setCmd, CommandInvocationFromYaml)
+            copyStructured("regex", b::setRegex, RegExpFromMap)
+            copyStructured("header", b::setHeader, HeaderMatchFromMap)
+            copyStructured("cmd", b::setCmd, CommandInvocationFromMap)
             // TODO andAlso
             // TODO orElse
         }
@@ -41,25 +71,17 @@ object MessageMatchFromYaml : (YamlMapping) -> Piper.MessageMatch {
     }
 }
 
-object CommandInvocationFromYaml : (YamlMapping) -> Piper.CommandInvocation {
-    override fun invoke(source: YamlMapping): Piper.CommandInvocation {
-        val b = Piper.CommandInvocation.newBuilder()!!
-                .addAllPrefix(source.stringSequence("prefix"))
-                .addAllPostfix(source.stringSequence("postfix", required = false))
-                .setInputMethod(enumFromString(source.stringOrDie("inputMethod"),
-                        Piper.CommandInvocation.InputMethod::class.java))
-                .addAllRequiredInPath(source.stringSequence("requiredInPath", required = false))
-                .addAllExitCode(source.stringSequence("requiredInPath", required = false).map(String::toInt))
-        with(source) {
-            copyBooleanFlag("passHeaders", b::setPassHeaders)
-            copyStructured("stdout", b::setStdout, MessageMatchFromYaml)
-        }
+object HeaderMatchFromMap : (Map<String, Any>) -> Piper.HeaderMatch {
+    override fun invoke(source: Map<String, Any>): Piper.HeaderMatch {
+        val b = Piper.HeaderMatch.newBuilder()!!
+                .setHeader(source.stringOrDie("header"))
+        source.copyStructured("regex", b::setRegex, RegExpFromMap)
         return b.build()
     }
 }
 
-object RegExpFromYaml : (YamlMapping) -> Piper.RegularExpression {
-    override fun invoke(source: YamlMapping): Piper.RegularExpression {
+object RegExpFromMap : (Map<String, Any>) -> Piper.RegularExpression {
+    override fun invoke(source: Map<String, Any>): Piper.RegularExpression {
         val b = Piper.RegularExpression.newBuilder()!!
                 .setPattern(source.stringOrDie("pattern"))
         val ss = source.stringSequence("flags", required = false)
@@ -69,21 +91,40 @@ object RegExpFromYaml : (YamlMapping) -> Piper.RegularExpression {
     }
 }
 
-fun YamlMapping.copyBytes(key: String, setter: (ByteString) -> Any) {
-    val s = this.string(key) ?: return
-    setter(ByteString.copyFrom(s.split(':').map {
-        it.trim().toInt(16).toByte()
-    }.toByteArray()))
+object UserActionToolFromMap : (Map<String, Any>) -> Piper.UserActionTool {
+    override fun invoke(source: Map<String, Any>): Piper.UserActionTool {
+        val b = Piper.UserActionTool.newBuilder()!!
+                .setCommon(MinimalToolFromMap(source))
+        source.copyBooleanFlag("hasGUI", b::setHasGUI)
+        source.copyInt("minInputs", b::setMinInputs)
+        source.copyInt("maxInputs", b::setMaxInputs)
+        return b.build()
+    }
 }
 
-fun minimalToolFromYaml(source: YamlMapping): Piper.MinimalTool =
-        Piper.MinimalTool.newBuilder()!!
-                .setName(source.stringOrDie("name"))
-                .setCmd(CommandInvocationFromYaml.invoke(source))
-                .build() // TODO filter
+fun Map<String, Any>.copyInt(key: String, setter: (Int) -> Any) {
+    val value = this[key] ?: return
+    when (value) {
+        is Int -> if (value != 0) setter(value)
+        else -> throw RuntimeException("Invalid value for $key: $value")
+    }
+}
 
-fun <E> YamlMapping.copyStructured(key: String, setter: (E) -> Any, transform: (YamlMapping) -> E) {
-    setter(transform(this.yamlMapping(key) ?: return))
+fun <E> Map<String, Any>.copyStructured(key: String, setter: (E) -> Any, transform: (Map<String, Any>) -> E) {
+    val value = this[key] ?: return
+    when (value) {
+        is Map<*, *> -> setter(transform(value as Map<String, Any>))
+        else -> throw RuntimeException("Invalid value for $key: $value")
+    }
+}
+
+fun Map<String, Any>.copyBytes(key: String, setter: (ByteString) -> Any) {
+    val value = this[key] ?: return
+    when (value) {
+        is String -> setter(ByteString.copyFromUtf8(value))
+        is ByteArray -> setter(ByteString.copyFrom(value))
+        else -> throw RuntimeException("Invalid value for $key: $value")
+    }
 }
 
 fun <E : Enum<E>> enumFromString(value: String, cls: Class<E>): E {
@@ -91,26 +132,53 @@ fun <E : Enum<E>> enumFromString(value: String, cls: Class<E>): E {
         val search = value.replace(' ', '_')
         return cls.enumConstants.first { it.name.equals(search, ignoreCase = true) }
     } catch (_: NoSuchElementException) {
-        throw RuntimeException("Invalid value for inputMethod: $value")
+        throw RuntimeException("Invalid value for enumerated type: $value")
     }
 }
 
-fun YamlMapping.stringOrDie(key: String): String = this.string(key) ?: throw RuntimeException("Missing value for $key")
-
-fun YamlMapping.stringSequence(key: String, required: Boolean = true): Iterable<String> {
-    val seq = this.yamlSequence(key) ?: if (required) throw RuntimeException("Missing list for $key") else return emptyList()
-    return seq.indices.map { seq.string(it)!! }
+fun Map<String, Any>.stringOrDie(key: String): String {
+    val value = this[key]
+    when (value) {
+        null -> throw RuntimeException("Missing value for $key")
+        is String -> return value
+        else -> throw RuntimeException("Invalid value for $key: $value")
+    }
 }
 
-fun YamlMapping.copyBooleanFlag(key: String, setter: (Boolean) -> Any) {
-    if ("true".equals(this.string(key), ignoreCase = true)) setter(true)
+fun Map<String, Any>.stringSequence(key: String, required: Boolean = true): Iterable<String> {
+    val value = this[key]
+    return when (value) {
+        null -> if (required) throw RuntimeException("Missing list for $key") else return emptyList()
+        is List<*> -> value.map {
+            when (it) {
+                null -> throw RuntimeException("Invalid item for $key")
+                is String -> return@map it
+                else -> throw RuntimeException("Invalid value for $key: $it")
+            }
+        } as List<String>
+        else -> throw RuntimeException("Invalid value for $key: $value")
+    }
 }
 
-fun <E> YamlSequence.map(transform: (YamlMapping) -> E): Iterable<E> =
-        this.indices.map { transform(this.yamlMapping(it)!!) }
+fun Map<String, Any>.intSequence(key: String): Iterable<Int> {
+    val value = this[key]
+    return when (value) {
+        null -> emptyList()
+        is List<*> -> value.map {
+            when (it) {
+                null -> throw RuntimeException("Invalid item for $key")
+                is Integer -> return@map it
+                else -> throw RuntimeException("Invalid value for $key: $it")
+            }
+        } as List<Int>
+        else -> throw RuntimeException("Invalid value for $key: $value")
+    }
+}
 
-val YamlSequence.indices: IntRange
-    get() = 0 until this.size()
+fun Map<String, Any>.copyBooleanFlag(key: String, setter: (Boolean) -> Any) {
+    val value = this[key]
+    if (value != null && value is Boolean && value) setter(true)
+}
 
 fun pad4(value: ByteArray): ByteArray {
     val pad = (4 - value.size % 4).toByte()
@@ -129,76 +197,71 @@ fun compress(value: ByteArray): ByteArray {
 fun decompress(value: ByteArray): ByteArray =
     InflaterInputStream(value.inputStream()).use { it.readBytes() }
 
-fun YamlMappingBuilder.add(key: String, value: ByteString): YamlMappingBuilder =
-        if (value.isEmpty) this else this.add(key, value.toByteArray().joinToString(separator=":",
-                transform={ it.toInt().and(0xFF).toString(16).padStart(2, '0') }))
+fun Piper.Config.toSettings(): Map<String, Any> {
+    val m = mutableMapOf<String, Any>()
+    m.add("messageViewers", this.messageViewerList, Piper.MessageViewer::toMap)
+    m.add("menuItems", this.menuItemList, Piper.UserActionTool::toMap)
+    m.add("macros", this.macroList, Piper.MinimalTool::toMap)
+    return m
+}
 
-fun YamlMappingBuilder.addIf(enabled: Boolean, key: String, producer: () -> YamlNode): YamlMappingBuilder =
-        if (enabled) this.add(key, producer()) else this
+fun <E> MutableMap<String, Any>.add(key: String, value: List<E>, transform: (E) -> Any) {
+    if (value.isNotEmpty()) this[key] = value.map(transform)
+}
 
-fun YamlMappingBuilder.add(key: String, value: Boolean): YamlMappingBuilder =
-        if (value) this.add(key, "true") else this
+fun MutableMap<String, Any>.add(key: String, value: ByteString?) {
+    if (value == null || value.isEmpty) return
+    this[key] = if (value.isValidUtf8) value.toStringUtf8() else value.toByteArray()
+}
 
-fun YamlMappingBuilder.add(key: String, value: Int): YamlMappingBuilder =
-        if (value == 0) this else this.add(key, value.toString())
+fun Piper.MessageViewer.toMap(): Map<String, Any> =
+        if (this.usesColors) this.common.toMap() + ("usesColors" to true) else this.common.toMap()
 
-fun <E> YamlMappingBuilder.add(key: String, value: List<E>, transform: (E) -> YamlNode): YamlMappingBuilder =
-        if (value.isEmpty()) this else this.add(key, value.fold(
-                Yaml.createYamlSequenceBuilder()) { acc, e -> acc.add(transform(e)) }.build())
+fun Piper.UserActionTool.toMap(): Map<String, Any> {
+    val m = this.common.toMap()
+    if (this.hasGUI) m["hasGUI"] = true
+    if (this.minInputs != 0) m["minInputs"] = this.minInputs
+    if (this.maxInputs != 0) m["maxInputs"] = this.maxInputs
+    return m
+}
 
-fun YamlMappingBuilder.add(key: String, value: List<String>): YamlMappingBuilder =
-        if (value.isEmpty()) this else this.add(key, value.fold(
-                Yaml.createYamlSequenceBuilder()) { acc, e -> acc.add(e) }.build())
+fun Piper.MinimalTool.toMap(): MutableMap<String, Any> {
+    val m = this.cmd.toMap()
+    m["name"] = this.name!!
+    if (this.hasFilter()) m["filter"] = this.filter.toMap()
+    return m
+}
 
-fun Piper.RegularExpression.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("pattern", this.pattern)
-        .add("flags", this.flagSet.asSequence().map(RegExpFlag::toString).sorted().toList())
-        .build()
+fun Piper.MessageMatch.toMap(): Map<String, Any> {
+    var m = mutableMapOf<String, Any>()
+    m.add("prefix", this.prefix)
+    m.add("postfix", this.postfix)
+    if (this.hasRegex()) m["regex"] = this.regex.toMap()
+    if (this.hasHeader()) m["header"] = this.header.toMap()
+    if (this.hasCmd()) m["cmd"] = this.cmd.toMap()
+    if (this.negation) m["negation"] = true
+    if (this.orElseCount > 0) m["orElse"] = this.orElseList.map(Piper.MessageMatch::toMap)
+    if (this.andAlsoCount > 0) m["andAlso"] = this.andAlsoList.map(Piper.MessageMatch::toMap)
+    return m
+}
 
-fun Piper.Config.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("messageViewers", this.messageViewerList, Piper.MessageViewer::toYaml)
-        .add("menuItems", this.menuItemList, Piper.UserActionTool::toYaml)
-        .add("macros", this.macroList, Piper.MinimalTool::toYaml)
-        .build()
+fun Piper.CommandInvocation.toMap(): MutableMap<String, Any> {
+    var m = mutableMapOf<String, Any>()
+    m["prefix"] = this.prefixList
+    if (this.postfixCount > 0) m["postfix"] = this.postfixList
+    m["inputMethod"] = this.inputMethod.name.toLowerCase()
+    if (this.passHeaders) m["passHeaders"] = true
+    if (this.requiredInPathCount > 0) m["requiredInPath"] = this.requiredInPathList
+    if (this.exitCodeCount > 0) m["exitCode"] = this.exitCodeList
+    if (this.hasStdout()) m["stdout"] = this.stdout.toMap()
+    if (this.hasStderr()) m["stderr"] = this.stderr.toMap()
+    return m
+}
 
-fun Piper.UserActionTool.toYaml(): YamlNode = this.common.toYamlBuilder()
-        .add("hasGUI", this.hasGUI)
-        .add("maxInputs", this.maxInputs)
-        .add("minInputs", this.minInputs)
-        .build()
+fun Piper.RegularExpression.toMap(): Map<String, Any> {
+    val m = mutableMapOf<String, Any>("pattern" to this.pattern!!)
+    if (this.flags != 0) m["flags"] = this.flagSet.asSequence().map(RegExpFlag::toString).sorted().toList()
+    return m
+}
 
-fun Piper.MessageViewer.toYaml(): YamlNode = this.common.toYamlBuilder()
-        .add("usesColors", this.usesColors)
-        .build()
-
-fun Piper.MinimalTool.toYaml(): YamlNode = this.toYamlBuilder().build()
-fun Piper.MinimalTool.toYamlBuilder(): YamlMappingBuilder = this.cmd.toYamlBuilder()
-        .add("name", this.name)
-        .addIf(this.hasFilter(), "filter", this.filter::toYaml)
-
-fun Piper.CommandInvocation.toYaml(): YamlNode = this.toYamlBuilder().build()
-fun Piper.CommandInvocation.toYamlBuilder(): YamlMappingBuilder = Yaml.createYamlMappingBuilder()
-        .add("prefix", this.prefixList)
-        .add("postfix", this.postfixList)
-        .add("inputMethod", this.inputMethod.name.toLowerCase())
-        .add("passHeaders", this.passHeaders)
-        .add("requiredInPath", this.requiredInPathList)
-        .add("exitCode", this.exitCodeList.map(Int::toString))
-        .addIf(this.hasStdout(), "stdout", this.stdout::toYaml)
-        .addIf(this.hasStderr(), "stderr", this.stderr::toYaml)
-
-fun Piper.HeaderMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("header", this.header)
-        .add("regex", this.regex.toYaml())
-        .build()
-
-fun Piper.MessageMatch.toYaml(): YamlNode = Yaml.createYamlMappingBuilder()
-        .add("prefix", this.prefix)
-        .add("postfix", this.postfix)
-        .addIf(this.hasRegex(), "regex", this.regex::toYaml)
-        .addIf(this.hasHeader(), "header", this.header::toYaml)
-        .addIf(this.hasCmd(), "cmd", this.cmd::toYaml)
-        .add("negation", this.negation)
-        .add("andAlso", this.andAlsoList, Piper.MessageMatch::toYaml)
-        .add("orElse", this.orElseList, Piper.MessageMatch::toYaml)
-        .build()
+fun Piper.HeaderMatch.toMap() = mapOf(("header" to this.header), ("regex" to this.regex.toMap()))
