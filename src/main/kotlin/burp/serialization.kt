@@ -10,12 +10,13 @@ import java.util.zip.InflaterInputStream
 
 fun configFromYaml(value: String): Piper.Config {
     var ls = Load(LoadSettingsBuilder().build())
-    var parsed = ls.loadFromString(value) as Map<String, List<Map<String, Any>>>
-    return Piper.Config.newBuilder()
-            .addAllMessageViewer(parsed["messageViewers"]?.map(MessageViewerFromMap) ?: emptyList())
-            .addAllMacro(parsed["macros"]?.map(MinimalToolFromMap) ?: emptyList())
-            .addAllMenuItem(parsed["menuItems"]?.map(UserActionToolFromMap) ?: emptyList())
-            .build()
+    var b = Piper.Config.newBuilder()!!
+    with(ls.loadFromString(value) as Map<String, List<*>>) {
+        copyListOfStructured("messageViewers", b::addMessageViewer, MessageViewerFromMap)
+        copyListOfStructured("macros", b::addMacro, MinimalToolFromMap)
+        copyListOfStructured("menuItems", b::addMenuItem, UserActionToolFromMap)
+    }
+    return b.build()
 }
 
 object MessageViewerFromMap : (Map<String, Any>) -> Piper.MessageViewer {
@@ -114,6 +115,14 @@ fun <E> Map<String, Any>.copyStructured(key: String, setter: (E) -> Any, transfo
     val value = this[key] ?: return
     when (value) {
         is Map<*, *> -> setter(transform(value as Map<String, Any>))
+        else -> throw RuntimeException("Invalid value for $key: $value")
+    }
+}
+
+fun <E> Map<String, Any>.copyListOfStructured(key: String, setter: (E) -> Any, transform: (Map<String, Any>) -> E) {
+    val value = this[key] ?: return
+    when (value) {
+        is List<*> -> value.forEach { setter(transform(it as Map<String, Any>)) }
         else -> throw RuntimeException("Invalid value for $key: $value")
     }
 }
