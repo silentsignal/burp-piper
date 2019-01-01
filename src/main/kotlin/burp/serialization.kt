@@ -65,8 +65,8 @@ object MessageMatchFromMap : (Map<String, Any>) -> Piper.MessageMatch {
             copyStructured("regex", b::setRegex, RegExpFromMap)
             copyStructured("header", b::setHeader, HeaderMatchFromMap)
             copyStructured("cmd", b::setCmd, CommandInvocationFromMap)
-            // TODO andAlso
-            // TODO orElse
+            copyListOfStructured("andAlso", b::addAndAlso, MessageMatchFromMap)
+            copyListOfStructured("orElse", b::addOrElse, MessageMatchFromMap)
         }
         return b.build()
     }
