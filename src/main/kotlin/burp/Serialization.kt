@@ -12,64 +12,56 @@ fun configFromYaml(value: String): Piper.Config {
     var ls = Load(LoadSettingsBuilder().build())
     var b = Piper.Config.newBuilder()!!
     with(ls.loadFromString(value) as Map<String, List<*>>) {
-        copyListOfStructured("messageViewers", b::addMessageViewer, MessageViewerFromMap)
-        copyListOfStructured("macros", b::addMacro, MinimalToolFromMap)
+        copyListOfStructured("messageViewers", b::addMessageViewer, ::messageViewerFromMap)
+        copyListOfStructured("macros", b::addMacro, ::minimalToolFromMap)
         copyListOfStructured("menuItems", b::addMenuItem, UserActionToolFromMap)
     }
     return b.build()
 }
 
-object MessageViewerFromMap : (Map<String, Any>) -> Piper.MessageViewer {
-    override fun invoke(source: Map<String, Any>): Piper.MessageViewer {
-        val b = Piper.MessageViewer.newBuilder()!!
-        source.copyBooleanFlag("usesColors", b::setUsesColors)
-        return b.setCommon(MinimalToolFromMap(source)).build()
-    }
+fun messageViewerFromMap(source: Map<String, Any>): Piper.MessageViewer {
+    val b = Piper.MessageViewer.newBuilder()!!
+    source.copyBooleanFlag("usesColors", b::setUsesColors)
+    return b.setCommon(minimalToolFromMap(source)).build()
 }
 
-object MinimalToolFromMap : (Map<String, Any>) -> Piper.MinimalTool {
-    override fun invoke(source: Map<String, Any>): Piper.MinimalTool {
-        val b = Piper.MinimalTool.newBuilder()!!
-                .setName(source.stringOrDie("name"))
-                .setCmd(CommandInvocationFromMap.invoke(source))
-        source.copyStructured("filter", b::setFilter, MessageMatchFromMap)
-        return b.build()
-    }
+fun minimalToolFromMap(source: Map<String, Any>): Piper.MinimalTool {
+    val b = Piper.MinimalTool.newBuilder()!!
+            .setName(source.stringOrDie("name"))
+            .setCmd(commandInvocationFromMap(source))
+    source.copyStructured("filter", b::setFilter, ::messageMatchFromMap)
+    return b.build()
 }
 
-object CommandInvocationFromMap : (Map<String, Any>) -> Piper.CommandInvocation {
-    override fun invoke(source: Map<String, Any>): Piper.CommandInvocation {
-        val b = Piper.CommandInvocation.newBuilder()!!
-                .addAllPrefix(source.stringSequence("prefix"))
-                .addAllPostfix(source.stringSequence("postfix", required = false))
-                .setInputMethod(enumFromString(source.stringOrDie("inputMethod"),
-                        Piper.CommandInvocation.InputMethod::class.java))
-                .addAllRequiredInPath(source.stringSequence("requiredInPath", required = false))
-                .addAllExitCode(source.intSequence("exitCode"))
-        with(source) {
-            copyBooleanFlag("passHeaders", b::setPassHeaders)
-            copyStructured("stdout", b::setStdout, MessageMatchFromMap)
-            copyStructured("stderr", b::setStderr, MessageMatchFromMap)
-        }
-        return b.build()
+fun commandInvocationFromMap(source: Map<String, Any>): Piper.CommandInvocation {
+    val b = Piper.CommandInvocation.newBuilder()!!
+            .addAllPrefix(source.stringSequence("prefix"))
+            .addAllPostfix(source.stringSequence("postfix", required = false))
+            .setInputMethod(enumFromString(source.stringOrDie("inputMethod"),
+                    Piper.CommandInvocation.InputMethod::class.java))
+            .addAllRequiredInPath(source.stringSequence("requiredInPath", required = false))
+            .addAllExitCode(source.intSequence("exitCode"))
+    with(source) {
+        copyBooleanFlag("passHeaders", b::setPassHeaders)
+        copyStructured("stdout", b::setStdout, ::messageMatchFromMap)
+        copyStructured("stderr", b::setStderr, ::messageMatchFromMap)
     }
+    return b.build()
 }
 
-object MessageMatchFromMap : (Map<String, Any>) -> Piper.MessageMatch {
-    override fun invoke(source: Map<String, Any>): Piper.MessageMatch {
-        val b = Piper.MessageMatch.newBuilder()!!
-        with(source) {
-            copyBytes("prefix", b::setPrefix)
-            copyBytes("postfix", b::setPostfix)
-            copyBooleanFlag("negation", b::setNegation)
-            copyStructured("regex", b::setRegex, RegExpFromMap)
-            copyStructured("header", b::setHeader, HeaderMatchFromMap)
-            copyStructured("cmd", b::setCmd, CommandInvocationFromMap)
-            copyListOfStructured("andAlso", b::addAndAlso, MessageMatchFromMap)
-            copyListOfStructured("orElse", b::addOrElse, MessageMatchFromMap)
-        }
-        return b.build()
+fun messageMatchFromMap(source: Map<String, Any>): Piper.MessageMatch {
+    val b = Piper.MessageMatch.newBuilder()!!
+    with(source) {
+        copyBytes("prefix", b::setPrefix)
+        copyBytes("postfix", b::setPostfix)
+        copyBooleanFlag("negation", b::setNegation)
+        copyStructured("regex", b::setRegex, RegExpFromMap)
+        copyStructured("header", b::setHeader, HeaderMatchFromMap)
+        copyStructured("cmd", b::setCmd, ::commandInvocationFromMap)
+        copyListOfStructured("andAlso", b::addAndAlso, ::messageMatchFromMap)
+        copyListOfStructured("orElse", b::addOrElse, ::messageMatchFromMap)
     }
+    return b.build()
 }
 
 object HeaderMatchFromMap : (Map<String, Any>) -> Piper.HeaderMatch {
@@ -95,7 +87,7 @@ object RegExpFromMap : (Map<String, Any>) -> Piper.RegularExpression {
 object UserActionToolFromMap : (Map<String, Any>) -> Piper.UserActionTool {
     override fun invoke(source: Map<String, Any>): Piper.UserActionTool {
         val b = Piper.UserActionTool.newBuilder()!!
-                .setCommon(MinimalToolFromMap(source))
+                .setCommon(minimalToolFromMap(source))
         source.copyBooleanFlag("hasGUI", b::setHasGUI)
         source.copyInt("minInputs", b::setMinInputs)
         source.copyInt("maxInputs", b::setMaxInputs)
