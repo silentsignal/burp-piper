@@ -29,6 +29,7 @@ import java.util.regex.Pattern
 import javax.swing.*
 import kotlin.concurrent.thread
 import org.zeromq.codec.Z85
+import java.awt.Component
 
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
@@ -72,10 +73,11 @@ enum class RequestResponse {
     abstract fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String>
 }
 
-class BurpExtender : IBurpExtender {
+class BurpExtender : IBurpExtender, ITab {
 
     lateinit var callbacks: IBurpExtenderCallbacks
     lateinit var helpers: IExtensionHelpers
+    val tabs = JTabbedPane()
 
     override fun registerExtenderCallbacks(callbacks: IBurpExtenderCallbacks) {
         this.callbacks = callbacks
@@ -99,7 +101,19 @@ class BurpExtender : IBurpExtender {
                 }
             }
         }
+
+        // TODO tabs.addTab("Load/Save configuration")
+        // TODO tabs.addTab("Message viewers")
+        // TODO tabs.addTab("Context menu items")
+        // TODO tabs.addTab("Macros")
+        // TODO tabs.addTab("Commentators")
+
+        callbacks.addSuiteTab(this)
     }
+
+    // ITab members
+    override fun getTabCaption(): String = NAME
+    override fun getUiComponent(): Component = tabs
 
     private data class MessageSource(val direction: RequestResponse, val includeHeaders: Boolean)
 
