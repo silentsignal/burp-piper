@@ -198,31 +198,6 @@ class BurpExtender : IBurpExtender {
         }.start()
     }
 
-    private fun handleGUI(process: Process, tool: Piper.MinimalTool) {
-        val terminal = JTerminal()
-        val scrollPane = JScrollPane()
-        scrollPane.setViewportView(terminal)
-        val frame = JFrame()
-        with(frame) {
-            defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-            addKeyListener(terminal.keyListener)
-            add(scrollPane)
-            setSize(675, 300)
-            isVisible = true
-            title = "$NAME - ${tool.name}"
-        }
-
-        for (stream in arrayOf(process.inputStream, process.errorStream)) {
-            thread {
-                val reader = stream.bufferedReader()
-                while (true) {
-                    val line = reader.readLine() ?: break
-                    terminal.append("$line\n")
-                }
-            }.start()
-        }
-    }
-
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
@@ -237,6 +212,31 @@ class BurpExtender : IBurpExtender {
             val parsed = configFromYaml(yaml)
             println(parsed)
         }
+    }
+}
+
+private fun handleGUI(process: Process, tool: Piper.MinimalTool) {
+    val terminal = JTerminal()
+    val scrollPane = JScrollPane()
+    scrollPane.setViewportView(terminal)
+    val frame = JFrame()
+    with(frame) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        addKeyListener(terminal.keyListener)
+        add(scrollPane)
+        setSize(675, 300)
+        isVisible = true
+        title = "$NAME - ${tool.name}"
+    }
+
+    for (stream in arrayOf(process.inputStream, process.errorStream)) {
+        thread {
+            val reader = stream.bufferedReader()
+            while (true) {
+                val line = reader.readLine() ?: break
+                terminal.append("$line\n")
+            }
+        }.start()
     }
 }
 
