@@ -86,7 +86,8 @@ val IS_REQUEST_MAP = mapOf(
         false to RequestResponse.RESPONSE
 )
 
-class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
+class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers,
+                     private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
     private var msg: ByteArray? = null
     private val terminal = JTerminal()
     private val scrollPane = JScrollPane()
@@ -149,7 +150,8 @@ class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers:
     }
 }
 
-class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers, private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
+class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers,
+                 private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
     private var msg: ByteArray? = null
     private val editor = callbacks.createTextEditor()
 
@@ -292,11 +294,14 @@ class BurpExtender : IBurpExtender {
         val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
         if (serialized == null)
         {
-            val cfg = configFromYaml(BurpExtender::class.java.classLoader.getResourceAsStream("defaults.yaml").reader().readText())
+            val cfg = configFromYaml(BurpExtender::class.java.classLoader
+                    .getResourceAsStream("defaults.yaml").reader().readText())
             val cfgMod = Piper.Config.newBuilder()
                     .addAllMacro(cfg.macroList.map { it.toBuilder().setEnabled(true).build() })
-                    .addAllMenuItem(cfg.menuItemList.map { it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
-                    .addAllMessageViewer(cfg.messageViewerList.map { it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
+                    .addAllMenuItem(cfg.menuItemList.map {
+                        it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
+                    .addAllMessageViewer(cfg.messageViewerList.map {
+                        it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
                     .build()
             saveConfig(cfgMod)
             return cfgMod
@@ -310,7 +315,8 @@ class BurpExtender : IBurpExtender {
         callbacks.saveExtensionSetting(EXTENSION_SETTINGS_KEY, serialized)
     }
 
-    private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>, messageViewer: Piper.MessageViewer? = null) {
+    private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>,
+                                  messageViewer: Piper.MessageViewer? = null) {
         thread {
             val input = if (messageViewer == null) {
                 messages.map(MessageInfo::content)
