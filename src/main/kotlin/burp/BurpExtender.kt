@@ -49,31 +49,23 @@ enum class RegExpFlag {
 
 enum class RequestResponse {
     REQUEST {
-        override fun getMessage(rr: IHttpRequestResponse): ByteArray? {
-            return rr.request
-        }
+        override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.request
 
-        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int {
-            return helpers.analyzeRequest(data).bodyOffset
-        }
+        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int =
+            helpers.analyzeRequest(data).bodyOffset
 
-        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> {
-            return helpers.analyzeRequest(data).headers
-        }
+        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> =
+            helpers.analyzeRequest(data).headers
     },
 
     RESPONSE {
-        override fun getMessage(rr: IHttpRequestResponse): ByteArray? {
-            return rr.response
-        }
+        override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.response
 
-        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int {
-            return helpers.analyzeResponse(data).bodyOffset
-        }
+        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int =
+            helpers.analyzeResponse(data).bodyOffset
 
-        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> {
-            return helpers.analyzeResponse(data).headers
-        }
+        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> =
+            helpers.analyzeResponse(data).headers
     };
 
     abstract fun getMessage(rr: IHttpRequestResponse): ByteArray?
@@ -110,25 +102,11 @@ class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers:
         return content.copyOfRange(bo, content.size)
     }
 
-    override fun getMessage(): ByteArray? {
-        return msg
-    }
-
-    override fun isModified(): Boolean {
-        return false
-    }
-
-    override fun getTabCaption(): String {
-        return tool.common.name
-    }
-
-    override fun getSelectedData(): ByteArray {
-        return helpers.stringToBytes(terminal.selectedText)
-    }
-
-    override fun getUiComponent(): Component {
-        return terminal
-    }
+    override fun getMessage(): ByteArray? = msg
+    override fun isModified(): Boolean = false
+    override fun getTabCaption(): String = tool.common.name
+    override fun getSelectedData(): ByteArray = helpers.stringToBytes(terminal.selectedText)
+    override fun getUiComponent(): Component = terminal
 
     override fun setMessage(content: ByteArray?, isRequest: Boolean) {
         msg = content
@@ -173,25 +151,11 @@ class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IEx
         return MessageInfo(payload, helpers.bytesToString(payload), rr.getHeaders(content, helpers))
     }
 
-    override fun getMessage(): ByteArray? {
-        return msg
-    }
-
-    override fun isModified(): Boolean {
-        return false
-    }
-
-    override fun getTabCaption(): String {
-        return tool.common.name
-    }
-
-    override fun getSelectedData(): ByteArray {
-        return editor.selectedText
-    }
-
-    override fun getUiComponent(): Component {
-        return editor.component
-    }
+    override fun getMessage(): ByteArray? = msg
+    override fun isModified(): Boolean = false
+    override fun getTabCaption(): String = tool.common.name
+    override fun getSelectedData(): ByteArray = editor.selectedText
+    override fun getUiComponent(): Component = editor.component
 
     override fun setMessage(content: ByteArray?, isRequest: Boolean) {
         msg = content
