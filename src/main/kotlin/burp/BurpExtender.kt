@@ -32,6 +32,7 @@ import kotlin.concurrent.thread
 import org.zeromq.codec.Z85
 
 const val NAME = "Piper"
+const val EXTENSION_SETTINGS_KEY = "settings"
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 
@@ -287,9 +288,26 @@ class BurpExtender : IBurpExtender {
     }
 
     private fun loadConfig(): Piper.Config {
-        // TODO try to load from Burp Settings
         // TODO use more efficient Protocol Buffers encoded version
-        return configFromYaml(BurpExtender::class.java.classLoader.getResourceAsStream("defaults.yaml").reader().readText())
+        val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
+        if (serialized == null)
+        {
+            val cfg = configFromYaml(BurpExtender::class.java.classLoader.getResourceAsStream("defaults.yaml").reader().readText())
+            val cfgMod = Piper.Config.newBuilder()
+                    .addAllMacro(cfg.macroList.map { it.toBuilder().setEnabled(true).build() })
+                    .addAllMenuItem(cfg.menuItemList.map { it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
+                    .addAllMessageViewer(cfg.messageViewerList.map { it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
+                    .build()
+            saveConfig(cfgMod)
+            return cfgMod
+        } else {
+            return Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
+        }
+    }
+
+    private fun saveConfig(cfg: Piper.Config) {
+        val serialized = Z85.Z85Encoder(pad4(compress(cfg.toByteArray())))
+        callbacks.saveExtensionSetting(EXTENSION_SETTINGS_KEY, serialized)
     }
 
     private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>, messageViewer: Piper.MessageViewer? = null) {
