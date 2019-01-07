@@ -22,7 +22,6 @@ import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
 import org.snakeyaml.engine.v1.api.Dump
 import org.snakeyaml.engine.v1.api.DumpSettingsBuilder
-import org.snakeyaml.engine.v1.common.ScalarStyle
 import java.awt.Component
 import java.io.File
 import java.io.InputStream
