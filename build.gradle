@@ -54,6 +54,9 @@ jar {
     sourceSets {
         sourceSets.main.java.srcDirs += 'build/generated/source/proto/main/java'
     }
+    from('src/main/yaml') {
+        include('*.yaml')
+    }
     from {
         configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }

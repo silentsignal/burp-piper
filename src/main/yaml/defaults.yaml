@@ -1,0 +1,70 @@
+messageViewers:
+- prefix: [rev]
+  inputMethod: stdin
+  passHeaders: true
+  name: rev
+  filter:
+    header:
+      header: content-type
+      regex: {pattern: ^text/}
+- prefix: [pygmentize, -g]
+  inputMethod: stdin
+  name: Pygmentize
+  usesColors: true
+- prefix: [openssl, asn1parse, -inform, DER, -i]
+  inputMethod: stdin
+  name: OpenSSL ASN.1 decoder
+  filter:
+    orElse:
+    - prefix: !!binary |-
+        MII=
+    - prefix: !!binary |-
+        MIA=
+- prefix: [python, -m, json.tool]
+  inputMethod: stdin
+  name: Python JSON formatter
+  filter:
+    orElse:
+    - {prefix: '{', postfix: '}'}
+    - {prefix: '[', postfix: ']'}
+menuItems:
+- prefix: [okular]
+  inputMethod: filename
+  name: Okular
+  filter:
+    regex:
+      pattern: ^%PDF-1\.[0-9]
+      flags: [case insensitive, dotall]
+  hasGUI: true
+- prefix: [feh, -FZ]
+  inputMethod: filename
+  name: feh
+  filter:
+    cmd:
+      prefix: [file, -i, '-']
+      inputMethod: stdin
+      stdout:
+        regex: {pattern: image/}
+  hasGUI: true
+  maxInputs: 1
+- prefix: [urxvt, -e, hexcurse]
+  inputMethod: filename
+  name: hexcurse
+  hasGUI: true
+  maxInputs: 1
+- prefix: [urxvt, -e, vbindiff]
+  inputMethod: filename
+  name: vbindiff without headers
+  hasGUI: true
+  maxInputs: 2
+- prefix: [urxvt, -e, vbindiff]
+  inputMethod: filename
+  passHeaders: true
+  name: vbindiff with headers
+  hasGUI: true
+  maxInputs: 2
+- prefix: [git, diff, --color=always]
+  inputMethod: filename
+  name: git diff
+  minInputs: 2
+  maxInputs: 2
