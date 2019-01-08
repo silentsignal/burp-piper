@@ -96,7 +96,7 @@ class BurpExtender : IBurpExtender, ITab {
         cfg.messageViewerList.forEach {
             if (it.common.enabled) {
                 callbacks.registerMessageEditorTabFactory { _, _ ->
-                    if (it.usesColors) TerminalEditor(it, helpers, callbacks)
+                    if (it.usesColors) TerminalEditor(it, helpers)
                     else TextEditor(it, helpers, callbacks)
                 }
             }

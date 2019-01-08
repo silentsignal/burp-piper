@@ -6,14 +6,50 @@ import javax.swing.JScrollPane
 import javax.swing.SwingUtilities
 import kotlin.concurrent.thread
 
-private val IS_REQUEST_MAP = mapOf(
-        true to RequestResponse.REQUEST,
-        false to RequestResponse.RESPONSE
-)
-
-class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers,
-                     private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
+abstract class Editor(private val tool: Piper.MessageViewer,
+                      protected val helpers: IExtensionHelpers) : IMessageEditorTab {
     private var msg: ByteArray? = null
+
+    override fun getMessage(): ByteArray? = msg
+    override fun isModified(): Boolean = false
+    override fun getTabCaption(): String = tool.common.name
+
+    override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
+        if (content == null) return false
+        if (!tool.common.hasFilter()) return true
+
+        val rr = booleanToRequestResponse(isRequest)
+        var payload = getPayload(content, rr)
+
+        if (payload.isEmpty()) return false
+
+        val mi = MessageInfo(payload, helpers.bytesToString(payload), rr.getHeaders(content, helpers))
+        return tool.common.filter.matches(mi, helpers)
+    }
+
+    override fun setMessage(content: ByteArray?, isRequest: Boolean) {
+        msg = content
+        if (content == null) return
+        thread(start = true) {
+            val inputs = listOf(getPayload(content, booleanToRequestResponse(isRequest)))
+            tool.common.cmd.execute(inputs).processOutput { outputProcessor(it) }
+        }
+    }
+
+    private fun booleanToRequestResponse(isRequest: Boolean) =
+            if (isRequest) RequestResponse.REQUEST else RequestResponse.RESPONSE
+
+    private fun getPayload(content: ByteArray, rr: RequestResponse) =
+            if (tool.common.cmd.passHeaders) content
+            else content.copyOfRange(rr.getBodyOffset(content, helpers), content.size)
+
+    abstract fun outputProcessor(process: Process)
+
+    abstract override fun getSelectedData(): ByteArray
+    abstract override fun getUiComponent(): Component
+}
+
+class TerminalEditor(tool: Piper.MessageViewer, helpers: IExtensionHelpers) : Editor(tool, helpers) {
     private val terminal = JTerminal()
     private val scrollPane = JScrollPane()
 
@@ -21,85 +57,38 @@ class TerminalEditor(private val tool: Piper.MessageViewer, private val helpers:
         scrollPane.setViewportView(terminal)
     }
 
-    override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
-        if (content == null) return false
-        if (!tool.common.hasFilter()) return true
-        val payload = transformContent(content, isRequest)
-        return payload.isNotEmpty() && tool.common.filter.matches(payload, helpers)
-    }
-
-    private fun transformContent(content: ByteArray, isRequest: Boolean): ByteArray {
-        if (tool.common.cmd.passHeaders) return content
-        val rr = IS_REQUEST_MAP[isRequest]!!
-        val bo = rr.getBodyOffset(content, helpers)
-        return content.copyOfRange(bo, content.size)
-    }
-
-    override fun getMessage(): ByteArray? = msg
-    override fun isModified(): Boolean = false
-    override fun getTabCaption(): String = tool.common.name
     override fun getSelectedData(): ByteArray = helpers.stringToBytes(terminal.selectedText)
     override fun getUiComponent(): Component = terminal
 
-    override fun setMessage(content: ByteArray?, isRequest: Boolean) {
-        msg = content
-        if (content == null) return
+    override fun outputProcessor(process: Process) {
         terminal.text = ""
-        thread {
-            tool.common.cmd.execute(listOf(transformContent(content, isRequest))).processOutput { process ->
-                for (stream in arrayOf(process.inputStream, process.errorStream)) {
-                    thread {
-                        val reader = stream.bufferedReader()
-                        while (true) {
-                            val line = reader.readLine() ?: break
-                            terminal.append("$line\n")
-                        }
-                    }.start()
+        for (stream in arrayOf(process.inputStream, process.errorStream)) {
+            thread {
+                val reader = stream.bufferedReader()
+                while (true) {
+                    val line = reader.readLine() ?: break
+                    terminal.append("$line\n")
                 }
-            }
-        }.start()
+            }.start()
+        }
     }
 }
 
-class TextEditor(private val tool: Piper.MessageViewer, private val helpers: IExtensionHelpers,
-                 private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
-    private var msg: ByteArray? = null
+class TextEditor(tool: Piper.MessageViewer, helpers: IExtensionHelpers,
+                 callbacks: IBurpExtenderCallbacks) : Editor(tool, helpers) {
     private val editor = callbacks.createTextEditor()
 
     init {
         editor.setEditable(false)
     }
 
-    override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
-        if (content == null) return false
-        if (!tool.common.hasFilter()) return true
-        val payload = transformContent(content, isRequest)
-        return payload.content.isNotEmpty() && tool.common.filter.matches(payload, helpers)
-    }
-
-    private fun transformContent(content: ByteArray, isRequest: Boolean): MessageInfo {
-        val rr = IS_REQUEST_MAP[isRequest]!!
-        var payload = if (tool.common.cmd.passHeaders) content
-        else content.copyOfRange(rr.getBodyOffset(content, helpers), content.size)
-        return MessageInfo(payload, helpers.bytesToString(payload), rr.getHeaders(content, helpers))
-    }
-
-    override fun getMessage(): ByteArray? = msg
-    override fun isModified(): Boolean = false
-    override fun getTabCaption(): String = tool.common.name
     override fun getSelectedData(): ByteArray = editor.selectedText
     override fun getUiComponent(): Component = editor.component
 
-    override fun setMessage(content: ByteArray?, isRequest: Boolean) {
-        msg = content
-        if (content == null) return
-        thread {
-            tool.common.cmd.execute(listOf(transformContent(content, isRequest).content)).processOutput { process ->
-                process.inputStream.use {
-                    val bytes = it.readBytes()
-                    SwingUtilities.invokeLater { editor.text = bytes }
-                }
-            }
-        }.start()
+    override fun outputProcessor(process: Process) {
+        process.inputStream.use {
+            val bytes = it.readBytes()
+            SwingUtilities.invokeLater { editor.text = bytes }
+        }
     }
 }
