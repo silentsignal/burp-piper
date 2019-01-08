@@ -162,7 +162,7 @@ fun Map<String, Any>.intSequence(key: String): Iterable<Int> {
         is List<*> -> value.map {
             when (it) {
                 null -> throw RuntimeException("Invalid item for $key")
-                is Integer -> return@map it
+                is Int -> return@map it
                 else -> throw RuntimeException("Invalid value for $key: $it")
             }
         } as List<Int>
