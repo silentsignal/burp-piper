@@ -169,19 +169,10 @@ class BurpExtender : IBurpExtender, ITab {
     }
 
     private fun loadConfig(): Piper.Config {
-        // TODO use more efficient Protocol Buffers encoded version
         val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
         if (serialized == null)
         {
-            val cfg = configFromYaml(BurpExtender::class.java.classLoader
-                    .getResourceAsStream("defaults.yaml").reader().readText())
-            val cfgMod = Piper.Config.newBuilder()
-                    .addAllMacro(cfg.macroList.map { it.toBuilder().setEnabled(true).build() })
-                    .addAllMenuItem(cfg.menuItemList.map {
-                        it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
-                    .addAllMessageViewer(cfg.messageViewerList.map {
-                        it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build() })
-                    .build()
+            val cfgMod = loadDefaultConfig()
             saveConfig(cfgMod)
             return cfgMod
         } else {
@@ -215,7 +206,7 @@ class BurpExtender : IBurpExtender, ITab {
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
-            val cfg = BurpExtender().loadConfig()
+            val cfg = loadDefaultConfig()
             val ba = cfg.toByteArray()
             val z = Z85.Z85Encoder(pad4(compress(ba)))
             println(z)
@@ -227,6 +218,21 @@ class BurpExtender : IBurpExtender, ITab {
             println(parsed)
         }
     }
+}
+
+private fun loadDefaultConfig(): Piper.Config {
+    // TODO use more efficient Protocol Buffers encoded version
+    val cfg = configFromYaml(BurpExtender::class.java.classLoader
+            .getResourceAsStream("defaults.yaml").reader().readText())
+    return Piper.Config.newBuilder()
+            .addAllMacro(cfg.macroList.map { it.toBuilder().setEnabled(true).build() })
+            .addAllMenuItem(cfg.menuItemList.map {
+                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+            })
+            .addAllMessageViewer(cfg.messageViewerList.map {
+                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+            })
+            .build()
 }
 
 private fun handleGUI(process: Process, tool: Piper.MinimalTool) {
