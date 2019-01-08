@@ -144,23 +144,23 @@ public class JTerminal extends JTextPane {
 		boolean underline = false;
 		boolean dim = false;
 		
-		String s1 = "";
+		StringBuilder s1 = new StringBuilder();
 		
         for (int cp = 0; cp < s.toCharArray().length; cp++) {
             char c = s.charAt(cp);
             
             if (c == ESCAPE) {
-            	append(s1, foreground, background, bold, underline);
+            	append(s1.toString(), foreground, background, bold, underline);
                 char next = s.charAt(cp + 1);
                 
                 if (next == '[') {
-                	s1 = "";
+                	s1 = new StringBuilder();
                 	cp++;
                 	while ((c = s.charAt(++cp)) != 'm') {
-                		s1 += c;
+                		s1.append(c);
                 	}
                 	
-                	String[] attributes = s1.split(";");
+                	String[] attributes = s1.toString().split(";");
 
 					for (String at : attributes) {
 						if (at.equals(RESET) || s1.length() == 0) {
@@ -208,16 +208,16 @@ public class JTerminal extends JTextPane {
 						}
 					}
                     
-                    s1 = "";
+                    s1 = new StringBuilder();
                     continue;
                 }
             }
             
-            s1 += c;
+            s1.append(c);
         }
         
         if (s1.length() > 0) {
-        	append(s1, foreground, background, bold, underline);
+        	append(s1.toString(), foreground, background, bold, underline);
         }
         
         setCursorInEnd();
