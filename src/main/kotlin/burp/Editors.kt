@@ -31,8 +31,8 @@ abstract class Editor(private val tool: Piper.MessageViewer,
         msg = content
         if (content == null) return
         thread(start = true) {
-            val inputs = listOf(getPayload(content, booleanToRequestResponse(isRequest)))
-            tool.common.cmd.execute(inputs).processOutput { outputProcessor(it) }
+            val input = getPayload(content, booleanToRequestResponse(isRequest))
+            tool.common.cmd.execute(input).processOutput { outputProcessor(it) }
         }
     }
 

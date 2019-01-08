@@ -201,12 +201,12 @@ class BurpExtender : IBurpExtender, ITab {
                 messages.map(MessageInfo::content)
             } else {
                 messages.map { msg ->
-                    messageViewer.common.cmd.execute(listOf(msg.content)).processOutput { process ->
+                    messageViewer.common.cmd.execute(msg.content).processOutput { process ->
                         process.inputStream.use { it.readBytes() }
                     }
                 }
-            }
-            cfgItem.common.cmd.execute(input).processOutput { process ->
+            }.toTypedArray()
+            cfgItem.common.cmd.execute(*input).processOutput { process ->
                 if (!cfgItem.hasGUI) handleGUI(process, cfgItem.common)
             }
         }.start()
@@ -280,7 +280,7 @@ fun ByteArray.endsWith(value: ByteString): Boolean {
     return mbs >= mps && this.copyOfRange(mbs - mps, mbs) contentEquals value.toByteArray()
 }
 
-fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List<File>> {
+fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, List<File>> {
     val tempFiles = if (this.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) {
         inputs.map {
             val f = File.createTempFile("piper-", ".bin")
@@ -299,8 +299,7 @@ fun Piper.CommandInvocation.execute(inputs: List<ByteArray>): Pair<Process, List
 }
 
 fun Piper.CommandInvocation.matches(subject: ByteArray, helpers: IExtensionHelpers): Boolean {
-    val inputs = listOf(subject)
-    val (process, tempFiles) = this.execute(inputs)
+    val (process, tempFiles) = this.execute(subject)
     if ((this.hasStderr() && !this.stderr.matches(process.errorStream, helpers)) ||
             (this.hasStdout() && !this.stdout.matches(process.inputStream, helpers))) return false
     val exitCode = process.waitFor()
