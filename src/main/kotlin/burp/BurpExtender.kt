@@ -301,7 +301,7 @@ fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, Lis
     val p = Runtime.getRuntime().exec(args.toTypedArray())
     if (this.inputMethod == Piper.CommandInvocation.InputMethod.STDIN) {
         p.outputStream.use {
-            inputs.forEach { p.outputStream.write(it) }
+            inputs.forEach(p.outputStream::write)
         }
     }
     return p to tempFiles
