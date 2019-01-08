@@ -243,7 +243,7 @@ public class JTerminal extends JTextPane {
 	
 	/**
 	 * Called when key pressed, checks if character is valid and checks for combinations such as Ctrl+C
-	 * @param e
+	 * @param c
 	 */
 	public void keyPressed(char c) {		
 		for (InputListener l : inputListeners) {
