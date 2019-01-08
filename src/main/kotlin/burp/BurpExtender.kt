@@ -87,9 +87,9 @@ class BurpExtender : IBurpExtender, ITab {
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
             val messages = it.selectedMessages
-            if (messages == null || messages.isEmpty()) return@registerContextMenuFactory Collections.emptyList()
+            if (messages == null || messages.isEmpty()) return@registerContextMenuFactory emptyList()
             val topLevel = generateContextMenu(messages)
-            if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory Collections.emptyList()
+            if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory emptyList()
             return@registerContextMenuFactory Collections.singletonList(topLevel)
         }
 
