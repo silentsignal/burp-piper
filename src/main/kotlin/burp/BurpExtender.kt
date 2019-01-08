@@ -75,9 +75,9 @@ enum class RequestResponse {
 
 class BurpExtender : IBurpExtender, ITab {
 
-    lateinit var callbacks: IBurpExtenderCallbacks
-    lateinit var helpers: IExtensionHelpers
-    val tabs = JTabbedPane()
+    private lateinit var callbacks: IBurpExtenderCallbacks
+    private lateinit var helpers: IExtensionHelpers
+    private val tabs = JTabbedPane()
 
     override fun registerExtenderCallbacks(callbacks: IBurpExtenderCallbacks) {
         this.callbacks = callbacks
