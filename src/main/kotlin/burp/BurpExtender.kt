@@ -34,7 +34,90 @@ import java.awt.Component
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
 
+
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
+
+data class MessageViewerWrapper(val cfgItem: Piper.MessageViewer) {
+    override fun toString(): String = cfgItem.common.name
+}
+
+data class UserActionToolWrapper(val cfgItem: Piper.UserActionTool) {
+    override fun toString(): String = cfgItem.common.name
+}
+
+data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
+    override fun toString(): String = cfgItem.toHumanReadable(false, true)
+}
+
+private fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boolean = false): String {
+    val match = this
+    val negated = negation xor match.negation
+    val items = sequence {
+        if (match.prefix != null && !match.prefix.isEmpty) {
+            val prefix = if (negated) "doesn't start" else "starts"
+            yield("$prefix with ${match.prefix.toHumanReadable()}")
+        }
+        if (match.postfix != null && !match.postfix.isEmpty) {
+            val prefix = if (negated) "doesn't end" else "ends"
+            yield("$prefix with ${match.postfix.toHumanReadable()}")
+        }
+        if (match.hasRegex()) yield(match.regex.toHumanReadable(negated))
+
+        if (match.hasHeader()) yield("header \"${match.header.header}\" " +
+                match.header.regex.toHumanReadable(negated))
+
+        if (match.hasCmd()) yield(match.cmd.toHumanReadable(negated))
+
+        if (match.andAlsoCount > 0) {
+            yield(match.andAlsoList.joinToString(separator = (if (negated) " or " else " and "),
+                    transform = { it.toHumanReadable(negation) } ))
+        }
+
+        if (match.orElseCount > 0) {
+            yield(match.orElseList.joinToString(separator = (if (negated) " and " else " or "),
+                    transform = { it.toHumanReadable(negation) } ))
+        }
+    }.toList()
+    val result = items.joinToString(separator = (if (negated) " or " else " and "))
+    return if (items.size == 1 || hideParentheses) result else "($result)"
+}
+
+private fun Piper.CommandInvocation.toHumanReadable(negation: Boolean): String = sequence {
+        if (this@toHumanReadable.exitCodeCount > 0) {
+            val nt = if (negation) "n't" else ""
+            val ecl = this@toHumanReadable.exitCodeList
+            val values =
+                    if (ecl.size == 1) ecl[0].toString()
+                    else ecl.takeLast(1).joinToString(separator = ", ") + " or ${ecl.last()}"
+            yield("exit code is$nt $values")
+        }
+        if (this@toHumanReadable.hasStdout()) {
+            yield("stdout " + this@toHumanReadable.stdout.toHumanReadable(negation))
+        }
+        if (this@toHumanReadable.hasStderr()) {
+            yield("stderr " + this@toHumanReadable.stderr.toHumanReadable(negation))
+        }
+    }.joinToString(separator = (if (negation) " or " else " and "),
+            prefix = "when invoking `${this@toHumanReadable.commandLine}`, ")
+
+private val Piper.CommandInvocation.commandLine: String
+    get() = sequence {
+        yieldAll(this@commandLine.prefixList.map(::shellQuote))
+        if (this@commandLine.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) yield("<INPUT>")
+        yieldAll(this@commandLine.postfixList.map(::shellQuote))
+    }.joinToString(separator = " ")
+
+private fun shellQuote(s: String): String = if (!s.contains(Regex("[\"\\s\\\\]"))) s
+        else '"' + s.replace(Regex("[\"\\\\]"), "\\$0") + '"'
+
+private fun Piper.RegularExpression.toHumanReadable(negation: Boolean): String =
+        (if (negation) "doesn't match" else "matches") +
+        " regex \"${this.pattern}\"" +
+        (if (this.flags == 0) "" else " (${this.flagSet.joinToString(separator = ", ")})")
+
+private fun ByteString.toHumanReadable(): String = if (this.isValidUtf8) '"' + this.toStringUtf8() + '"'
+    else "bytes " + this.toByteArray().joinToString(separator = ":",
+        transform = { it.toInt().and(0xFF).toString(16).padStart(2, '0') })
 
 enum class RegExpFlag {
     CASE_INSENSITIVE, MULTILINE, DOTALL, UNICODE_CASE, CANON_EQ,
@@ -210,6 +293,16 @@ class BurpExtender : IBurpExtender, ITab {
         @JvmStatic
         fun main (args: Array<String>) {
             val cfg = loadDefaultConfig()
+            println("----menuItem-----")
+            cfg.menuItemList.forEach {
+                println(UserActionToolWrapper(it))
+                if (it.common.hasFilter()) println(MessageMatchWrapper(it.common.filter))
+            }
+            println("----messageViewer-----")
+            cfg.messageViewerList.forEach {
+                println(MessageViewerWrapper(it))
+                if (it.common.hasFilter()) println(MessageMatchWrapper(it.common.filter))
+            }
             val ba = cfg.toByteArray()
             val z = Z85.Z85Encoder(pad4(compress(ba)))
             println(z)
