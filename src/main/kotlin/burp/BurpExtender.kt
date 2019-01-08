@@ -248,8 +248,8 @@ private fun handleGUI(process: Process, tool: Piper.MinimalTool) {
         addKeyListener(terminal.keyListener)
         add(scrollPane)
         setSize(675, 300)
-        isVisible = true
         title = "$NAME - ${tool.name}"
+        isVisible = true
     }
 
     for (stream in arrayOf(process.inputStream, process.errorStream)) {
