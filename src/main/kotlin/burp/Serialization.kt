@@ -96,32 +96,28 @@ object UserActionToolFromMap : (Map<String, Any>) -> Piper.UserActionTool {
 }
 
 fun Map<String, Any>.copyInt(key: String, setter: (Int) -> Any) {
-    val value = this[key] ?: return
-    when (value) {
+    when (val value = this[key] ?: return) {
         is Int -> if (value != 0) setter(value)
         else -> throw RuntimeException("Invalid value for $key: $value")
     }
 }
 
 fun <E> Map<String, Any>.copyStructured(key: String, setter: (E) -> Any, transform: (Map<String, Any>) -> E) {
-    val value = this[key] ?: return
-    when (value) {
+    when (val value = this[key] ?: return) {
         is Map<*, *> -> setter(transform(value as Map<String, Any>))
         else -> throw RuntimeException("Invalid value for $key: $value")
     }
 }
 
 fun <E> Map<String, Any>.copyListOfStructured(key: String, setter: (E) -> Any, transform: (Map<String, Any>) -> E) {
-    val value = this[key] ?: return
-    when (value) {
+    when (val value = this[key] ?: return) {
         is List<*> -> value.forEach { setter(transform(it as Map<String, Any>)) }
         else -> throw RuntimeException("Invalid value for $key: $value")
     }
 }
 
 fun Map<String, Any>.copyBytes(key: String, setter: (ByteString) -> Any) {
-    val value = this[key] ?: return
-    when (value) {
+    when (val value = this[key] ?: return) {
         is String -> setter(ByteString.copyFromUtf8(value))
         is ByteArray -> setter(ByteString.copyFrom(value))
         else -> throw RuntimeException("Invalid value for $key: $value")
@@ -147,8 +143,7 @@ fun Map<String, Any>.stringOrDie(key: String): String {
 }
 
 fun Map<String, Any>.stringSequence(key: String, required: Boolean = true): Iterable<String> {
-    val value = this[key]
-    return when (value) {
+    return when (val value = this[key]) {
         null -> if (required) throw RuntimeException("Missing list for $key") else return emptyList()
         is List<*> -> value.map {
             when (it) {
@@ -162,8 +157,7 @@ fun Map<String, Any>.stringSequence(key: String, required: Boolean = true): Iter
 }
 
 fun Map<String, Any>.intSequence(key: String): Iterable<Int> {
-    val value = this[key]
-    return when (value) {
+    return when (val value = this[key]) {
         null -> emptyList()
         is List<*> -> value.map {
             when (it) {
