@@ -9,8 +9,8 @@ import java.util.zip.DeflaterOutputStream
 import java.util.zip.InflaterInputStream
 
 fun configFromYaml(value: String): Piper.Config {
-    var ls = Load(LoadSettingsBuilder().build())
-    var b = Piper.Config.newBuilder()!!
+    val ls = Load(LoadSettingsBuilder().build())
+    val b = Piper.Config.newBuilder()!!
     with(ls.loadFromString(value) as Map<String, List<*>>) {
         copyListOfStructured("messageViewers", b::addMessageViewer, ::messageViewerFromMap)
         copyListOfStructured("macros", b::addMacro, ::minimalToolFromMap)
@@ -228,7 +228,7 @@ fun Piper.MinimalTool.toMap(): MutableMap<String, Any> {
 }
 
 fun Piper.MessageMatch.toMap(): Map<String, Any> {
-    var m = mutableMapOf<String, Any>()
+    val m = mutableMapOf<String, Any>()
     m.add("prefix", this.prefix)
     m.add("postfix", this.postfix)
     if (this.hasRegex()) m["regex"] = this.regex.toMap()
@@ -241,7 +241,7 @@ fun Piper.MessageMatch.toMap(): Map<String, Any> {
 }
 
 fun Piper.CommandInvocation.toMap(): MutableMap<String, Any> {
-    var m = mutableMapOf<String, Any>()
+    val m = mutableMapOf<String, Any>()
     m["prefix"] = this.prefixList
     if (this.postfixCount > 0) m["postfix"] = this.postfixList
     m["inputMethod"] = this.inputMethod.name.toLowerCase()

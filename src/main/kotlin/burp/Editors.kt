@@ -19,7 +19,7 @@ abstract class Editor(private val tool: Piper.MessageViewer,
         if (!tool.common.hasFilter()) return true
 
         val rr = booleanToRequestResponse(isRequest)
-        var payload = getPayload(content, rr)
+        val payload = getPayload(content, rr)
 
         if (payload.isEmpty()) return false
 
