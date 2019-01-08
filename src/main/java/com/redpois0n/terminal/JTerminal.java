@@ -110,7 +110,6 @@ public class JTerminal extends JTextPane {
 	
 	private List<InputListener> inputListeners = new ArrayList<InputListener>();
 	
-	private int last;
 	private StyledDocument doc;
 	
 	public JTerminal() {
@@ -138,8 +137,6 @@ public class JTerminal extends JTextPane {
 	}
 	
 	public synchronized void append(String s) {
-        last = doc.getLength();
-
         boolean fg = true;
 		Color foreground = DEFAULT_FOREGROUND;
 		Color background = DEFAULT_BACKGROUND;
@@ -223,8 +220,6 @@ public class JTerminal extends JTextPane {
         	append(s1, foreground, background, bold, underline);
         }
         
-        last = doc.getLength();
-
         setCursorInEnd();
         
 	}
