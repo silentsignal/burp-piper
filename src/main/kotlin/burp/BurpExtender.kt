@@ -173,13 +173,13 @@ class BurpExtender : IBurpExtender, ITab {
 
     private fun loadConfig(): Piper.Config {
         val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
-        if (serialized == null)
+        return if (serialized == null)
         {
             val cfgMod = loadDefaultConfig()
             saveConfig(cfgMod)
-            return cfgMod
+            cfgMod
         } else {
-            return Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
+            Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
         }
     }
 
