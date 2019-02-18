@@ -185,6 +185,25 @@ class BurpExtender : IBurpExtender, ITab {
             }
         }
 
+        cfg.macroList.filter(Piper.MinimalTool::getEnabled).forEach {
+            callbacks.registerSessionHandlingAction(object : ISessionHandlingAction {
+                override fun performAction(currentRequest: IHttpRequestResponse?, macroItems: Array<out IHttpRequestResponse>?) {
+                    if (currentRequest == null) return
+                    // TODO handle passHeaders=false (this version presumes "true")
+                    if (it.hasFilter()) {
+                        val body = currentRequest.request
+                        val ri = helpers.analyzeRequest(currentRequest)
+                        if (!it.filter.matches(MessageInfo(body, helpers.bytesToString(body), ri.headers), helpers)) return
+                    }
+                    it.cmd.execute(currentRequest.request).processOutput { process ->
+                        currentRequest.request = process.inputStream.readBytes()
+                    }
+                }
+
+                override fun getActionName() : String = it.name
+            })
+        }
+
         populateTabs(cfg)
         callbacks.addSuiteTab(this)
     }
