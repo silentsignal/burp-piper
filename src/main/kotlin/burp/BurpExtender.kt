@@ -239,7 +239,7 @@ class BurpExtender : IBurpExtender, ITab {
         if (this.cmd.passHeaders) {
             rr.setMessage(messageInfo, replacement)
         } else {
-            rr.setMessage(messageInfo, bytes.copyOfRange(0, bo) + replacement)
+            rr.setMessage(messageInfo, helpers.buildHttpMessage(headers, replacement))
         }
     }
 
