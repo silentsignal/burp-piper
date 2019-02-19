@@ -199,6 +199,16 @@ class BurpExtender : IBurpExtender, ITab {
             }
         }
 
+        cfg.httpListenerList.forEach {
+            if (it.common.enabled) {
+                callbacks.registerHttpListener { toolFlag, messageIsRequest, messageInfo ->
+                    if ((messageIsRequest xor (it.scope == Piper.HttpListener.RequestResponse.REQUEST))
+                            || (it.tool != 0 && (it.tool and toolFlag == 0))) return@registerHttpListener
+                    it.common.pipeMessage(RequestResponse.fromBoolean(messageIsRequest), messageInfo)
+                }
+            }
+        }
+
         cfg.macroList.filter(Piper.MinimalTool::getEnabled).forEach {
             callbacks.registerSessionHandlingAction(object : ISessionHandlingAction {
                 override fun performAction(currentRequest: IHttpRequestResponse?, macroItems: Array<out IHttpRequestResponse>?) {

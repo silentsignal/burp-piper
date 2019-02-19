@@ -15,6 +15,7 @@ fun configFromYaml(value: String): Piper.Config {
         copyListOfStructured("messageViewers", b::addMessageViewer, ::messageViewerFromMap)
         copyListOfStructured("macros", b::addMacro, ::minimalToolFromMap)
         copyListOfStructured("menuItems", b::addMenuItem, UserActionToolFromMap)
+        copyListOfStructured("httpListeners", b::addHttpListener, ::httpListenerFromMap)
     }
     return b.build()
 }
@@ -31,6 +32,14 @@ fun minimalToolFromMap(source: Map<String, Any>): Piper.MinimalTool {
             .setCmd(commandInvocationFromMap(source))
     source.copyStructured("filter", b::setFilter, ::messageMatchFromMap)
     return b.build()
+}
+
+fun httpListenerFromMap(source: Map<String, Any>): Piper.HttpListener {
+    return Piper.HttpListener.newBuilder()!!
+            .setScope(enumFromString(source.stringOrDie("scope"),
+                    Piper.HttpListener.RequestResponse::class.java))
+            .setTool(0x00000040) /* TODO read from list like regexp flags */
+            .setCommon(minimalToolFromMap(source)).build()
 }
 
 fun commandInvocationFromMap(source: Map<String, Any>): Piper.CommandInvocation {

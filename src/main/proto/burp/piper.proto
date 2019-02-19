@@ -75,8 +75,19 @@ message MessageViewer {
     bool usesColors = 2;
 }
 
+message HttpListener {
+    MinimalTool common = 1;
+    int32 tool = 2;
+    enum RequestResponse {
+        REQUEST = 0;
+        RESPONSE = 1;
+    }
+    RequestResponse scope = 3;
+}
+
 message Config {
     repeated MinimalTool macro = 1;
     repeated MessageViewer messageViewer = 2;
     repeated UserActionTool menuItem = 3;
+    repeated HttpListener httpListener = 4;
 }
