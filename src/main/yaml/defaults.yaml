@@ -1,3 +1,12 @@
+macros:
+- prefix: [sed, 's/foo/bar/g']
+  inputMethod: stdin
+  passHeaders: true
+  name: "foo -> bar with headers"
+- prefix: [sed, 's/foo/bar/g']
+  inputMethod: stdin
+  passHeaders: false
+  name: "foo -> bar without headers"
 messageViewers:
 - prefix: [rev]
   inputMethod: stdin
