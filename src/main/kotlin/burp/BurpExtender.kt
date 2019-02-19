@@ -134,6 +134,10 @@ enum class RequestResponse {
     REQUEST {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.request
 
+        override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
+            rr.request = value
+        }
+
         override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int =
             helpers.analyzeRequest(data).bodyOffset
 
@@ -144,6 +148,10 @@ enum class RequestResponse {
     RESPONSE {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.response
 
+        override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
+            rr.response = value
+        }
+
         override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int =
             helpers.analyzeResponse(data).bodyOffset
 
@@ -152,6 +160,7 @@ enum class RequestResponse {
     };
 
     abstract fun getMessage(rr: IHttpRequestResponse): ByteArray?
+    abstract fun setMessage(rr: IHttpRequestResponse, value: ByteArray)
     abstract fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int
     abstract fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String>
 
@@ -193,16 +202,7 @@ class BurpExtender : IBurpExtender, ITab {
         cfg.macroList.filter(Piper.MinimalTool::getEnabled).forEach {
             callbacks.registerSessionHandlingAction(object : ISessionHandlingAction {
                 override fun performAction(currentRequest: IHttpRequestResponse?, macroItems: Array<out IHttpRequestResponse>?) {
-                    if (currentRequest == null) return
-                    // TODO handle passHeaders=false (this version presumes "true")
-                    if (it.hasFilter()) {
-                        val body = currentRequest.request
-                        val ri = helpers.analyzeRequest(currentRequest)
-                        if (!it.filter.matches(MessageInfo(body, helpers.bytesToString(body), ri.headers), helpers)) return
-                    }
-                    it.cmd.execute(currentRequest.request).processOutput { process ->
-                        currentRequest.request = process.inputStream.readBytes()
-                    }
+                    it.pipeMessage(RequestResponse.REQUEST, currentRequest ?: return)
                 }
 
                 override fun getActionName() : String = it.name
@@ -211,6 +211,26 @@ class BurpExtender : IBurpExtender, ITab {
 
         populateTabs(cfg)
         callbacks.addSuiteTab(this)
+    }
+
+    private fun Piper.MinimalTool.pipeMessage(rr: RequestResponse, messageInfo: IHttpRequestResponse) {
+        val bytes = rr.getMessage(messageInfo)!!
+        val headers = rr.getHeaders(bytes, helpers)
+        val bo = if (this.cmd.passHeaders) 0 else rr.getBodyOffset(bytes, helpers)
+        val body = if (this.cmd.passHeaders) bytes else {
+            if (bo < bytes.size - 1) {
+                bytes.copyOfRange(bo, bytes.size)
+            } else return
+        }
+        if (this.hasFilter() && !this.filter.matches(MessageInfo(body, helpers.bytesToString(body), headers), helpers)) return
+        val replacement = this.cmd.execute(body).processOutput { process ->
+            process.inputStream.readBytes()
+        }
+        if (this.cmd.passHeaders) {
+            rr.setMessage(messageInfo, replacement)
+        } else {
+            rr.setMessage(messageInfo, bytes.copyOfRange(0, bo) + replacement)
+        }
     }
 
     private fun populateTabs(cfg: Piper.Config) {
