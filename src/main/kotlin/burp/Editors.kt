@@ -18,7 +18,7 @@ abstract class Editor(private val tool: Piper.MessageViewer,
         if (content == null) return false
         if (!tool.common.hasFilter()) return true
 
-        val rr = booleanToRequestResponse(isRequest)
+        val rr = RequestResponse.fromBoolean(isRequest)
         val payload = getPayload(content, rr)
 
         if (payload.isEmpty()) return false
@@ -31,13 +31,10 @@ abstract class Editor(private val tool: Piper.MessageViewer,
         msg = content
         if (content == null) return
         thread(start = true) {
-            val input = getPayload(content, booleanToRequestResponse(isRequest))
+            val input = getPayload(content, RequestResponse.fromBoolean(isRequest))
             tool.common.cmd.execute(input).processOutput(this::outputProcessor)
         }
     }
-
-    private fun booleanToRequestResponse(isRequest: Boolean) =
-            if (isRequest) RequestResponse.REQUEST else RequestResponse.RESPONSE
 
     private fun getPayload(content: ByteArray, rr: RequestResponse) =
             if (tool.common.cmd.passHeaders) content

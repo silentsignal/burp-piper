@@ -154,6 +154,11 @@ enum class RequestResponse {
     abstract fun getMessage(rr: IHttpRequestResponse): ByteArray?
     abstract fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int
     abstract fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String>
+
+    companion object {
+        fun fromBoolean(isRequest: Boolean) =
+                if (isRequest) RequestResponse.REQUEST else RequestResponse.RESPONSE
+    }
 }
 
 class BurpExtender : IBurpExtender, ITab {
