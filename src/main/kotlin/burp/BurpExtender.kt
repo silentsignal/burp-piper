@@ -119,57 +119,6 @@ private fun ByteString.toHumanReadable(): String = if (this.isValidUtf8) '"' + t
     else "bytes " + this.toByteArray().joinToString(separator = ":",
         transform = { it.toInt().and(0xFF).toString(16).padStart(2, '0') })
 
-enum class RegExpFlag {
-    CASE_INSENSITIVE, MULTILINE, DOTALL, UNICODE_CASE, CANON_EQ,
-    UNIX_LINES, LITERAL, UNICODE_CHARACTER_CLASS, COMMENTS;
-
-    val value = Pattern::class.java.getField(name).getInt(null)
-
-    override fun toString(): String {
-        return name.toLowerCase().replace('_', ' ')
-    }
-}
-
-enum class RequestResponse {
-    REQUEST {
-        override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.request
-
-        override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
-            rr.request = value
-        }
-
-        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int =
-            helpers.analyzeRequest(data).bodyOffset
-
-        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> =
-            helpers.analyzeRequest(data).headers
-    },
-
-    RESPONSE {
-        override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.response
-
-        override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
-            rr.response = value
-        }
-
-        override fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int =
-            helpers.analyzeResponse(data).bodyOffset
-
-        override fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String> =
-            helpers.analyzeResponse(data).headers
-    };
-
-    abstract fun getMessage(rr: IHttpRequestResponse): ByteArray?
-    abstract fun setMessage(rr: IHttpRequestResponse, value: ByteArray)
-    abstract fun getBodyOffset(data: ByteArray, helpers: IExtensionHelpers): Int
-    abstract fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String>
-
-    companion object {
-        fun fromBoolean(isRequest: Boolean) =
-                if (isRequest) RequestResponse.REQUEST else RequestResponse.RESPONSE
-    }
-}
-
 class BurpExtender : IBurpExtender, ITab {
 
     private lateinit var callbacks: IBurpExtenderCallbacks
@@ -485,6 +434,9 @@ val Piper.RegularExpression.flagSet: Set<RegExpFlag>
 
 fun Piper.RegularExpression.Builder.setFlagSet(flags: Set<RegExpFlag>): Piper.RegularExpression.Builder =
         this.setFlags(flags.fold(0) { acc: Int, regExpFlag: RegExpFlag -> acc or regExpFlag.value })
+
+fun Piper.HttpListener.Builder.setToolSet(tools: Set<BurpTool>): Piper.HttpListener.Builder =
+        this.setTool(tools.fold(0) { acc: Int, tool: BurpTool -> acc or tool.value })
 
 fun <E> Pair<Process, List<File>>.processOutput(processor: (Process) -> E): E {
     val output = processor(this.first)

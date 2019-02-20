@@ -35,11 +35,13 @@ fun minimalToolFromMap(source: Map<String, Any>): Piper.MinimalTool {
 }
 
 fun httpListenerFromMap(source: Map<String, Any>): Piper.HttpListener {
-    return Piper.HttpListener.newBuilder()!!
+    val b = Piper.HttpListener.newBuilder()!!
             .setScope(enumFromString(source.stringOrDie("scope"),
                     Piper.HttpListener.RequestResponse::class.java))
-            .setTool(0x00000040) /* TODO read from list like regexp flags */
-            .setCommon(minimalToolFromMap(source)).build()
+    val ss = source.stringSequence("tool", required = false)
+            .map { enumFromString(it, BurpTool::class.java) }
+    if (ss.isNotEmpty()) b.setToolSet(ss.toSet())
+    return b.setCommon(minimalToolFromMap(source)).build()
 }
 
 fun commandInvocationFromMap(source: Map<String, Any>): Piper.CommandInvocation {
