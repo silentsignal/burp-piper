@@ -109,7 +109,7 @@ class BurpExtender : IBurpExtender, ITab {
         val body = if (this.cmd.passHeaders) bytes else {
             if (bo < bytes.size - 1) {
                 bytes.copyOfRange(bo, bytes.size)
-            } else return
+            } else return // if the request has no body, passHeaders=false tools have no use for it
         }
         if (this.hasFilter() && !this.filter.matches(MessageInfo(body, helpers.bytesToString(body), headers), helpers)) return
         val replacement = this.cmd.execute(body).processOutput { process ->
@@ -152,6 +152,7 @@ class BurpExtender : IBurpExtender, ITab {
                 miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers))
                 val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
+                    // if the request has no body, passHeaders=false actions have no use for it
                     val body = bytes.copyOfRange(bo, bytes.size)
                     miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers))
                 }
