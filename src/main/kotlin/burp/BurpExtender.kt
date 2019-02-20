@@ -331,6 +331,9 @@ private fun loadDefaultConfig(): Piper.Config {
             .addAllMessageViewer(cfg.messageViewerList.map {
                 it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
             })
+            .addAllHttpListener(cfg.httpListenerList.map {
+                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+            })
             .build()
 }
 
