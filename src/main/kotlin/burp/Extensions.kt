@@ -20,8 +20,7 @@ fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boole
         }
         if (match.hasRegex()) yield(match.regex.toHumanReadable(negated))
 
-        if (match.hasHeader()) yield("header \"${match.header.header}\" " +
-                match.header.regex.toHumanReadable(negated))
+        if (match.hasHeader()) yield(match.header.toHumanReadable(negated))
 
         if (match.hasCmd()) yield(match.cmd.toHumanReadable(negated))
 
@@ -38,6 +37,9 @@ fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boole
     val result = items.joinToString(separator = (if (negated) " or " else " and "))
     return if (items.size == 1 || hideParentheses) result else "($result)"
 }
+
+fun Piper.HeaderMatch.toHumanReadable(negation: Boolean): String =
+    "header \"${header}\" " + regex.toHumanReadable(negation)
 
 fun Piper.CommandInvocation.toHumanReadable(negation: Boolean): String = sequence {
     if (this@toHumanReadable.exitCodeCount > 0) {
