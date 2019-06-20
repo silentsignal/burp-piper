@@ -364,7 +364,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         }
     }
 
-    fun parseHex(dialog: Component): ByteArray? {
+    private fun parseHex(dialog: Component): ByteArray? {
         val hexstring = tf.text.filter { c -> c.isDigit() || c in 'A'..'F' || c in 'a'..'f' }
         if (hexstring.length % 2 != 0) {
             JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string needs to contain an even number of hex digits")
