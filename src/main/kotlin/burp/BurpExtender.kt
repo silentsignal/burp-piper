@@ -20,16 +20,14 @@ package burp
 
 import com.google.protobuf.ByteString
 import com.redpois0n.terminal.JTerminal
-import org.snakeyaml.engine.v1.api.Dump
-import org.snakeyaml.engine.v1.api.DumpSettingsBuilder
-import java.io.File
-import java.io.InputStream
+import org.zeromq.codec.Z85
+import java.awt.*
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.util.*
-import java.util.regex.Pattern
 import javax.swing.*
 import kotlin.concurrent.thread
-import org.zeromq.codec.Z85
-import java.awt.Component
+
 
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
@@ -123,6 +121,7 @@ class BurpExtender : IBurpExtender, ITab {
     }
 
     private fun populateTabs(cfg: Piper.Config) {
+        tabs.addTab("Message viewers", createMessageViewersTab(cfg.messageViewerList))
         // TODO tabs.addTab("Load/Save configuration")
         // TODO tabs.addTab("Message viewers")
         // TODO tabs.addTab("Context menu items")
@@ -164,6 +163,7 @@ class BurpExtender : IBurpExtender, ITab {
         }
 
         for (cfgItem in cfg.menuItemList) {
+            // TODO check dependencies
             if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize)
                     || cfgItem.minInputs > msize || !cfgItem.common.enabled) continue
             for ((msrc, md) in messageDetails) {
@@ -226,28 +226,355 @@ class BurpExtender : IBurpExtender, ITab {
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
+            val be = BurpExtender()
             val cfg = loadDefaultConfig()
-            println("----menuItem-----")
-            cfg.menuItemList.forEach {
-                println(UserActionToolWrapper(it))
-                if (it.common.hasFilter()) println(MessageMatchWrapper(it.common.filter))
+            be.populateTabs(cfg)
+            val dialog = JDialog()
+            with(dialog) {
+                defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+                add(be.uiComponent)
+                setSize(800, 600)
+                isModal = true
+                title = NAME
+                isVisible = true
             }
-            println("----messageViewer-----")
-            cfg.messageViewerList.forEach {
-                println(MessageViewerWrapper(it))
-                if (it.common.hasFilter()) println(MessageMatchWrapper(it.common.filter))
-            }
-            val ba = cfg.toByteArray()
-            val z = Z85.Z85Encoder(pad4(compress(ba)))
-            println(z)
-            println(decompress(unpad4(Z85.Z85Decoder(z))) contentEquals ba)
-            val yaml = Dump(DumpSettingsBuilder().build())
-                    .dumpToString(cfg.toSettings())
-            println(yaml)
-            val parsed = configFromYaml(yaml)
-            println(parsed)
         }
     }
+}
+
+private fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): Component {
+    val listWidget = JList<MessageViewerWrapper>(messageViewers.map(::MessageViewerWrapper).toTypedArray())
+    listWidget.addDoubleClickListener {
+        showMessageViewerDialog(messageViewers[it])
+    }
+    return listWidget
+}
+
+fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
+    this.addMouseListener(object : MouseAdapter() {
+        override fun mouseClicked(e: MouseEvent) {
+            if (e.clickCount == 2) {
+                listener(this@addDoubleClickListener.locationToIndex(e.point))
+            }
+        }
+    })
+}
+
+private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer) {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+
+    with(cs) {
+        fill = GridBagConstraints.HORIZONTAL
+        gridx = 0
+        gridy = 0
+        gridwidth = 1
+    }
+
+    panel.add(JLabel("Name: "), cs)
+
+    cs.gridx = 1
+    cs.gridwidth = 2
+
+    val tfName = JTextField()
+    tfName.text = messageViewer.common.name
+    panel.add(tfName, cs)
+
+    cs.gridwidth = 1
+    cs.gridy = 1
+    cs.gridx = 0
+
+    panel.add(JLabel("Filter: "), cs)
+
+    cs.gridx = 1
+
+    panel.add(JLabel(if (messageViewer.common.hasFilter())
+        messageViewer.common.filter.toHumanReadable(false, true) + " " else "(no filter) "), cs)
+
+    cs.gridx = 2
+
+    val btnEditFilter = JButton("Edit...")
+    btnEditFilter.addActionListener {
+        showMessageMatchDialog(messageViewer.common.filter)
+        // TODO handle return value
+    }
+    panel.add(btnEditFilter, cs)
+
+    cs.gridy = 2
+    cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
+    cs.gridx = 1 ; panel.add(JLabel(messageViewer.common.cmd.commandLine + " "), cs)
+    cs.gridx = 2 ; panel.add(JButton("Edit..."), cs) // TODO handle click
+
+    cs.gridy = 3
+    cs.gridx = 0
+    cs.gridwidth = 3
+
+    val cbEnabled = JCheckBox("Enabled")
+    cbEnabled.isSelected = messageViewer.common.enabled
+    panel.add(cbEnabled, cs)
+
+    cs.gridy = 4
+
+    val cbUsesColors = JCheckBox("Uses ANSI (color) escape sequences")
+    cbUsesColors.isSelected = messageViewer.usesColors
+    panel.add(cbUsesColors, cs)
+
+    with(dialog) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(panel)
+        setSize(800, 600)
+        title = "Edit message editor \"${messageViewer.common.name}\""
+        isModal = true
+        isVisible = true
+    }
+}
+
+class HexASCIITextField(private val tf: JTextField = JTextField(),
+                        private val rbHex: JRadioButton = JRadioButton("Hex"),
+                        private val rbASCII: JRadioButton = JRadioButton("ASCII"),
+                        private val field: String, private var isASCII: Boolean) {
+
+    constructor(field: String, source: ByteString, dialog: Component) : this(field=field, isASCII=source.isValidUtf8) {
+        if (isASCII) {
+            tf.text = source.toStringUtf8()
+            rbASCII.isSelected = true
+        } else {
+            tf.text = source.toHexPairs()
+            rbHex.isSelected = true
+        }
+
+        with(ButtonGroup()) { add(rbHex); add(rbASCII); }
+
+        rbASCII.addActionListener {
+            if (isASCII) return@addActionListener
+            val bytes = parseHex(dialog)
+            if (bytes == null) {
+                rbHex.isSelected = true
+                return@addActionListener
+            }
+            tf.text = String(bytes, Charsets.UTF_8)
+            isASCII = true
+        }
+
+        rbHex.addActionListener {
+            if (!isASCII) return@addActionListener
+            tf.text = tf.text.toByteArray(/* default is UTF-8 */).toHexPairs()
+            isASCII = false
+        }
+    }
+
+    fun parseHex(dialog: Component): ByteArray? {
+        val hexstring = tf.text.filter { c -> c.isDigit() || c in 'A'..'F' || c in 'a'..'f' }
+        if (hexstring.length % 2 != 0) {
+            JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string needs to contain an even number of hex digits")
+            return null
+        }
+        return hexstring.chunked(2).map { ds -> ds.toInt(16).toByte() }.toByteArray()
+    }
+
+    fun getByteString(dialog: Component): ByteString? {
+        return if (isASCII) ByteString.copyFromUtf8(tf.text) else ByteString.copyFrom(parseHex(dialog) ?: return null)
+    }
+
+    fun addWidgets(caption: String, cs: GridBagConstraints, panel: JPanel) {
+        cs.gridy++
+        cs.gridx = 0 ; panel.add(JLabel(caption), cs)
+        cs.gridx = 1 ; panel.add(tf,      cs)
+        cs.gridx = 2 ; panel.add(rbASCII, cs)
+        cs.gridx = 3 ; panel.add(rbHex,   cs)
+    }
+}
+
+data class MessageMatchDialogState(var result: Piper.MessageMatch? = null)
+
+fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+    val prefixField  = HexASCIITextField("prefix",  mm.prefix,  dialog)
+    val postfixField = HexASCIITextField("postfix", mm.postfix, dialog)
+    val state = MessageMatchDialogState()
+
+    with(cs) {
+        fill = GridBagConstraints.HORIZONTAL
+        gridx = 0
+        gridy = 0
+        gridwidth = 4
+    }
+
+    val cbNegation = JComboBox<MatchNegation>(MatchNegation.values())
+    panel.add(cbNegation, cs)
+
+    cs.gridwidth = 1
+
+    prefixField .addWidgets("Starts with: ", cs, panel)
+    postfixField.addWidgets(  "Ends with: ", cs, panel)
+
+    cs.gridy = 3
+    cs.gridx = 0
+
+    panel.add(JLabel("Matches regular expression: "), cs)
+
+    cs.gridx = 1
+    cs.gridwidth = 3
+
+    val tfRegExp = JTextField(mm.regex.pattern)
+    panel.add(tfRegExp, cs)
+
+    cs.gridy = 4
+    cs.gridx = 0
+    cs.gridwidth = 4
+
+    panel.add(JLabel("Regular expression flags: (see JDK documentation)"), cs)
+
+    cs.gridy = 5
+    cs.gridwidth = 1
+
+    val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
+	val fs = mm.regex.flagSet
+    RegExpFlag.values().forEach {
+        val cb = JCheckBox(it.toString())
+		cb.isSelected = fs.contains(it)
+        panel.add(cb, cs)
+        cbFlags[it] = cb
+        if (cs.gridx == 0) {
+            cs.gridx = 1
+        } else {
+            cs.gridy++
+            cs.gridx = 0
+        }
+    }
+
+    cs.gridy++
+    cs.gridx = 0
+
+	panel.add(JLabel("Header: "), cs)
+
+    cs.gridx = 1
+	cs.gridwidth = 2
+
+	panel.add(JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)"), cs)
+
+	cs.gridwidth = 1
+	cs.gridx = 3
+
+    val btnHeaderEdit = JButton("Edit...")
+	panel.add(btnHeaderEdit, cs)
+
+    btnHeaderEdit.addActionListener {
+        // TODO
+    }
+
+    val spList = JSplitPane()
+    val (andAlsoPanel, andAlsoModel) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList)
+    val ( orElsePanel,  orElseModel) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList)
+    spList.leftComponent = andAlsoPanel
+    spList.rightComponent = orElsePanel
+
+    cs.gridy++
+    cs.gridx = 0
+    cs.gridwidth = 4
+    panel.add(spList, cs)
+
+    cs.gridy++
+    val pnButtons = JPanel()
+    val btnOK = JButton("OK")
+    val btnCancel = JButton("Cancel")
+    pnButtons.add(btnOK)
+    pnButtons.add(btnCancel)
+    panel.add(pnButtons, cs)
+
+    btnOK.addActionListener {
+        val builder = Piper.MessageMatch.newBuilder()
+
+        if ((cbNegation.selectedItem as MatchNegation).negation) builder.negation = true
+
+        val postfix = postfixField.getByteString(dialog) ?: return@addActionListener
+        builder.postfix = postfix
+
+        val prefix = prefixField.getByteString(dialog) ?: return@addActionListener
+        builder.prefix = prefix
+
+        if (tfRegExp.text.isNotEmpty()) {
+            val flagSet = cbFlags.filter { e -> e.value.isSelected }.keys
+            builder.regex = Piper.RegularExpression.newBuilder().setPattern(tfRegExp.text).setFlagSet(flagSet).build()
+        }
+
+        // TODO header
+
+        for (i in 0 until andAlsoModel.size) builder.addAndAlso(andAlsoModel.getElementAt(i).cfgItem)
+        for (i in 0 until  orElseModel.size) builder.addOrElse(  orElseModel.getElementAt(i).cfgItem)
+
+        state.result = builder.build()
+        dialog.isVisible = false
+    }
+
+    btnCancel.addActionListener {
+        dialog.isVisible = false
+    }
+
+    with(dialog) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(panel)
+        setSize(800, 600)
+        title = "Edit filter"
+        isModal = true
+        isVisible = true
+    }
+
+    return state.result
+}
+
+private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>): Pair<Component, ListModel<MessageMatchWrapper>> {
+    val model = DefaultListModel<MessageMatchWrapper>()
+    source.forEach { model.addElement(MessageMatchWrapper(it)) }
+
+    val list = JList<MessageMatchWrapper>(model)
+    val toolbar = JPanel()
+
+    val btnAdd = JButton("+")
+    val btnRemove = JButton("--")
+    val btnEdit = JButton("Edit")
+
+    btnAdd.addActionListener {
+        model.addElement(MessageMatchWrapper(
+                showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance()) ?: return@addActionListener))
+    }
+
+    btnRemove.addActionListener {
+        if (list.selectedIndex >= 0) model.remove(list.selectedIndex)
+    }
+
+    btnEdit.addActionListener {
+        val edited = showMessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener)
+        if (edited != null) model.set(list.selectedIndex, MessageMatchWrapper(edited))
+    }
+
+    with (toolbar) {
+        layout = BoxLayout(toolbar, BoxLayout.LINE_AXIS)
+        add(btnAdd)
+        add(Box.createRigidArea(Dimension(4, 0)))
+        add(btnRemove)
+        add(Box.createRigidArea(Dimension(4, 0)))
+        add(btnEdit)
+    }
+
+    val panel = JPanel()
+
+    with (panel) {
+        layout = BorderLayout()
+        border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
+        add(JLabel(caption), BorderLayout.NORTH)
+        add(JScrollPane(list), BorderLayout.CENTER)
+        add(toolbar, BorderLayout.SOUTH)
+    }
+
+    list.addDoubleClickListener {
+        showMessageMatchDialog(source[it])
+    }
+
+    return panel to model
 }
 
 private fun loadDefaultConfig(): Piper.Config {

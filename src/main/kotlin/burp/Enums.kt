@@ -62,3 +62,10 @@ enum class BurpTool {
         return name.capitalize()
     }
 }
+
+enum class MatchNegation(val negation: Boolean, val description: String) {
+    NORMAL(false, "Match when all the rules below apply"),
+    NEGATED(true, "Match when none of the rules below apply");
+
+    override fun toString(): String = description
+}

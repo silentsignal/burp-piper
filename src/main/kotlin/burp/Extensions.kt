@@ -77,7 +77,9 @@ fun Piper.RegularExpression.toHumanReadable(negation: Boolean): String =
 fun ByteString.toHumanReadable(): String = if (this.isValidUtf8) '"' + this.toStringUtf8() + '"'
     else "bytes " + this.toHexPairs()
 
-fun ByteString.toHexPairs(): String = this.toByteArray().joinToString(separator = ":",
+fun ByteString.toHexPairs(): String = this.toByteArray().toHexPairs()
+
+fun ByteArray.toHexPairs(): String = this.joinToString(separator = ":",
         transform = { it.toInt().and(0xFF).toString(16).padStart(2, '0') })
 
 fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
