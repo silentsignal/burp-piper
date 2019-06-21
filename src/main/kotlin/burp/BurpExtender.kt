@@ -410,7 +410,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(panel)
-        setSize(800, 600)
+        setSize(480, 320)
         title = "Edit header filter"
         isModal = true
         isVisible = true
