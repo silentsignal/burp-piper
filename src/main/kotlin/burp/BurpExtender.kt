@@ -261,85 +261,105 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     })
 }
 
-data class MessageViewerDialogState(var result: Piper.MessageViewer? = null, var filter: Piper.MessageMatch?)
+class MinimalToolWidget(private val tfName: JTextField = JTextField(), private var filter: Piper.MessageMatch?,
+                        private val cbEnabled: JCheckBox = JCheckBox("Enabled")) {
+    fun toMinimalTool(dialog: Component): Piper.MinimalTool? {
+        if (tfName.text.isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "The message viewer name cannot be empty.")
+            return null
+        }
+
+        val f = filter
+        with (Piper.MinimalTool.newBuilder()) {
+            name = tfName.text
+            if (cbEnabled.isSelected) enabled = true
+            if (f != null) filter = f
+            // TODO cmd
+            return build()
+        }
+    }
+
+    companion object {
+        fun create(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints): MinimalToolWidget {
+            val mtw = MinimalToolWidget(filter=tool.filter)
+
+            with(cs) {
+                fill = GridBagConstraints.HORIZONTAL
+                gridx = 0
+                gridy = 0
+                gridwidth = 1
+            }
+
+            panel.add(JLabel("Name: "), cs)
+
+            cs.gridx = 1
+            cs.gridwidth = 2
+
+            val tfName = JTextField()
+            tfName.text = tool.name
+            panel.add(tfName, cs)
+
+            cs.gridwidth = 1
+            cs.gridy = 1
+            cs.gridx = 0
+
+            panel.add(JLabel("Filter: "), cs)
+
+            cs.gridx = 1
+
+            val lbFilter = JLabel(if (tool.hasFilter())
+                tool.filter.toHumanReadable(false, true) + " " else "(no filter) ")
+            panel.add(lbFilter, cs)
+
+            cs.gridx = 2
+
+            val btnEditFilter = JButton("Edit...")
+            btnEditFilter.addActionListener {
+                val filter = showMessageMatchDialog(tool.filter) ?: return@addActionListener
+                lbFilter.text = filter.toHumanReadable(false, true) + " "
+                mtw.filter = filter
+            }
+            panel.add(btnEditFilter, cs)
+
+            cs.gridy = 2
+            cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
+            cs.gridx = 1 ; panel.add(JLabel(tool.cmd.commandLine + " "), cs)
+            cs.gridx = 2 ; panel.add(JButton("Edit..."), cs) // TODO handle click
+
+            cs.gridy = 3
+            cs.gridx = 0
+            cs.gridwidth = 3
+
+            val cbEnabled = JCheckBox("Enabled")
+            cbEnabled.isSelected = tool.enabled
+            panel.add(cbEnabled, cs)
+
+            cs.gridy = 4
+
+            return mtw
+        }
+    }
+}
+
+data class MessageViewerDialogState(var result: Piper.MessageViewer? = null)
 
 private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.MessageViewer? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
-    val state = MessageViewerDialogState(filter=messageViewer.common.filter)
+    val state = MessageViewerDialogState()
 
-    with(cs) {
-        fill = GridBagConstraints.HORIZONTAL
-        gridx = 0
-        gridy = 0
-        gridwidth = 1
-    }
-
-    panel.add(JLabel("Name: "), cs)
-
-    cs.gridx = 1
-    cs.gridwidth = 2
-
-    val tfName = JTextField()
-    tfName.text = messageViewer.common.name
-    panel.add(tfName, cs)
-
-    cs.gridwidth = 1
-    cs.gridy = 1
-    cs.gridx = 0
-
-    panel.add(JLabel("Filter: "), cs)
-
-    cs.gridx = 1
-
-    val lbFilter = JLabel(if (messageViewer.common.hasFilter())
-        messageViewer.common.filter.toHumanReadable(false, true) + " " else "(no filter) ")
-    panel.add(lbFilter, cs)
-
-    cs.gridx = 2
-
-    val btnEditFilter = JButton("Edit...")
-    btnEditFilter.addActionListener {
-        val filter = showMessageMatchDialog(messageViewer.common.filter) ?: return@addActionListener
-        lbFilter.text = filter.toHumanReadable(false, true) + " "
-        state.filter = filter
-    }
-    panel.add(btnEditFilter, cs)
-
-    cs.gridy = 2
-    cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
-    cs.gridx = 1 ; panel.add(JLabel(messageViewer.common.cmd.commandLine + " "), cs)
-    cs.gridx = 2 ; panel.add(JButton("Edit..."), cs) // TODO handle click
-
-    cs.gridy = 3
-    cs.gridx = 0
-    cs.gridwidth = 3
-
-    val cbEnabled = JCheckBox("Enabled")
-    cbEnabled.isSelected = messageViewer.common.enabled
-    panel.add(cbEnabled, cs)
-
-    cs.gridy = 4
+    val mtw = MinimalToolWidget.create(messageViewer.common, panel, cs)
 
     val cbUsesColors = JCheckBox("Uses ANSI (color) escape sequences")
     cbUsesColors.isSelected = messageViewer.usesColors
     panel.add(cbUsesColors, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
-        if (tfName.text.isEmpty()) {
-            JOptionPane.showMessageDialog(dialog, "The message viewer name cannot be empty.")
-            return@createOkCancelButtonsPanel false
-        }
+        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
 
         with (Piper.MessageViewer.newBuilder()) {
-            common = with (Piper.MinimalTool.newBuilder()) {
-                name = tfName.text
-                if (cbEnabled.isSelected) enabled = true
-                if (state.filter != null) filter = state.filter
-                // TODO cmd
-                build()
-            }
+            common = mt
             if (cbUsesColors.isSelected) usesColors = true
             state.result = build()
         }
