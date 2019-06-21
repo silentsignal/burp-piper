@@ -39,6 +39,10 @@ data class MessageViewerWrapper(val cfgItem: Piper.MessageViewer) {
     override fun toString(): String = cfgItem.common.name
 }
 
+data class MinimalToolWrapper(val cfgItem: Piper.MinimalTool) {
+    override fun toString(): String = cfgItem.name
+}
+
 data class UserActionToolWrapper(val cfgItem: Piper.UserActionTool) {
     override fun toString(): String = cfgItem.common.name
 }
@@ -125,7 +129,7 @@ class BurpExtender : IBurpExtender, ITab {
         // TODO tabs.addTab("Load/Save configuration")
         // TODO tabs.addTab("Message viewers")
         // TODO tabs.addTab("Context menu items")
-        // TODO tabs.addTab("Macros")
+        tabs.addTab("Macros", createMacrosTab(cfg.macroList))
         // TODO tabs.addTab("Commentators")
     }
 
@@ -246,6 +250,15 @@ private fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): 
     val listWidget = JList<MessageViewerWrapper>(messageViewers.map(::MessageViewerWrapper).toTypedArray())
     listWidget.addDoubleClickListener {
         showMessageViewerDialog(messageViewers[it])
+        // TODO handle return value
+    }
+    return listWidget
+}
+
+private fun createMacrosTab(macros: List<Piper.MinimalTool>): Component {
+    val listWidget = JList<MinimalToolWrapper>(macros.map(::MinimalToolWrapper).toTypedArray())
+    listWidget.addDoubleClickListener {
+        showMacroDialog(macros[it])
         // TODO handle return value
     }
     return listWidget
@@ -372,6 +385,35 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.M
         add(panel)
         setSize(800, 600)
         title = "Edit message editor \"${messageViewer.common.name}\""
+        isModal = true
+        isVisible = true
+    }
+
+    return state.result
+}
+
+data class MacroState(var result: Piper.MinimalTool? = null)
+
+private fun showMacroDialog(macro: Piper.MinimalTool): Piper.MinimalTool? {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+    val state = MacroState()
+
+    val mtw = MinimalToolWidget.create(macro, panel, cs)
+
+    val pnButtons = dialog.createOkCancelButtonsPanel {
+        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+        state.result = mt
+        true
+    }
+
+    addFullWidthComponent(pnButtons, panel, cs)
+    with(dialog) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(panel)
+        setSize(800, 600)
+        title = "Edit macro \"${macro.name}\""
         isModal = true
         isVisible = true
     }
