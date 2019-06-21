@@ -350,7 +350,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     cs.fill = GridBagConstraints.HORIZONTAL
 
     cs.gridy = 0 ; val tfHeader = createLabeledTextField("Header name: ", hm.header, panel, cs)
-    cs.gridy = 1 ; val regExpWidget = createRegExpWidget(hm.regex, panel, cs)
+    cs.gridy = 1 ; val regExpWidget = RegExpWidget.create(hm.regex, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         if (tfHeader.text.isEmpty()) {
@@ -403,31 +403,6 @@ private fun addFullWidthComponent(c: Component, panel: Container, cs: GridBagCon
     cs.gridwidth = 4
 
     panel.add(c, cs)
-}
-
-private fun createRegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints): RegExpWidget {
-    val tf = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
-
-    addFullWidthComponent(JLabel("Regular expression flags: (see JDK documentation)"), panel, cs)
-
-    cs.gridy++
-    cs.gridwidth = 1
-
-    val fs = regex.flagSet
-    val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
-    RegExpFlag.values().forEach {
-        val cb = JCheckBox(it.toString())
-        cb.isSelected = fs.contains(it)
-        panel.add(cb, cs)
-        cbFlags[it] = cb
-        if (cs.gridx == 0) {
-            cs.gridx = 1
-        } else {
-            cs.gridy++
-            cs.gridx = 0
-        }
-    }
-    return RegExpWidget(tf, cbFlags)
 }
 
 class HexASCIITextField(private val tf: JTextField = JTextField(),
@@ -497,6 +472,33 @@ class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<R
         val flagSet = cbFlags.filter { e -> e.value.isSelected }.keys
         return Piper.RegularExpression.newBuilder().setPattern(tfPattern.text).setFlagSet(flagSet).build()
     }
+
+    companion object {
+        fun create(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints): RegExpWidget {
+            val tf = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
+
+            addFullWidthComponent(JLabel("Regular expression flags: (see JDK documentation)"), panel, cs)
+
+            cs.gridy++
+            cs.gridwidth = 1
+
+            val fs = regex.flagSet
+            val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
+            RegExpFlag.values().forEach {
+                val cb = JCheckBox(it.toString())
+                cb.isSelected = fs.contains(it)
+                panel.add(cb, cs)
+                cbFlags[it] = cb
+                if (cs.gridx == 0) {
+                    cs.gridx = 1
+                } else {
+                    cs.gridy++
+                    cs.gridx = 0
+                }
+            }
+            return RegExpWidget(tf, cbFlags)
+        }
+    }
 }
 
 fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
@@ -523,7 +525,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     postfixField.addWidgets(  "Ends with: ", cs, panel)
 
     cs.gridy = 3
-    val regExpWidget = createRegExpWidget(mm.regex, panel, cs)
+    val regExpWidget = RegExpWidget.create(mm.regex, panel, cs)
 
     cs.gridy++
     cs.gridx = 0
