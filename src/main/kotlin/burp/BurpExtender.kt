@@ -479,7 +479,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         return if (isASCII) ByteString.copyFromUtf8(tf.text) else ByteString.copyFrom(parseHex(dialog) ?: return null)
     }
 
-    fun addWidgets(caption: String, cs: GridBagConstraints, panel: JPanel) {
+    fun addWidgets(caption: String, cs: GridBagConstraints, panel: Container) {
         cs.gridy++
         cs.gridx = 0 ; panel.add(JLabel(caption), cs)
         cs.gridx = 1 ; panel.add(tf,      cs)
