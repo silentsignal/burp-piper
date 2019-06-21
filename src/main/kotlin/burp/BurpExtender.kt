@@ -374,20 +374,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     cs.gridy = 5
     cs.gridwidth = 1
 
-    val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
-    val fs = hm.regex.flagSet
-    RegExpFlag.values().forEach {
-        val cb = JCheckBox(it.toString())
-        cb.isSelected = fs.contains(it)
-        panel.add(cb, cs)
-        cbFlags[it] = cb
-        if (cs.gridx == 0) {
-            cs.gridx = 1
-        } else {
-            cs.gridy++
-            cs.gridx = 0
-        }
-    }
+    val cbFlags = createRegExpFlagWidgetSet(hm.regex.flagSet, panel, cs)
 
     cs.gridy++
     cs.gridx = 0
@@ -430,6 +417,23 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     }
 
     return state.result
+}
+
+private fun createRegExpFlagWidgetSet(initialValue: Set<RegExpFlag>, panel: Container, cs: GridBagConstraints): Map<RegExpFlag, JCheckBox> {
+    val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
+    RegExpFlag.values().forEach {
+        val cb = JCheckBox(it.toString())
+        cb.isSelected = initialValue.contains(it)
+        panel.add(cb, cs)
+        cbFlags[it] = cb
+        if (cs.gridx == 0) {
+            cs.gridx = 1
+        } else {
+            cs.gridy++
+            cs.gridx = 0
+        }
+    }
+    return cbFlags
 }
 
 class HexASCIITextField(private val tf: JTextField = JTextField(),
@@ -533,20 +537,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     cs.gridy = 5
     cs.gridwidth = 1
 
-    val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
-	val fs = mm.regex.flagSet
-    RegExpFlag.values().forEach {
-        val cb = JCheckBox(it.toString())
-		cb.isSelected = fs.contains(it)
-        panel.add(cb, cs)
-        cbFlags[it] = cb
-        if (cs.gridx == 0) {
-            cs.gridx = 1
-        } else {
-            cs.gridy++
-            cs.gridx = 0
-        }
-    }
+    val cbFlags = createRegExpFlagWidgetSet(mm.regex.flagSet, panel, cs)
 
     cs.gridy++
     cs.gridx = 0
