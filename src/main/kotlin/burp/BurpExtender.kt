@@ -330,6 +330,15 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer) {
     }
 }
 
+fun createLabeledTextField(caption: String, initialValue: String, panel: Container, cs: GridBagConstraints): JTextField {
+    val tf = JTextField(initialValue)
+
+    cs.gridwidth = 1 ; cs.gridx = 0 ; panel.add(JLabel(caption), cs)
+    cs.gridwidth = 3 ; cs.gridx = 1 ; panel.add(tf, cs)
+
+    return tf
+}
+
 data class HeaderMatchDialogState(var result: Piper.HeaderMatch? = null)
 
 fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
@@ -338,74 +347,29 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     val cs = GridBagConstraints()
     val state = HeaderMatchDialogState()
 
-    with(cs) {
-        fill = GridBagConstraints.HORIZONTAL
-        gridx = 0
-        gridy = 0
-        gridwidth = 1
-    }
+    cs.fill = GridBagConstraints.HORIZONTAL
 
-    panel.add(JLabel("Header name: "), cs)
-
-    cs.gridx = 1
-    cs.gridwidth = 3
-
-    val tfHeader = JTextField(hm.header)
-    panel.add(tfHeader, cs)
-
-    cs.gridy = 1
-    cs.gridx = 0
-    cs.gridwidth = 1
-
-    panel.add(JLabel("Matches regular expression: "), cs)
-
-    cs.gridx = 1
-    cs.gridwidth = 3
-
-    val tfRegExp = JTextField(hm.regex.pattern)
-    panel.add(tfRegExp, cs)
-
-    cs.gridy = 4
-    cs.gridx = 0
-    cs.gridwidth = 4
-
-    panel.add(JLabel("Regular expression flags: (see JDK documentation)"), cs)
-
-    cs.gridy = 5
-    cs.gridwidth = 1
-
-    val cbFlags = createRegExpFlagWidgetSet(hm.regex.flagSet, panel, cs)
+    cs.gridy = 0 ; val tfHeader = createLabeledTextField("Header name: ", hm.header, panel, cs)
+    cs.gridy = 1 ; val regExpWidget = createRegExpWidget(hm.regex, panel, cs)
 
     cs.gridy++
     cs.gridx = 0
     cs.gridwidth = 4
 
-    val pnButtons = JPanel()
-    val btnOK = JButton("OK")
-    val btnCancel = JButton("Cancel")
-    pnButtons.add(btnOK)
-    pnButtons.add(btnCancel)
-    panel.add(pnButtons, cs)
-
-    btnOK.addActionListener {
+    val pnButtons = dialog.createOkCancelButtonsPanel {
         if (tfHeader.text.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "The header name cannot be empty.")
-            return@addActionListener
+            return@createOkCancelButtonsPanel false
         }
 
-        val builder = Piper.HeaderMatch.newBuilder()
-
-        builder.header = tfHeader.text
-        val flagSet = cbFlags.filter { e -> e.value.isSelected }.keys
-        builder.regex = Piper.RegularExpression.newBuilder().setPattern(tfRegExp.text).setFlagSet(flagSet).build()
-
-        state.result = builder.build()
-        dialog.isVisible = false
+        with (Piper.HeaderMatch.newBuilder()) {
+            header = tfHeader.text
+            regex = regExpWidget.toRegularExpression()
+            state.result = build()
+        }
+        true
     }
-
-    btnCancel.addActionListener {
-        dialog.isVisible = false
-    }
+    panel.add(pnButtons, cs)
 
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
@@ -419,11 +383,41 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     return state.result
 }
 
-private fun createRegExpFlagWidgetSet(initialValue: Set<RegExpFlag>, panel: Container, cs: GridBagConstraints): Map<RegExpFlag, JCheckBox> {
+private fun Container.createOkCancelButtonsPanel(okHandler: () -> Boolean): Component {
+    val pnButtons = JPanel()
+    val btnOK = JButton("OK")
+    val btnCancel = JButton("Cancel")
+    pnButtons.add(btnOK)
+    pnButtons.add(btnCancel)
+
+    btnOK.addActionListener {
+        if (okHandler()) isVisible = false
+    }
+
+    btnCancel.addActionListener {
+        isVisible = false
+    }
+
+    return pnButtons
+}
+
+private fun createRegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints): RegExpWidget {
+    val tf = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
+
+    cs.gridx = 0
+    cs.gridy++
+    cs.gridwidth = 4
+
+    panel.add(JLabel("Regular expression flags: (see JDK documentation)"), cs)
+
+    cs.gridy++
+    cs.gridwidth = 1
+
+    val fs = regex.flagSet
     val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
     RegExpFlag.values().forEach {
         val cb = JCheckBox(it.toString())
-        cb.isSelected = initialValue.contains(it)
+        cb.isSelected = fs.contains(it)
         panel.add(cb, cs)
         cbFlags[it] = cb
         if (cs.gridx == 0) {
@@ -433,7 +427,7 @@ private fun createRegExpFlagWidgetSet(initialValue: Set<RegExpFlag>, panel: Cont
             cs.gridx = 0
         }
     }
-    return cbFlags
+    return RegExpWidget(tf, cbFlags)
 }
 
 class HexASCIITextField(private val tf: JTextField = JTextField(),
@@ -494,6 +488,17 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
 
 data class MessageMatchDialogState(var result: Piper.MessageMatch? = null, var header: Piper.HeaderMatch? = null)
 
+class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<RegExpFlag, JCheckBox>) {
+    fun hasPattern(): Boolean {
+        return tfPattern.text.isNotEmpty()
+    }
+
+    fun toRegularExpression(): Piper.RegularExpression {
+        val flagSet = cbFlags.filter { e -> e.value.isSelected }.keys
+        return Piper.RegularExpression.newBuilder().setPattern(tfPattern.text).setFlagSet(flagSet).build()
+    }
+}
+
 fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
@@ -518,26 +523,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     postfixField.addWidgets(  "Ends with: ", cs, panel)
 
     cs.gridy = 3
-    cs.gridx = 0
-
-    panel.add(JLabel("Matches regular expression: "), cs)
-
-    cs.gridx = 1
-    cs.gridwidth = 3
-
-    val tfRegExp = JTextField(mm.regex.pattern)
-    panel.add(tfRegExp, cs)
-
-    cs.gridy = 4
-    cs.gridx = 0
-    cs.gridwidth = 4
-
-    panel.add(JLabel("Regular expression flags: (see JDK documentation)"), cs)
-
-    cs.gridy = 5
-    cs.gridwidth = 1
-
-    val cbFlags = createRegExpFlagWidgetSet(mm.regex.flagSet, panel, cs)
+    val regExpWidget = createRegExpWidget(mm.regex, panel, cs)
 
     cs.gridy++
     cs.gridx = 0
@@ -587,28 +573,15 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     panel.add(spList, cs)
 
     cs.gridy++
-    val pnButtons = JPanel()
-    val btnOK = JButton("OK")
-    val btnCancel = JButton("Cancel")
-    pnButtons.add(btnOK)
-    pnButtons.add(btnCancel)
-    panel.add(pnButtons, cs)
-
-    btnOK.addActionListener {
+    val pnButtons = dialog.createOkCancelButtonsPanel {
         val builder = Piper.MessageMatch.newBuilder()
 
         if ((cbNegation.selectedItem as MatchNegation).negation) builder.negation = true
 
-        val postfix = postfixField.getByteString(dialog) ?: return@addActionListener
-        builder.postfix = postfix
+        builder.postfix = postfixField.getByteString(dialog) ?: return@createOkCancelButtonsPanel false
+        builder.prefix  =  prefixField.getByteString(dialog) ?: return@createOkCancelButtonsPanel false
 
-        val prefix = prefixField.getByteString(dialog) ?: return@addActionListener
-        builder.prefix = prefix
-
-        if (tfRegExp.text.isNotEmpty()) {
-            val flagSet = cbFlags.filter { e -> e.value.isSelected }.keys
-            builder.regex = Piper.RegularExpression.newBuilder().setPattern(tfRegExp.text).setFlagSet(flagSet).build()
-        }
+        if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
 
         if (state.header != null) builder.header = state.header
 
@@ -616,12 +589,9 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
         for (i in 0 until  orElseModel.size) builder.addOrElse(  orElseModel.getElementAt(i).cfgItem)
 
         state.result = builder.build()
-        dialog.isVisible = false
+        true
     }
-
-    btnCancel.addActionListener {
-        dialog.isVisible = false
-    }
+    panel.add(pnButtons, cs)
 
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
