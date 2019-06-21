@@ -330,6 +330,108 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer) {
     }
 }
 
+data class HeaderMatchDialogState(var result: Piper.HeaderMatch? = null)
+
+fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+    val state = HeaderMatchDialogState()
+
+    with(cs) {
+        fill = GridBagConstraints.HORIZONTAL
+        gridx = 0
+        gridy = 0
+        gridwidth = 1
+    }
+
+    panel.add(JLabel("Header name: "), cs)
+
+    cs.gridx = 1
+    cs.gridwidth = 3
+
+    val tfHeader = JTextField(hm.header)
+    panel.add(tfHeader, cs)
+
+    cs.gridy = 1
+    cs.gridx = 0
+    cs.gridwidth = 1
+
+    panel.add(JLabel("Matches regular expression: "), cs)
+
+    cs.gridx = 1
+    cs.gridwidth = 3
+
+    val tfRegExp = JTextField(hm.regex.pattern)
+    panel.add(tfRegExp, cs)
+
+    cs.gridy = 4
+    cs.gridx = 0
+    cs.gridwidth = 4
+
+    panel.add(JLabel("Regular expression flags: (see JDK documentation)"), cs)
+
+    cs.gridy = 5
+    cs.gridwidth = 1
+
+    val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
+    val fs = hm.regex.flagSet
+    RegExpFlag.values().forEach {
+        val cb = JCheckBox(it.toString())
+        cb.isSelected = fs.contains(it)
+        panel.add(cb, cs)
+        cbFlags[it] = cb
+        if (cs.gridx == 0) {
+            cs.gridx = 1
+        } else {
+            cs.gridy++
+            cs.gridx = 0
+        }
+    }
+
+    cs.gridy++
+    cs.gridx = 0
+    cs.gridwidth = 4
+
+    val pnButtons = JPanel()
+    val btnOK = JButton("OK")
+    val btnCancel = JButton("Cancel")
+    pnButtons.add(btnOK)
+    pnButtons.add(btnCancel)
+    panel.add(pnButtons, cs)
+
+    btnOK.addActionListener {
+        if (tfHeader.text.isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "The header name cannot be empty.")
+            return@addActionListener
+        }
+
+        val builder = Piper.HeaderMatch.newBuilder()
+
+        builder.header = tfHeader.text
+        val flagSet = cbFlags.filter { e -> e.value.isSelected }.keys
+        builder.regex = Piper.RegularExpression.newBuilder().setPattern(tfRegExp.text).setFlagSet(flagSet).build()
+
+        state.result = builder.build()
+        dialog.isVisible = false
+    }
+
+    btnCancel.addActionListener {
+        dialog.isVisible = false
+    }
+
+    with(dialog) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(panel)
+        setSize(800, 600)
+        title = "Edit header filter"
+        isModal = true
+        isVisible = true
+    }
+
+    return state.result
+}
+
 class HexASCIITextField(private val tf: JTextField = JTextField(),
                         private val rbHex: JRadioButton = JRadioButton("Hex"),
                         private val rbASCII: JRadioButton = JRadioButton("ASCII"),
@@ -386,7 +488,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
     }
 }
 
-data class MessageMatchDialogState(var result: Piper.MessageMatch? = null)
+data class MessageMatchDialogState(var result: Piper.MessageMatch? = null, var header: Piper.HeaderMatch? = null)
 
 fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     val dialog = JDialog()
@@ -452,18 +554,34 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
 	panel.add(JLabel("Header: "), cs)
 
     cs.gridx = 1
-	cs.gridwidth = 2
 
-	panel.add(JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)"), cs)
+    val lbHeader = JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)")
+    if (mm.hasHeader()) state.header = mm.header
+	panel.add(lbHeader, cs)
 
-	cs.gridwidth = 1
-	cs.gridx = 3
+	cs.gridx = 2
 
     val btnHeaderEdit = JButton("Edit...")
 	panel.add(btnHeaderEdit, cs)
 
+    cs.gridx = 3
+
+    val btnHeaderRemove = JButton("Remove")
+    panel.add(btnHeaderRemove, cs)
+    btnHeaderRemove.isEnabled = mm.hasHeader()
+
     btnHeaderEdit.addActionListener {
-        // TODO
+        val current = state.header ?: Piper.HeaderMatch.getDefaultInstance()
+        val header = showHeaderMatchDialog(current) ?: return@addActionListener
+        lbHeader.text = header.toHumanReadable(false)
+        state.header = header
+        btnHeaderRemove.isEnabled = true
+    }
+
+    btnHeaderRemove.addActionListener {
+        lbHeader.text = "(no header match)"
+        state.header = null
+        btnHeaderRemove.isEnabled = false
     }
 
     val spList = JSplitPane()
@@ -501,7 +619,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
             builder.regex = Piper.RegularExpression.newBuilder().setPattern(tfRegExp.text).setFlagSet(flagSet).build()
         }
 
-        // TODO header
+        if (state.header != null) builder.header = state.header
 
         for (i in 0 until andAlsoModel.size) builder.addAndAlso(andAlsoModel.getElementAt(i).cfgItem)
         for (i in 0 until  orElseModel.size) builder.addOrElse(  orElseModel.getElementAt(i).cfgItem)
