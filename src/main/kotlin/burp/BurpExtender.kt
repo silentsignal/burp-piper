@@ -106,7 +106,7 @@ class BurpExtender : IBurpExtender, ITab {
     private fun populateTabs(cfg: Piper.Config) {
         tabs.addTab("Message viewers", createMessageViewersTab(cfg.messageViewerList))
         // TODO tabs.addTab("Load/Save configuration")
-        // TODO tabs.addTab("Context menu items")
+        tabs.addTab("Context menu items", createMenuItemsTab(cfg.menuItemList))
         tabs.addTab("Macros", createMacrosTab(cfg.macroList))
         // TODO tabs.addTab("Commentators")
     }

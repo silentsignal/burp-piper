@@ -42,6 +42,15 @@ fun createMacrosTab(macros: List<Piper.MinimalTool>): Component {
     return listWidget
 }
 
+fun createMenuItemsTab(menuItems: List<Piper.UserActionTool>): Component {
+    val listWidget = JList<UserActionToolWrapper>(menuItems.map(::UserActionToolWrapper).toTypedArray())
+    listWidget.addDoubleClickListener {
+        showMenuItemDialog(menuItems[it])
+        // TODO handle return value
+    }
+    return listWidget
+}
+
 fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     this.addMouseListener(object : MouseAdapter() {
         override fun mouseClicked(e: MouseEvent) {
@@ -163,6 +172,44 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.M
         add(panel)
         setSize(800, 600)
         title = "Edit message editor \"${messageViewer.common.name}\""
+        isModal = true
+        isVisible = true
+    }
+
+    return state.result
+}
+
+data class MenuItemDialogState(var result: Piper.UserActionTool? = null)
+
+private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserActionTool? {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+    val state = MenuItemDialogState()
+
+    val mtw = MinimalToolWidget.create(menuItem.common, panel, cs)
+
+    val cbHasGUI = JCheckBox("Has its own GUI (no need for a console window)")
+    cbHasGUI.isSelected = menuItem.hasGUI
+    panel.add(cbHasGUI, cs)
+
+    val pnButtons = dialog.createOkCancelButtonsPanel {
+        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+
+        with (Piper.UserActionTool.newBuilder()) {
+            common = mt
+            if (cbHasGUI.isSelected) hasGUI = true
+            state.result = build()
+        }
+        true
+    }
+
+    addFullWidthComponent(pnButtons, panel, cs)
+    with(dialog) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(panel)
+        setSize(800, 600)
+        title = "Edit menu item \"${menuItem.common.name}\""
         isModal = true
         isVisible = true
     }
