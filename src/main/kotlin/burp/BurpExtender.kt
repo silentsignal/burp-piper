@@ -246,6 +246,7 @@ private fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): 
     val listWidget = JList<MessageViewerWrapper>(messageViewers.map(::MessageViewerWrapper).toTypedArray())
     listWidget.addDoubleClickListener {
         showMessageViewerDialog(messageViewers[it])
+        // TODO handle return value
     }
     return listWidget
 }
@@ -260,10 +261,13 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     })
 }
 
-private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer) {
+data class MessageViewerDialogState(var result: Piper.MessageViewer? = null, var filter: Piper.MessageMatch?)
+
+private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.MessageViewer? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
+    val state = MessageViewerDialogState(filter=messageViewer.common.filter)
 
     with(cs) {
         fill = GridBagConstraints.HORIZONTAL
@@ -289,15 +293,17 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer) {
 
     cs.gridx = 1
 
-    panel.add(JLabel(if (messageViewer.common.hasFilter())
-        messageViewer.common.filter.toHumanReadable(false, true) + " " else "(no filter) "), cs)
+    val lbFilter = JLabel(if (messageViewer.common.hasFilter())
+        messageViewer.common.filter.toHumanReadable(false, true) + " " else "(no filter) ")
+    panel.add(lbFilter, cs)
 
     cs.gridx = 2
 
     val btnEditFilter = JButton("Edit...")
     btnEditFilter.addActionListener {
-        showMessageMatchDialog(messageViewer.common.filter)
-        // TODO handle return value
+        val filter = showMessageMatchDialog(messageViewer.common.filter) ?: return@addActionListener
+        lbFilter.text = filter.toHumanReadable(false, true) + " "
+        state.filter = filter
     }
     panel.add(btnEditFilter, cs)
 
@@ -320,6 +326,27 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer) {
     cbUsesColors.isSelected = messageViewer.usesColors
     panel.add(cbUsesColors, cs)
 
+    val pnButtons = dialog.createOkCancelButtonsPanel {
+        if (tfName.text.isEmpty()) {
+            JOptionPane.showMessageDialog(dialog, "The message viewer name cannot be empty.")
+            return@createOkCancelButtonsPanel false
+        }
+
+        with (Piper.MessageViewer.newBuilder()) {
+            common = with (Piper.MinimalTool.newBuilder()) {
+                name = tfName.text
+                if (cbEnabled.isSelected) enabled = true
+                if (state.filter != null) filter = state.filter
+                // TODO cmd
+                build()
+            }
+            if (cbUsesColors.isSelected) usesColors = true
+            state.result = build()
+        }
+        true
+    }
+
+    addFullWidthComponent(pnButtons, panel, cs)
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(panel)
@@ -328,6 +355,8 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer) {
         isModal = true
         isVisible = true
     }
+
+    return state.result
 }
 
 fun createLabeledTextField(caption: String, initialValue: String, panel: Container, cs: GridBagConstraints): JTextField {
