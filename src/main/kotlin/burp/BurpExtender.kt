@@ -352,10 +352,6 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     cs.gridy = 0 ; val tfHeader = createLabeledTextField("Header name: ", hm.header, panel, cs)
     cs.gridy = 1 ; val regExpWidget = createRegExpWidget(hm.regex, panel, cs)
 
-    cs.gridy++
-    cs.gridx = 0
-    cs.gridwidth = 4
-
     val pnButtons = dialog.createOkCancelButtonsPanel {
         if (tfHeader.text.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "The header name cannot be empty.")
@@ -369,7 +365,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
         }
         true
     }
-    panel.add(pnButtons, cs)
+    addFullWidthComponent(pnButtons, panel, cs)
 
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
@@ -401,14 +397,18 @@ private fun Container.createOkCancelButtonsPanel(okHandler: () -> Boolean): Comp
     return pnButtons
 }
 
-private fun createRegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints): RegExpWidget {
-    val tf = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
-
+private fun addFullWidthComponent(c: Component, panel: Container, cs: GridBagConstraints) {
     cs.gridx = 0
     cs.gridy++
     cs.gridwidth = 4
 
-    panel.add(JLabel("Regular expression flags: (see JDK documentation)"), cs)
+    panel.add(c, cs)
+}
+
+private fun createRegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints): RegExpWidget {
+    val tf = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
+
+    addFullWidthComponent(JLabel("Regular expression flags: (see JDK documentation)"), panel, cs)
 
     cs.gridy++
     cs.gridwidth = 1
@@ -567,10 +567,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     spList.leftComponent = andAlsoPanel
     spList.rightComponent = orElsePanel
 
-    cs.gridy++
-    cs.gridx = 0
-    cs.gridwidth = 4
-    panel.add(spList, cs)
+    addFullWidthComponent(spList, panel, cs)
 
     cs.gridy++
     val pnButtons = dialog.createOkCancelButtonsPanel {
