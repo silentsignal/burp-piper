@@ -191,12 +191,46 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserAction
     cbHasGUI.isSelected = menuItem.hasGUI
     panel.add(cbHasGUI, cs)
 
+    cs.gridy++
+    cs.gridwidth = 2
+
+    panel.add(JLabel("Minimum required number of selected items: "), cs)
+
+    cs.gridx = 2
+    cs.gridwidth = 1
+
+    val spMinInputs = JSpinner(SpinnerNumberModel(Math.max(menuItem.minInputs, 1), 1, Integer.MAX_VALUE, 1))
+    panel.add(spMinInputs, cs)
+
+    cs.gridy++
+    cs.gridwidth = 2
+
+    cs.gridx = 0
+
+    panel.add(JLabel("Maximum allowed number of selected items: (0 = no limit) "), cs)
+
+    cs.gridx = 2
+    cs.gridwidth = 1
+
+    val spMaxInputs = JSpinner(SpinnerNumberModel(menuItem.maxInputs, 0, Integer.MAX_VALUE, 1))
+    panel.add(spMaxInputs, cs)
+
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+        val minInputsValue = spMinInputs.value as Int
+        val maxInputsValue = spMaxInputs.value as Int
+
+        if (maxInputsValue in 1..(minInputsValue - 1)) {
+            JOptionPane.showMessageDialog(dialog, "Maximum allowed number of selected items cannot " +
+                    "be lower than minimum required number of selected items.")
+            return@createOkCancelButtonsPanel false
+        }
 
         with (Piper.UserActionTool.newBuilder()) {
             common = mt
             if (cbHasGUI.isSelected) hasGUI = true
+            if (minInputsValue > 1) minInputs = minInputsValue
+            if (maxInputsValue > 0) maxInputs = maxInputsValue
             state.result = build()
         }
         true
