@@ -95,9 +95,8 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             cs.gridx = 1
             cs.gridwidth = 2
 
-            val tfName = JTextField()
-            tfName.text = tool.name
-            panel.add(tfName, cs)
+            mtw.tfName.text = tool.name
+            panel.add(mtw.tfName, cs)
 
             cs.gridwidth = 1
             cs.gridy = 1
@@ -130,9 +129,8 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             cs.gridx = 0
             cs.gridwidth = 3
 
-            val cbEnabled = JCheckBox("Enabled")
-            cbEnabled.isSelected = tool.enabled
-            panel.add(cbEnabled, cs)
+            mtw.cbEnabled.isSelected = tool.enabled
+            panel.add(mtw.cbEnabled, cs)
 
             cs.gridy = 4
 
