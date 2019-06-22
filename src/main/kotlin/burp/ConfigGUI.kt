@@ -356,9 +356,13 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
     }
 
     private fun parseHex(dialog: Component): ByteArray? {
-        val hexstring = tf.text.filter { c -> c.isDigit() || c in 'A'..'F' || c in 'a'..'f' }
+        val hexstring = tf.text.filter(Char::isLetterOrDigit)
         if (hexstring.length % 2 != 0) {
             JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string needs to contain an even number of hex digits")
+            return null
+        }
+        if (hexstring.any { c -> c in 'g'..'z' || c in 'G'..'Z' }) {
+            JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string contains non-hexadecimal letters (maybe typo?)")
             return null
         }
         return hexstring.chunked(2).map { ds -> ds.toInt(16).toByte() }.toByteArray()
