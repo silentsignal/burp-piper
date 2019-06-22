@@ -402,13 +402,13 @@ class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<R
             cs.gridy++
             cs.gridwidth = 1
 
-            val fs = regex.flagSet
+            val selectedFlags = regex.flagSet
             val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
-            RegExpFlag.values().forEach {
-                val cb = JCheckBox(it.toString())
-                cb.isSelected = fs.contains(it)
+            RegExpFlag.values().forEach { flag ->
+                val cb = JCheckBox(flag.toString())
+                cb.isSelected = flag in selectedFlags
                 panel.add(cb, cs)
-                cbFlags[it] = cb
+                cbFlags[flag] = cb
                 if (cs.gridx == 0) {
                     cs.gridx = 1
                 } else {
