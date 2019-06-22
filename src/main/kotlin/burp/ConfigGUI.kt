@@ -65,7 +65,7 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
                         private val cbEnabled: JCheckBox = JCheckBox("Enabled")) {
     fun toMinimalTool(dialog: Component): Piper.MinimalTool? {
         if (tfName.text.isEmpty()) {
-            JOptionPane.showMessageDialog(dialog, "The message viewer name cannot be empty.")
+            JOptionPane.showMessageDialog(dialog, "Name cannot be empty.")
             return null
         }
 
