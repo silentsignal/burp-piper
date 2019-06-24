@@ -273,12 +273,14 @@ private fun showMacroDialog(macro: Piper.MinimalTool): Piper.MinimalTool? {
 }
 
 fun createLabeledTextField(caption: String, initialValue: String, panel: Container, cs: GridBagConstraints): JTextField {
-    val tf = JTextField(initialValue)
+    return createLabeledWidget(caption, JTextField(initialValue), panel, cs)
+}
 
+
+fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Container, cs: GridBagConstraints): T {
     cs.gridwidth = 1 ; cs.gridx = 0 ; panel.add(JLabel(caption), cs)
-    cs.gridwidth = 3 ; cs.gridx = 1 ; panel.add(tf, cs)
-
-    return tf
+    cs.gridwidth = 3 ; cs.gridx = 1 ; panel.add(widget, cs)
+    return widget
 }
 
 data class HeaderMatchDialogState(var result: Piper.HeaderMatch? = null)
