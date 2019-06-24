@@ -276,6 +276,12 @@ fun createLabeledTextField(caption: String, initialValue: String, panel: Contain
     return createLabeledWidget(caption, JTextField(initialValue), panel, cs)
 }
 
+fun <E> createLabeledComboBox(caption: String, initialValue: String, panel: Container, cs: GridBagConstraints, choices: Array<E>): JComboBox<E> {
+    val cb = JComboBox(choices)
+    cb.isEditable = true
+    cb.selectedItem = initialValue
+    return createLabeledWidget(caption, cb, panel, cs)
+}
 
 fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Container, cs: GridBagConstraints): T {
     cs.gridwidth = 1 ; cs.gridx = 0 ; panel.add(JLabel(caption), cs)
@@ -290,20 +296,23 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
     val state = HeaderMatchDialogState()
+    val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
+            "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
 
     cs.fill = GridBagConstraints.HORIZONTAL
 
-    cs.gridy = 0 ; val tfHeader = createLabeledTextField("Header name: ", hm.header, panel, cs)
+    cs.gridy = 0 ; val cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
     cs.gridy = 1 ; val regExpWidget = RegExpWidget.create(hm.regex, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
-        if (tfHeader.text.isEmpty()) {
+        val text = cbHeader.selectedItem?.toString()
+        if (text.isNullOrEmpty()) {
             JOptionPane.showMessageDialog(dialog, "The header name cannot be empty.")
             return@createOkCancelButtonsPanel false
         }
 
         with (Piper.HeaderMatch.newBuilder()) {
-            header = tfHeader.text
+            header = text
             regex = regExpWidget.toRegularExpression()
             state.result = build()
         }
