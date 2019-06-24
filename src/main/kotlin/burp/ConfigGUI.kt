@@ -210,7 +210,7 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserAction
         val minInputsValue = smMinInputs.number.toInt()
         val maxInputsValue = smMaxInputs.number.toInt()
 
-        if (maxInputsValue in 1..(minInputsValue - 1)) {
+        if (maxInputsValue in 1 until minInputsValue) {
             JOptionPane.showMessageDialog(dialog, "Maximum allowed number of selected items cannot " +
                     "be lower than minimum required number of selected items.")
             return@createOkCancelButtonsPanel false
