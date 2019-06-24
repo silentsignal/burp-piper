@@ -120,10 +120,16 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             }
             panel.add(btnEditFilter, cs)
 
+            val btnEditCommand = JButton("Edit...")
+
             cs.gridy = 2
             cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
             cs.gridx = 1 ; panel.add(JLabel(tool.cmd.commandLine + " "), cs)
-            cs.gridx = 2 ; panel.add(JButton("Edit..."), cs) // TODO handle click
+            cs.gridx = 2 ; panel.add(btnEditCommand, cs)
+
+            btnEditCommand.addActionListener {
+                showCommandInvocationDialog(tool.cmd) // TODO handle return value
+            }
 
             cs.gridy = 3
             cs.gridx = 0
@@ -325,6 +331,83 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
         add(panel)
         setSize(480, 320)
         title = "Edit header filter"
+        isModal = true
+        isVisible = true
+    }
+
+    return state.result
+}
+
+data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = null)
+
+data class CommandLineParameter(val value: String?) { // null = input file name
+    fun isInputFileName(): Boolean {
+        return value == null
+    }
+
+    override fun toString(): String {
+        return if (isInputFileName()) "<INPUT>" else value!!
+    }
+}
+
+fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvocation? {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+    val state = CommandInvocationDialogState()
+
+    val paramsModel = DefaultListModel<CommandLineParameter>()
+    ci.prefixList.forEach { paramsModel.addElement(CommandLineParameter(it)) }
+    if (ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) paramsModel.addElement(CommandLineParameter(null))
+    ci.postfixList.forEach { paramsModel.addElement(CommandLineParameter(it)) }
+    val lsParams = JList<CommandLineParameter>(paramsModel)
+
+    lsParams.cellRenderer = object : DefaultListCellRenderer() {
+        override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
+            val c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            val v = value as CommandLineParameter
+            if (v.isInputFileName()) {
+                c.background = Color.RED
+                c.foreground = if (isSelected) Color.YELLOW else Color.WHITE
+            }
+            return c
+        }
+    }
+
+    cs.fill = GridBagConstraints.HORIZONTAL
+    cs.gridy = 0
+    cs.gridx = 0
+    cs.gridwidth = 0
+
+    panel.add(JLabel("Command line parameters:"), cs)
+
+    cs.gridy = 1
+
+    panel.add(JScrollPane(lsParams), cs)
+
+    val pnButtons = dialog.createOkCancelButtonsPanel {
+        with (Piper.CommandInvocation.newBuilder()) {
+            // TODO
+            var pre = true
+            for (i in 0 until paramsModel.size) {
+                val item = paramsModel.getElementAt(i)!!
+                if (pre) {
+                    if (item.value == null) pre = false
+                    else addPrefix(item.value)
+                }
+                else addPostfix(item.value)
+            }
+            state.result = build()
+        }
+        true
+    }
+    addFullWidthComponent(pnButtons, panel, cs)
+
+    with(dialog) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(panel)
+        setSize(480, 320)
+        title = "Edit command invocation"
         isModal = true
         isVisible = true
     }
