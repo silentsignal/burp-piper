@@ -149,9 +149,7 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.M
 
     val mtw = MinimalToolWidget.create(messageViewer.common, panel, cs)
 
-    val cbUsesColors = JCheckBox("Uses ANSI (color) escape sequences")
-    cbUsesColors.isSelected = messageViewer.usesColors
-    panel.add(cbUsesColors, cs)
+    val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
@@ -177,6 +175,13 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.M
     return state.result
 }
 
+private fun createCheckBox(caption: String, initialValue: Boolean, panel: Container, cs: GridBagConstraints): JCheckBox {
+    val cb = JCheckBox(caption)
+    cb.isSelected = initialValue
+    panel.add(cb, cs)
+    return cb
+}
+
 data class MenuItemDialogState(var result: Piper.UserActionTool? = null)
 
 private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserActionTool? {
@@ -187,9 +192,7 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserAction
 
     val mtw = MinimalToolWidget.create(menuItem.common, panel, cs)
 
-    val cbHasGUI = JCheckBox("Has its own GUI (no need for a console window)")
-    cbHasGUI.isSelected = menuItem.hasGUI
-    panel.add(cbHasGUI, cs)
+    val cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
 
     cs.gridy++
     cs.gridwidth = 2
@@ -437,10 +440,7 @@ class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<R
             val selectedFlags = regex.flagSet
             val cbFlags = EnumMap<RegExpFlag, JCheckBox>(RegExpFlag::class.java)
             RegExpFlag.values().forEach { flag ->
-                val cb = JCheckBox(flag.toString())
-                cb.isSelected = flag in selectedFlags
-                panel.add(cb, cs)
-                cbFlags[flag] = cb
+                cbFlags[flag] = createCheckBox(flag.toString(), flag in selectedFlags, panel, cs)
                 if (cs.gridx == 0) {
                     cs.gridx = 1
                 } else {
