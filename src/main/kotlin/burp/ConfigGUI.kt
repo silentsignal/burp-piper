@@ -194,34 +194,15 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserAction
 
     val cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
 
-    cs.gridy++
-    cs.gridwidth = 2
-
-    panel.add(JLabel("Minimum required number of selected items: "), cs)
-
-    cs.gridx = 2
-    cs.gridwidth = 1
-
-    val spMinInputs = JSpinner(SpinnerNumberModel(Math.max(menuItem.minInputs, 1), 1, Integer.MAX_VALUE, 1))
-    panel.add(spMinInputs, cs)
-
-    cs.gridy++
-    cs.gridwidth = 2
-
-    cs.gridx = 0
-
-    panel.add(JLabel("Maximum allowed number of selected items: (0 = no limit) "), cs)
-
-    cs.gridx = 2
-    cs.gridwidth = 1
-
-    val spMaxInputs = JSpinner(SpinnerNumberModel(menuItem.maxInputs, 0, Integer.MAX_VALUE, 1))
-    panel.add(spMaxInputs, cs)
+    val smMinInputs = createSpinner("Minimum required number of selected items: ",
+            Math.max(menuItem.minInputs, 1), 1, panel, cs)
+    val smMaxInputs = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
+            menuItem.maxInputs, 0, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
-        val minInputsValue = spMinInputs.value as Int
-        val maxInputsValue = spMaxInputs.value as Int
+        val minInputsValue = smMinInputs.number.toInt()
+        val maxInputsValue = smMaxInputs.number.toInt()
 
         if (maxInputsValue in 1..(minInputsValue - 1)) {
             JOptionPane.showMessageDialog(dialog, "Maximum allowed number of selected items cannot " +
@@ -250,6 +231,16 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserAction
     }
 
     return state.result
+}
+
+private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Container, cs: GridBagConstraints): SpinnerNumberModel {
+    val model = SpinnerNumberModel(initial, minimum, Integer.MAX_VALUE, 1)
+
+    cs.gridy++
+    cs.gridx = 0 ; cs.gridwidth = 2 ; panel.add(JLabel(caption), cs)
+    cs.gridx = 2 ; cs.gridwidth = 1 ; panel.add(JSpinner(model), cs)
+
+    return model
 }
 
 data class MacroState(var result: Piper.MinimalTool? = null)
