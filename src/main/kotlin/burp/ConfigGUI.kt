@@ -474,9 +474,11 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
 
     InputMethodWidget.create(panel, cs, hasFileName, paramsModel)
 
+    val cbPassHeaders = createCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
+
     val pnButtons = dialog.createOkCancelButtonsPanel {
         with (Piper.CommandInvocation.newBuilder()) {
-            // TODO
+            // TODO 5-8
             var pre = true
             for (i in 0 until paramsModel.size) {
                 val item = paramsModel.getElementAt(i)!!
@@ -489,6 +491,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
                 }
                 else addPostfix(item.value)
             }
+            if (cbPassHeaders.isSelected) passHeaders = true
             state.result = build()
         }
         true
