@@ -143,7 +143,7 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
 }
 
 class CollapsedCommandInvocationWidget(private val label: JLabel = JLabel(),
-                                       private val button: JButton = JButton("Edit..."),
+                                       private val btnEdit: JButton = JButton("Edit..."),
                                        var cmd: Piper.CommandInvocation) {
     private fun update() {
         label.text = cmd.commandLine + " "
@@ -152,7 +152,7 @@ class CollapsedCommandInvocationWidget(private val label: JLabel = JLabel(),
     fun buildGUI(panel: Container, cs: GridBagConstraints) {
         cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
         cs.gridx = 1 ; panel.add(label, cs)
-        cs.gridx = 2 ; panel.add(button, cs)
+        cs.gridx = 2 ; panel.add(btnEdit, cs)
     }
 
     companion object {
@@ -160,7 +160,7 @@ class CollapsedCommandInvocationWidget(private val label: JLabel = JLabel(),
             val cciw = CollapsedCommandInvocationWidget(cmd = cmd)
             cciw.update()
 
-            cciw.button.addActionListener {
+            cciw.btnEdit.addActionListener {
                 val edited = showCommandInvocationDialog(cciw.cmd) ?: return@addActionListener
                 cciw.cmd = edited
                 cciw.update()
