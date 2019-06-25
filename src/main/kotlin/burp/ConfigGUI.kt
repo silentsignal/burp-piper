@@ -87,7 +87,7 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
 
     companion object {
         fun create(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints): MinimalToolWidget {
-            val mtw = MinimalToolWidget(filter = tool.filter, cciw = CollapsedCommandInvocationWidget.create(tool.cmd))
+            val mtw = MinimalToolWidget(filter = tool.filter, cciw = CollapsedCommandInvocationWidget(cmd = tool.cmd))
 
             with(cs) {
                 fill = GridBagConstraints.HORIZONTAL
@@ -142,32 +142,44 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
     }
 }
 
-class CollapsedCommandInvocationWidget(private val label: JLabel = JLabel(),
-                                       private val btnEdit: JButton = JButton("Edit..."),
-                                       var cmd: Piper.CommandInvocation) {
-    private fun update() {
+open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation) {
+    private val label: JLabel = JLabel()
+    private val btnEdit: JButton = JButton("Edit...")
+
+    protected fun update() {
         label.text = cmd.commandLine + " "
     }
 
-    fun buildGUI(panel: Container, cs: GridBagConstraints) {
+    open fun buildGUI(panel: Container, cs: GridBagConstraints) {
         cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
         cs.gridx = 1 ; panel.add(label, cs)
         cs.gridx = 2 ; panel.add(btnEdit, cs)
     }
 
-    companion object {
-        fun create(cmd: Piper.CommandInvocation): CollapsedCommandInvocationWidget {
-            val cciw = CollapsedCommandInvocationWidget(cmd = cmd)
-            cciw.update()
+    init {
+        update()
 
-            cciw.btnEdit.addActionListener {
-                val edited = showCommandInvocationDialog(cciw.cmd) ?: return@addActionListener
-                cciw.cmd = edited
-                cciw.update()
-            }
-
-            return cciw
+        btnEdit.addActionListener {
+            val edited = showCommandInvocationDialog(cmd) ?: return@addActionListener
+            cmd = edited
+            update()
         }
+    }
+}
+
+class RemovableCollapsedCommandInvocationWidget : CollapsedCommandInvocationWidget {
+    private val btnRemove: JButton = JButton("Remove")
+
+    constructor(initialValue: Piper.CommandInvocation) : super(initialValue) {
+        btnRemove.addActionListener {
+            cmd = Piper.CommandInvocation.getDefaultInstance() // TODO is it really OK? Should it be null?
+            update()
+        }
+    }
+
+    override fun buildGUI(panel: Container, cs: GridBagConstraints) {
+        super.buildGUI(panel, cs)
+        cs.gridx = 3 ; panel.add(btnRemove, cs)
     }
 }
 
@@ -721,6 +733,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     val prefixField  = HexASCIITextField("prefix",  mm.prefix,  dialog)
     val postfixField = HexASCIITextField("postfix", mm.postfix, dialog)
     val state = MessageMatchDialogState()
+    val cciw = RemovableCollapsedCommandInvocationWidget(mm.cmd)
 
     with(cs) {
         fill = GridBagConstraints.HORIZONTAL
@@ -776,6 +789,10 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
         btnHeaderRemove.isEnabled = false
     }
 
+    cs.gridy++
+    cs.gridx = 0
+    cciw.buildGUI(panel, cs)
+
     val spList = JSplitPane()
     val (andAlsoPanel, andAlsoModel) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList)
     val ( orElsePanel,  orElseModel) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList)
@@ -796,6 +813,8 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
         if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
 
         if (state.header != null) builder.header = state.header
+
+        // TODO cciw.cmd -> builder.cmd
 
         for (i in 0 until andAlsoModel.size) builder.addAndAlso(andAlsoModel.getElementAt(i).cfgItem)
         for (i in 0 until  orElseModel.size) builder.addOrElse(  orElseModel.getElementAt(i).cfgItem)
