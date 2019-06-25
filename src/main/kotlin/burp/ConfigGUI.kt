@@ -519,9 +519,10 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
         fun create(panel: Container, cs: GridBagConstraints, hasFileName: Boolean, paramsModel: DefaultListModel<CommandLineParameter>): InputMethodWidget {
             val imw = InputMethodWidget(hasFileName = hasFileName)
             imw.update()
-            cs.gridwidth = 2
+            cs.gridwidth = 3
             cs.gridx = 0 ; panel.add(imw.label, cs)
-            cs.gridx = 2 ; panel.add(imw.button, cs)
+            cs.gridwidth = 1
+            cs.gridx = 3 ; panel.add(imw.button, cs)
 
             paramsModel.addListDataListener(object : ListDataListener {
                 override fun intervalRemoved(p0: ListDataEvent?) {
