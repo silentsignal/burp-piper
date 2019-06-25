@@ -355,9 +355,11 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
     val cs = GridBagConstraints()
     val state = CommandInvocationDialogState()
 
+    val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
+
     val paramsModel = DefaultListModel<CommandLineParameter>()
     ci.prefixList.forEach { paramsModel.addElement(CommandLineParameter(it)) }
-    if (ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) paramsModel.addElement(CommandLineParameter(null))
+    if (hasFileName) paramsModel.addElement(CommandLineParameter(null))
     ci.postfixList.forEach { paramsModel.addElement(CommandLineParameter(it)) }
     val lsParams = JList<CommandLineParameter>(paramsModel)
     lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
