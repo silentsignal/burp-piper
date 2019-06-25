@@ -678,6 +678,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
 }
 
 data class MessageMatchDialogState(var result: Piper.MessageMatch? = null, var header: Piper.HeaderMatch? = null)
+
 class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<RegExpFlag, JCheckBox>) {
     fun hasPattern(): Boolean {
         return tfPattern.text.isNotEmpty()
