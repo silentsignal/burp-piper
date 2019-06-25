@@ -5,6 +5,8 @@ import java.awt.*
 import java.awt.event.*
 import java.util.*
 import javax.swing.*
+import javax.swing.event.ListDataEvent
+import javax.swing.event.ListDataListener
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 data class MessageViewerWrapper(val cfgItem: Piper.MessageViewer) {
@@ -473,6 +475,10 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
     cs.gridwidth = 3
     panel.add(cbSpace, cs)
 
+    cs.gridy = 6
+
+    val inputMethodWidget = InputMethodWidget.create(panel, cs, hasFileName, paramsModel)
+
     val pnButtons = dialog.createOkCancelButtonsPanel {
         with (Piper.CommandInvocation.newBuilder()) {
             // TODO
@@ -504,6 +510,57 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
     }
 
     return state.result
+}
+
+private class InputMethodWidget(private val label: JLabel = JLabel(),
+                                private val button: JButton = JButton(),
+                                private var hasFileName: Boolean) {
+    fun update() {
+        label.text = "Input method: " + (if (hasFileName) "filename" else "standard input") + " "
+        button.text = if (hasFileName) "Set to stdin (remove <INPUT>)" else "Set to filename (add <INPUT>)"
+    }
+
+    companion object {
+        fun create(panel: Container, cs: GridBagConstraints, hasFileName: Boolean, paramsModel: DefaultListModel<CommandLineParameter>): InputMethodWidget {
+            val imw = InputMethodWidget(hasFileName = hasFileName)
+            imw.update()
+            cs.gridwidth = 2
+            cs.gridx = 0 ; panel.add(imw.label, cs)
+            cs.gridx = 2 ; panel.add(imw.button, cs)
+
+            paramsModel.addListDataListener(object : ListDataListener {
+                override fun intervalRemoved(p0: ListDataEvent?) {
+                    if (!imw.hasFileName) return
+                    for (i in 0 until paramsModel.size) {
+                        if (paramsModel.getElementAt(i)!!.isInputFileName()) return
+                    }
+                    imw.hasFileName = false
+                    imw.update()
+                }
+
+                override fun contentsChanged(p0: ListDataEvent?) { /* ignore */ }
+                override fun intervalAdded(p0: ListDataEvent?) { /* ignore */ }
+            })
+
+            imw.button.addActionListener {
+                if (imw.hasFileName) {
+                    for (i in 0 until paramsModel.size) {
+                        val item = paramsModel.getElementAt(i)!!
+                        if (item.isInputFileName()) {
+                            paramsModel.remove(i) // this triggers intervalRemoved above, no explicit update() necessary
+                            break
+                        }
+                    }
+                } else {
+                    paramsModel.addElement(CommandLineParameter(null))
+                    imw.hasFileName = true
+                    imw.update()
+                }
+            }
+
+            return imw
+        }
+    }
 }
 
 private fun Container.createOkCancelButtonsPanel(okHandler: () -> Boolean): Component {
