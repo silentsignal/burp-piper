@@ -472,7 +472,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
 
     cs.gridy = 6
 
-    val inputMethodWidget = InputMethodWidget.create(panel, cs, hasFileName, paramsModel)
+    InputMethodWidget.create(panel, cs, hasFileName, paramsModel)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         with (Piper.CommandInvocation.newBuilder()) {
