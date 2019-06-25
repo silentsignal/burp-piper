@@ -652,13 +652,15 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
     val btnRemove = JButton("--")
     val btnEdit = JButton("Edit")
 
+    list.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+
     btnAdd.addActionListener {
         model.addElement(MessageMatchWrapper(
                 showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance()) ?: return@addActionListener))
     }
 
     btnRemove.addActionListener {
-        if (list.selectedIndex >= 0) model.remove(list.selectedIndex)
+        list.selectedIndices.reversed().forEach(model::removeElementAt)
     }
 
     btnEdit.addActionListener {
