@@ -63,10 +63,15 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
 }
 
 class MinimalToolWidget(private val tfName: JTextField = JTextField(), private var filter: Piper.MessageMatch?,
-                        private val cbEnabled: JCheckBox = JCheckBox("Enabled")) {
+                        private val cbEnabled: JCheckBox = JCheckBox("Enabled"),
+                        private val cciw: CollapsedCommandInvocationWidget) {
     fun toMinimalTool(dialog: Component): Piper.MinimalTool? {
         if (tfName.text.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "Name cannot be empty.")
+            return null
+        }
+        if (cciw.cmd.prefixCount + cciw.cmd.postfixCount == 0) {
+            JOptionPane.showMessageDialog(dialog, "The command must contain at least one argument.")
             return null
         }
 
@@ -75,14 +80,14 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             name = tfName.text
             if (cbEnabled.isSelected) enabled = true
             if (f != null) filter = f
-            // TODO cmd
+            cmd = cciw.cmd
             return build()
         }
     }
 
     companion object {
         fun create(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints): MinimalToolWidget {
-            val mtw = MinimalToolWidget(filter = tool.filter)
+            val mtw = MinimalToolWidget(filter = tool.filter, cciw = CollapsedCommandInvocationWidget.create(tool.cmd))
 
             with(cs) {
                 fill = GridBagConstraints.HORIZONTAL
@@ -121,16 +126,7 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             }
             panel.add(btnEditFilter, cs)
 
-            val btnEditCommand = JButton("Edit...")
-
-            cs.gridy = 2
-            cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
-            cs.gridx = 1 ; panel.add(JLabel(tool.cmd.commandLine + " "), cs)
-            cs.gridx = 2 ; panel.add(btnEditCommand, cs)
-
-            btnEditCommand.addActionListener {
-                showCommandInvocationDialog(tool.cmd) // TODO handle return value
-            }
+            cs.gridy = 2 ; mtw.cciw.buildGUI(panel, cs)
 
             cs.gridy = 3
             cs.gridx = 0
@@ -142,6 +138,35 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             cs.gridy = 4
 
             return mtw
+        }
+    }
+}
+
+class CollapsedCommandInvocationWidget(private val label: JLabel = JLabel(),
+                                       private val button: JButton = JButton("Edit..."),
+                                       var cmd: Piper.CommandInvocation) {
+    private fun update() {
+        label.text = cmd.commandLine + " "
+    }
+
+    fun buildGUI(panel: Container, cs: GridBagConstraints) {
+        cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
+        cs.gridx = 1 ; panel.add(label, cs)
+        cs.gridx = 2 ; panel.add(button, cs)
+    }
+
+    companion object {
+        fun create(cmd: Piper.CommandInvocation): CollapsedCommandInvocationWidget {
+            val cciw = CollapsedCommandInvocationWidget(cmd = cmd)
+            cciw.update()
+
+            cciw.button.addActionListener {
+                val edited = showCommandInvocationDialog(cciw.cmd) ?: return@addActionListener
+                cciw.cmd = edited
+                cciw.update()
+            }
+
+            return cciw
         }
     }
 }
