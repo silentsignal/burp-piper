@@ -480,7 +480,10 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
             for (i in 0 until paramsModel.size) {
                 val item = paramsModel.getElementAt(i)!!
                 if (pre) {
-                    if (item.value == null) pre = false
+                    if (item.value == null) {
+                        pre = false
+                        inputMethod = Piper.CommandInvocation.InputMethod.FILENAME
+                    }
                     else addPrefix(item.value)
                 }
                 else addPostfix(item.value)
