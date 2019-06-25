@@ -390,11 +390,6 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
 
     panel.add(JScrollPane(lsParams), cs)
 
-    val btnRemove = JButton("Remove")
-    btnRemove.addActionListener {
-        lsParams.selectedIndices.reversed().forEach(paramsModel::removeElementAt)
-    }
-
     val btnMoveUp = JButton("Move up")
     btnMoveUp.addActionListener {
         val si = lsParams.selectedIndices
@@ -418,7 +413,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
     cs.gridwidth = 1
     cs.gridheight = 1
 
-    panel.add(btnRemove, cs)
+    panel.add(createRemoveButton("Remove", lsParams, paramsModel), cs)
 
     cs.gridy = 2
 
@@ -797,7 +792,6 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
     val toolbar = JPanel()
 
     val btnAdd = JButton("+")
-    val btnRemove = JButton("--")
     val btnEdit = JButton("Edit")
 
     list.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
@@ -805,10 +799,6 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
     btnAdd.addActionListener {
         model.addElement(MessageMatchWrapper(
                 showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance()) ?: return@addActionListener))
-    }
-
-    btnRemove.addActionListener {
-        list.selectedIndices.reversed().forEach(model::removeElementAt)
     }
 
     btnEdit.addActionListener {
@@ -820,7 +810,7 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
         layout = BoxLayout(toolbar, BoxLayout.LINE_AXIS)
         add(btnAdd)
         add(Box.createRigidArea(Dimension(4, 0)))
-        add(btnRemove)
+        add(createRemoveButton("--", list, model))
         add(Box.createRigidArea(Dimension(4, 0)))
         add(btnEdit)
     }
@@ -840,4 +830,12 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
     }
 
     return panel to model
+}
+
+private fun <E> createRemoveButton(caption: String, listWidget: JList<E>, listModel: DefaultListModel<E>): JButton {
+    val btn = JButton(caption)
+    btn.addActionListener {
+        listWidget.selectedIndices.reversed().forEach(listModel::removeElementAt)
+    }
+    return btn
 }
