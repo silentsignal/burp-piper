@@ -2,8 +2,7 @@ package burp
 
 import com.google.protobuf.ByteString
 import java.awt.*
-import java.awt.event.MouseAdapter
-import java.awt.event.MouseEvent
+import java.awt.event.*
 import java.util.*
 import javax.swing.*
 
@@ -361,6 +360,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
     if (ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) paramsModel.addElement(CommandLineParameter(null))
     ci.postfixList.forEach { paramsModel.addElement(CommandLineParameter(it)) }
     val lsParams = JList<CommandLineParameter>(paramsModel)
+    lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
 
     lsParams.cellRenderer = object : DefaultListCellRenderer() {
         override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
@@ -377,13 +377,99 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
     cs.fill = GridBagConstraints.HORIZONTAL
     cs.gridy = 0
     cs.gridx = 0
-    cs.gridwidth = 0
+    cs.gridwidth = 3
 
-    panel.add(JLabel("Command line parameters:"), cs)
+    panel.add(JLabel("Command line parameters: (one per line)"), cs)
 
     cs.gridy = 1
+    cs.gridheight = 3
 
     panel.add(JScrollPane(lsParams), cs)
+
+    val btnRemove = JButton("Remove")
+    btnRemove.addActionListener {
+        lsParams.selectedIndices.reversed().forEach(paramsModel::removeElementAt)
+    }
+
+    val btnMoveUp = JButton("Move up")
+    btnMoveUp.addActionListener {
+        val si = lsParams.selectedIndices
+        if (si.isEmpty() || si[0] == 0) return@addActionListener
+        si.forEach {
+            paramsModel.insertElementAt(paramsModel.remove(it - 1), it)
+        }
+    }
+
+    val btnMoveDown = JButton("Move down")
+    btnMoveDown.addActionListener {
+        val si = lsParams.selectedIndices
+        if (si.isEmpty() || si.last() == paramsModel.size - 1) return@addActionListener
+        si.reversed().forEach {
+            paramsModel.insertElementAt(paramsModel.remove(it + 1), it)
+        }
+        lsParams.selectedIndices = si.map { it + 1 }.toIntArray()
+    }
+
+    cs.gridx = 3
+    cs.gridwidth = 1
+    cs.gridheight = 1
+
+    panel.add(btnRemove, cs)
+
+    cs.gridy = 2
+
+    panel.add(btnMoveUp, cs)
+
+    cs.gridy = 3
+
+    panel.add(btnMoveDown, cs)
+
+    val tfParam = JTextField()
+    val cbSpace = JCheckBox("Auto-add upon pressing space or closing quotes")
+    val btnAdd = JButton("Add")
+
+    btnAdd.addActionListener {
+        paramsModel.addElement(CommandLineParameter(tfParam.text))
+        tfParam.text = ""
+    }
+
+    tfParam.addKeyListener(object : KeyAdapter() {
+        override fun keyTyped(e: KeyEvent) {
+            if (cbSpace.isSelected) {
+                val t = tfParam.text
+                if (t.startsWith('"')) {
+                    if (e.keyChar == '"') {
+                        tfParam.text = t.substring(1)
+                        btnAdd.doClick()
+                        e.consume()
+                    }
+                } else if (t.startsWith('\'')) {
+                    if (e.keyChar == '\'') {
+                        tfParam.text = t.substring(1)
+                        btnAdd.doClick()
+                        e.consume()
+                    }
+                } else if (e.keyChar == ' ') {
+                    btnAdd.doClick()
+                    e.consume()
+                }
+            }
+        }
+    })
+
+    cbSpace.isSelected = true
+
+    cs.gridy = 4
+    cs.gridwidth = 1
+
+    cs.gridx = 0 ; cs.gridwidth = 1; panel.add(JLabel("Add parameter: "), cs)
+    cs.gridx = 1 ; cs.gridwidth = 2; panel.add(tfParam, cs)
+    cs.gridx = 3 ; cs.gridwidth = 1; panel.add(btnAdd, cs)
+
+    cs.gridy = 5
+    cs.gridx = 0
+    cs.gridwidth = 3
+    panel.add(cbSpace, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         with (Piper.CommandInvocation.newBuilder()) {
@@ -406,7 +492,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(panel)
-        setSize(480, 320)
+        setSize(640, 480)
         title = "Edit command invocation"
         isModal = true
         isVisible = true
