@@ -553,7 +553,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
         gridwidth = 4
     }
 
-    val cbNegation = JComboBox<MatchNegation>(MatchNegation.values())
+    val cbNegation = JComboBox(MatchNegation.values())
     panel.add(cbNegation, cs)
 
     cs.gridwidth = 1
