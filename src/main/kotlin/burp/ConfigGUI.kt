@@ -586,7 +586,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(panel)
-        setSize(640, 480)
+        setSize(800, 600)
         title = "Edit command invocation"
         isModal = true
         isVisible = true
