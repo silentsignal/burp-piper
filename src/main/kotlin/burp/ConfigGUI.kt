@@ -62,9 +62,10 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     })
 }
 
-class MinimalToolWidget(private val tfName: JTextField = JTextField(), private var filter: Piper.MessageMatch?,
+class MinimalToolWidget(private val tfName: JTextField = JTextField(),
                         private val cbEnabled: JCheckBox = JCheckBox("Enabled"),
-                        private val cciw: CollapsedCommandInvocationWidget) {
+                        private val cciw: CollapsedCommandInvocationWidget,
+                        private val ccmw: CollapsedMessageMatchWidget) {
     fun toMinimalTool(dialog: Component): Piper.MinimalTool? {
         if (tfName.text.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "Name cannot be empty.")
@@ -75,7 +76,7 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             return null
         }
 
-        val f = filter
+        val f = ccmw.mm
         with (Piper.MinimalTool.newBuilder()) {
             name = tfName.text
             if (cbEnabled.isSelected) enabled = true
@@ -87,7 +88,8 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
 
     companion object {
         fun create(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints): MinimalToolWidget {
-            val mtw = MinimalToolWidget(filter = tool.filter, cciw = CollapsedCommandInvocationWidget(cmd = tool.cmd))
+            val mtw = MinimalToolWidget(cciw = CollapsedCommandInvocationWidget(cmd = tool.cmd),
+                    ccmw = CollapsedMessageMatchWidget(mm = tool.filter, showHeaderMatch = true, caption = "Filter: "))
 
             with(cs) {
                 fill = GridBagConstraints.HORIZONTAL
@@ -104,28 +106,7 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
             mtw.tfName.text = tool.name
             panel.add(mtw.tfName, cs)
 
-            cs.gridwidth = 1
-            cs.gridy = 1
-            cs.gridx = 0
-
-            panel.add(JLabel("Filter: "), cs)
-
-            cs.gridx = 1
-
-            val lbFilter = JLabel(if (tool.hasFilter())
-                tool.filter.toHumanReadable(false, true) + " " else "(no filter) ")
-            panel.add(lbFilter, cs)
-
-            cs.gridx = 2
-
-            val btnEditFilter = JButton("Edit...")
-            btnEditFilter.addActionListener {
-                val filter = showMessageMatchDialog(tool.filter) ?: return@addActionListener
-                lbFilter.text = filter.toHumanReadable(false, true) + " "
-                mtw.filter = filter
-            }
-            panel.add(btnEditFilter, cs)
-
+            cs.gridy = 1 ; mtw.ccmw.buildGUI(panel, cs)
             cs.gridy = 2 ; mtw.cciw.buildGUI(panel, cs)
 
             cs.gridy = 3
@@ -139,6 +120,44 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(), private v
 
             return mtw
         }
+    }
+}
+
+class CollapsedMessageMatchWidget(var mm: Piper.MessageMatch?, val showHeaderMatch: Boolean, val caption: String) {
+    private val label: JLabel = JLabel()
+    private val btnRemoveFilter = JButton("Remove")
+
+    private fun update() {
+        val f = mm
+        label.text = if (f == null) "(no filter) " else f.toHumanReadable(false, true) + " "
+        btnRemoveFilter.isEnabled = (f != null)
+    }
+
+    fun buildGUI(panel: Container, cs: GridBagConstraints) {
+        val btnEditFilter = JButton("Edit...")
+        btnEditFilter.addActionListener {
+            val filter = showMessageMatchDialog(mm ?: Piper.MessageMatch.getDefaultInstance(),
+                    showHeaderMatch = showHeaderMatch) ?: return@addActionListener
+            mm = filter
+            update()
+        }
+
+        btnRemoveFilter.addActionListener {
+            mm = null
+            update()
+        }
+
+        update()
+        cs.gridwidth = 1
+
+        cs.gridx = 0 ; panel.add(JLabel(caption), cs)
+        cs.gridx = 1 ; panel.add(label, cs)
+        cs.gridx = 2 ; panel.add(btnEditFilter, cs)
+        cs.gridx = 3 ; panel.add(btnRemoveFilter, cs)
+    }
+
+    init {
+        if (mm == Piper.MessageMatch.getDefaultInstance()) mm = null
     }
 }
 
