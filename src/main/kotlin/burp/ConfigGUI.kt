@@ -407,11 +407,13 @@ data class CommandLineParameter(val value: String?) { // null = input file name
     }
 }
 
-fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvocation? {
+fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolean): Piper.CommandInvocation? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
     val state = CommandInvocationDialogState()
+    val ccmwStdout = CollapsedMessageMatchWidget(mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
+    val ccmwStderr = CollapsedMessageMatchWidget(mm = ci.stderr, showHeaderMatch = false, caption = "Match on stderr: ")
 
     val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
 
@@ -532,12 +534,22 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation): Piper.CommandInvoc
 
     cs.gridy = 7
     cs.gridx = 0
+    cs.gridwidth = 4
 
     val cbPassHeaders = createCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
 
+    if (showFilters) {
+        cs.gridy = 8 ; ccmwStdout.buildGUI(panel, cs)
+        cs.gridy = 9 ; ccmwStderr.buildGUI(panel, cs)
+        // TODO exit code
+    }
+
     val pnButtons = dialog.createOkCancelButtonsPanel {
         with (Piper.CommandInvocation.newBuilder()) {
-            // TODO 5-8
+            if (showFilters) {
+                if (ccmwStdout.mm != null) stdout = ccmwStdout.mm
+                if (ccmwStderr.mm != null) stderr = ccmwStderr.mm
+            }
             var pre = true
             for (i in 0 until paramsModel.size) {
                 val item = paramsModel.getElementAt(i)!!
