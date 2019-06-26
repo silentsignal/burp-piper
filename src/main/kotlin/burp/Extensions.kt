@@ -47,7 +47,7 @@ fun Piper.CommandInvocation.toHumanReadable(negation: Boolean): String = sequenc
         val ecl = this@toHumanReadable.exitCodeList
         val values =
                 if (ecl.size == 1) ecl[0].toString()
-                else ecl.takeLast(1).joinToString(separator = ", ") + " or ${ecl.last()}"
+                else ecl.take(ecl.size - 1).joinToString(separator = ", ") + " or ${ecl.last()}"
         yield("exit code is$nt $values")
     }
     if (this@toHumanReadable.hasStdout()) {
