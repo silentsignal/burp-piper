@@ -913,6 +913,11 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
 
     list.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
 
+    btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
+    list.addListSelectionListener {
+        btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
+    }
+
     btnAdd.addActionListener {
         model.addElement(MessageMatchWrapper(
                 showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance(), showHeaderMatch = showHeaderMatch) ?: return@addActionListener))
@@ -951,6 +956,10 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
 
 private fun <E> createRemoveButton(caption: String, listWidget: JList<E>, listModel: DefaultListModel<E>): JButton {
     val btn = JButton(caption)
+    btn.isEnabled = listWidget.selectedIndices.isNotEmpty()
+    listWidget.addListSelectionListener {
+        btn.isEnabled = listWidget.selectedIndices.isNotEmpty()
+    }
     btn.addActionListener {
         listWidget.selectedIndices.reversed().forEach(listModel::removeElementAt)
     }
