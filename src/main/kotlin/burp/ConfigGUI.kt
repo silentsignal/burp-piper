@@ -25,7 +25,7 @@ data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
 }
 
 fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): Component {
-    val listWidget = JList<MessageViewerWrapper>(messageViewers.map(::MessageViewerWrapper).toTypedArray())
+    val listWidget = JList(messageViewers.map(::MessageViewerWrapper).toTypedArray())
     listWidget.addDoubleClickListener {
         showMessageViewerDialog(messageViewers[it])
         // TODO handle return value
@@ -34,7 +34,7 @@ fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): Componen
 }
 
 fun createMacrosTab(macros: List<Piper.MinimalTool>): Component {
-    val listWidget = JList<MinimalToolWrapper>(macros.map(::MinimalToolWrapper).toTypedArray())
+    val listWidget = JList(macros.map(::MinimalToolWrapper).toTypedArray())
     listWidget.addDoubleClickListener {
         showMacroDialog(macros[it])
         // TODO handle return value
@@ -43,7 +43,7 @@ fun createMacrosTab(macros: List<Piper.MinimalTool>): Component {
 }
 
 fun createMenuItemsTab(menuItems: List<Piper.UserActionTool>): Component {
-    val listWidget = JList<UserActionToolWrapper>(menuItems.map(::UserActionToolWrapper).toTypedArray())
+    val listWidget = JList(menuItems.map(::UserActionToolWrapper).toTypedArray())
     listWidget.addDoubleClickListener {
         showMenuItemDialog(menuItems[it])
         // TODO handle return value
