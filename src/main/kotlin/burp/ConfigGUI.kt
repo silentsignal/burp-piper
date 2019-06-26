@@ -409,7 +409,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
     return state.result
 }
 
-data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = null)
+data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = null, var tfExitCode: JTextField? = null)
 
 data class CommandLineParameter(val value: String?) { // null = input file name
     fun isInputFileName(): Boolean {
@@ -553,9 +553,18 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
     val cbPassHeaders = createCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
 
     if (showFilters) {
+        val exitValues = ci.exitCodeList.joinToString(", ")
+
         cs.gridy = 8 ; ccmwStdout.buildGUI(panel, cs)
         cs.gridy = 9 ; ccmwStderr.buildGUI(panel, cs)
-        // TODO exit code
+        cs.gridy = 10 ; val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
+
+        tfExitCode.inputVerifier = object : InputVerifier() {
+            override fun verify(input: JComponent?): Boolean = tfExitCode.text.isEmpty() ||
+                    tfExitCode.text.filterNot(Char::isWhitespace).split(',').all { it.isNotEmpty() && it.all(Char::isDigit) }
+        }
+
+        state.tfExitCode = tfExitCode
     }
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
@@ -563,6 +572,16 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
             if (showFilters) {
                 if (ccmwStdout.mm != null) stdout = ccmwStdout.mm
                 if (ccmwStderr.mm != null) stderr = ccmwStderr.mm
+                try {
+                    addAllExitCode(state.tfExitCode!!.text.filterNot(Char::isWhitespace).split(',').map(String::toInt))
+                } catch (e: NumberFormatException) {
+                    JOptionPane.showMessageDialog(dialog, "Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
+                    return@createOkCancelButtonsPanel false
+                }
+                if (ccmwStdout.mm == null && ccmwStderr.mm == null && state.tfExitCode!!.text.isEmpty()) {
+                    JOptionPane.showMessageDialog(dialog, "No filters are defined for stdio or exit code.")
+                    return@createOkCancelButtonsPanel  false
+                }
             }
             var pre = true
             for (i in 0 until paramsModel.size) {
