@@ -25,12 +25,24 @@ data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
 }
 
 fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): Component {
-    val listWidget = JList(messageViewers.map(::MessageViewerWrapper).toTypedArray())
+    val pnOuter = JPanel(BorderLayout())
+    val pnToolbar = JPanel()
+    val model = fillDefaultModel(messageViewers, ::MessageViewerWrapper)
+    val listWidget = JList(model)
     listWidget.addDoubleClickListener {
-        showMessageViewerDialog(messageViewers[it])
-        // TODO handle return value
+        model[it] = MessageViewerWrapper(showMessageViewerDialog(model[it].cfgItem)
+                ?: return@addDoubleClickListener)
     }
-    return listWidget
+    val btnAdd = JButton("Add")
+    btnAdd.addActionListener {
+        model.addElement(MessageViewerWrapper(showMessageViewerDialog(Piper.MessageViewer.getDefaultInstance())
+                ?: return@addActionListener))
+    }
+    pnToolbar.add(btnAdd)
+    pnToolbar.add(createRemoveButton("Remove", listWidget, model))
+    pnOuter.add(pnToolbar, BorderLayout.PAGE_START)
+    pnOuter.add(listWidget, BorderLayout.CENTER)
+    return pnOuter
 }
 
 fun createMacrosTab(macros: List<Piper.MinimalTool>): Component {
