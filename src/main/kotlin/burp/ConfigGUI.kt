@@ -165,36 +165,50 @@ open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation) {
     private val label: JLabel = JLabel()
     private val btnEdit: JButton = JButton("Edit...")
 
-    protected fun update() {
-        label.text = cmd.commandLine + " "
+    protected open fun update() {
+        label.text = if (cmd == Piper.CommandInvocation.getDefaultInstance()) "(no command)" else stringRepr
     }
 
+    protected open val stringRepr: String
+        get() = cmd.commandLine + " "
+
     open fun buildGUI(panel: Container, cs: GridBagConstraints) {
+        update()
         cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
         cs.gridx = 1 ; panel.add(label, cs)
         cs.gridx = 2 ; panel.add(btnEdit, cs)
     }
 
-    init {
-        update()
+    open fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = false)
 
+    init {
         btnEdit.addActionListener {
-            val edited = showCommandInvocationDialog(cmd) ?: return@addActionListener
+            val edited = showDialog() ?: return@addActionListener
             cmd = edited
             update()
         }
     }
 }
 
-class RemovableCollapsedCommandInvocationWidget : CollapsedCommandInvocationWidget {
+class CollapsedCommandInvocationMatchWidget : CollapsedCommandInvocationWidget {
     private val btnRemove: JButton = JButton("Remove")
+
+    override fun update() {
+        super.update()
+        btnRemove.isEnabled = cmd != Piper.CommandInvocation.getDefaultInstance()
+    }
+
+    override val stringRepr: String
+        get() = cmd.toHumanReadable(false)
 
     constructor(initialValue: Piper.CommandInvocation) : super(initialValue) {
         btnRemove.addActionListener {
-            cmd = Piper.CommandInvocation.getDefaultInstance() // TODO is it really OK? Should it be null?
+            cmd = Piper.CommandInvocation.getDefaultInstance()
             update()
         }
     }
+
+    override fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = true)
 
     override fun buildGUI(panel: Container, cs: GridBagConstraints) {
         super.buildGUI(panel, cs)
@@ -757,14 +771,14 @@ class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<R
     }
 }
 
-fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
+fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean): Piper.MessageMatch? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
     val prefixField  = HexASCIITextField("prefix",  mm.prefix,  dialog)
     val postfixField = HexASCIITextField("postfix", mm.postfix, dialog)
     val state = MessageMatchDialogState()
-    val cciw = RemovableCollapsedCommandInvocationWidget(mm.cmd)
+    val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd)
 
     with(cs) {
         fill = GridBagConstraints.HORIZONTAL
@@ -784,40 +798,42 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     cs.gridy = 3
     val regExpWidget = RegExpWidget.create(mm.regex, panel, cs)
 
-    cs.gridy++
-    cs.gridx = 0
+    if (showHeaderMatch) {
+        cs.gridy++
+        cs.gridx = 0
 
-	panel.add(JLabel("Header: "), cs)
+        panel.add(JLabel("Header: "), cs)
 
-    cs.gridx = 1
+        cs.gridx = 1
 
-    val lbHeader = JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)")
-    if (mm.hasHeader()) state.header = mm.header
-	panel.add(lbHeader, cs)
+        val lbHeader = JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)")
+        if (mm.hasHeader()) state.header = mm.header
+        panel.add(lbHeader, cs)
 
-	cs.gridx = 2
+        cs.gridx = 2
 
-    val btnHeaderEdit = JButton("Edit...")
-	panel.add(btnHeaderEdit, cs)
+        val btnHeaderEdit = JButton("Edit...")
+        panel.add(btnHeaderEdit, cs)
 
-    cs.gridx = 3
+        cs.gridx = 3
 
-    val btnHeaderRemove = JButton("Remove")
-    panel.add(btnHeaderRemove, cs)
-    btnHeaderRemove.isEnabled = mm.hasHeader()
+        val btnHeaderRemove = JButton("Remove")
+        panel.add(btnHeaderRemove, cs)
+        btnHeaderRemove.isEnabled = mm.hasHeader()
 
-    btnHeaderEdit.addActionListener {
-        val current = state.header ?: Piper.HeaderMatch.getDefaultInstance()
-        val header = showHeaderMatchDialog(current) ?: return@addActionListener
-        lbHeader.text = header.toHumanReadable(false)
-        state.header = header
-        btnHeaderRemove.isEnabled = true
-    }
+        btnHeaderEdit.addActionListener {
+            val current = state.header ?: Piper.HeaderMatch.getDefaultInstance()
+            val header = showHeaderMatchDialog(current) ?: return@addActionListener
+            lbHeader.text = header.toHumanReadable(false)
+            state.header = header
+            btnHeaderRemove.isEnabled = true
+        }
 
-    btnHeaderRemove.addActionListener {
-        lbHeader.text = "(no header match)"
-        state.header = null
-        btnHeaderRemove.isEnabled = false
+        btnHeaderRemove.addActionListener {
+            lbHeader.text = "(no header match)"
+            state.header = null
+            btnHeaderRemove.isEnabled = false
+        }
     }
 
     cs.gridy++
@@ -825,8 +841,8 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     cciw.buildGUI(panel, cs)
 
     val spList = JSplitPane()
-    val (andAlsoPanel, andAlsoModel) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList)
-    val ( orElsePanel,  orElseModel) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList)
+    val (andAlsoPanel, andAlsoModel) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList, showHeaderMatch)
+    val ( orElsePanel,  orElseModel) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList,  showHeaderMatch)
     spList.leftComponent = andAlsoPanel
     spList.rightComponent = orElsePanel
 
@@ -867,7 +883,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch): Piper.MessageMatch? {
     return state.result
 }
 
-private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>): Pair<Component, ListModel<MessageMatchWrapper>> {
+private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean): Pair<Component, ListModel<MessageMatchWrapper>> {
     val model = DefaultListModel<MessageMatchWrapper>()
     source.forEach { model.addElement(MessageMatchWrapper(it)) }
 
@@ -881,11 +897,11 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
 
     btnAdd.addActionListener {
         model.addElement(MessageMatchWrapper(
-                showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance()) ?: return@addActionListener))
+                showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance(), showHeaderMatch = showHeaderMatch) ?: return@addActionListener))
     }
 
     btnEdit.addActionListener {
-        val edited = showMessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener)
+        val edited = showMessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener, showHeaderMatch = showHeaderMatch)
         if (edited != null) model.set(list.selectedIndex, MessageMatchWrapper(edited))
     }
 
@@ -909,7 +925,7 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
     }
 
     list.addDoubleClickListener {
-        showMessageMatchDialog(source[it])
+        showMessageMatchDialog(source[it], showHeaderMatch = showHeaderMatch)
     }
 
     return panel to model
