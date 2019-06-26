@@ -430,10 +430,11 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
 
     val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
 
-    val paramsModel = DefaultListModel<CommandLineParameter>()
-    ci.prefixList.forEach { paramsModel.addElement(CommandLineParameter(it)) }
-    if (hasFileName) paramsModel.addElement(CommandLineParameter(null))
-    ci.postfixList.forEach { paramsModel.addElement(CommandLineParameter(it)) }
+    val paramsModel = fillDefaultModel(sequence {
+        yieldAll(ci.prefixList)
+        if (hasFileName) yield(null)
+        yieldAll(ci.postfixList)
+    }, ::CommandLineParameter)
     val lsParams = JList<CommandLineParameter>(paramsModel)
     lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
 
@@ -902,8 +903,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean): Pi
 }
 
 private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean): Pair<Component, ListModel<MessageMatchWrapper>> {
-    val model = DefaultListModel<MessageMatchWrapper>()
-    source.forEach { model.addElement(MessageMatchWrapper(it)) }
+    val model = fillDefaultModel(source, ::MessageMatchWrapper)
 
     val list = JList<MessageMatchWrapper>(model)
     val toolbar = JPanel()
@@ -964,4 +964,12 @@ private fun <E> createRemoveButton(caption: String, listWidget: JList<E>, listMo
         listWidget.selectedIndices.reversed().forEach(listModel::removeElementAt)
     }
     return btn
+}
+
+private fun <S, D> fillDefaultModel(source: Iterable<S>, transform: (S) -> D): DefaultListModel<D> =
+        fillDefaultModel(source.asSequence(), transform)
+private fun <S, D> fillDefaultModel(source: Sequence<S>, transform: (S) -> D): DefaultListModel<D> {
+    val model = DefaultListModel<D>()
+    source.map(transform).forEach(model::addElement)
+    return model
 }
