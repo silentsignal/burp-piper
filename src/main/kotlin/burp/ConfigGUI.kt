@@ -8,7 +8,6 @@ import javax.swing.*
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
 
-data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 data class MessageViewerWrapper(val cfgItem: Piper.MessageViewer) {
     override fun toString(): String = cfgItem.common.name
 }

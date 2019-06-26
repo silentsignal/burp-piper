@@ -29,6 +29,7 @@ import kotlin.concurrent.thread
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
 
+data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 
 class BurpExtender : IBurpExtender, ITab {
 
