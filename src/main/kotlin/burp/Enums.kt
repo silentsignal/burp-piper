@@ -63,7 +63,7 @@ enum class BurpTool {
     }
 }
 
-enum class MatchNegation(val negation: Boolean, val description: String) {
+enum class MatchNegation(val negation: Boolean, private val description: String) {
     NORMAL(false, "Match when all the rules below apply"),
     NEGATED(true, "Match when none of the rules below apply");
 
