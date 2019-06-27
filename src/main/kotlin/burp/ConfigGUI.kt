@@ -641,12 +641,13 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
     }
 }
 
-private fun Container.createOkCancelButtonsPanel(okHandler: () -> Boolean): Component {
+private fun JDialog.createOkCancelButtonsPanel(okHandler: () -> Boolean): Component {
     val pnButtons = JPanel()
     val btnOK = JButton("OK")
     val btnCancel = JButton("Cancel")
     pnButtons.add(btnOK)
     pnButtons.add(btnCancel)
+    rootPane.defaultButton = btnOK
 
     btnOK.addActionListener {
         if (okHandler()) isVisible = false
