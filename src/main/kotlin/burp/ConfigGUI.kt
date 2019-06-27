@@ -750,26 +750,12 @@ class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBag
 
     init {
         addFullWidthComponent(JLabel("Regular expression flags: (see JDK documentation)"), panel, cs)
-
-        cs.gridy++
-        cs.gridwidth = 1
-
-        val selectedFlags = regex.flagSet
-        cbFlags = EnumMap(RegExpFlag::class.java)
-        RegExpFlag.values().forEach { flag ->
-            cbFlags[flag] = createCheckBox(flag.toString(), flag in selectedFlags, panel, cs)
-            if (cs.gridx == 0) {
-                cs.gridx = 1
-            } else {
-                cs.gridy++
-                cs.gridx = 0
-            }
-        }
+        cbFlags = createCheckBoxSet(RegExpFlag.values(), regex.flagSet, panel, cs)
     }
 }
 
 class BurpToolWidget(tools: Set<BurpTool>, panel: Container, cs: GridBagConstraints) {
-    private val cbTools: MutableMap<BurpTool, JCheckBox> = EnumMap(BurpTool::class.java)
+    private val cbTools: Map<BurpTool, JCheckBox>
 
     fun toBurpToolSet(): Set<BurpTool> {
         return cbTools.filter { e -> e.value.isSelected }.keys
@@ -777,20 +763,24 @@ class BurpToolWidget(tools: Set<BurpTool>, panel: Container, cs: GridBagConstrai
 
     init {
         addFullWidthComponent(JLabel("sent/received by"), panel, cs)
-
-        cs.gridy++
-        cs.gridwidth = 1
-
-        BurpTool.values().forEach { tool ->
-            cbTools[tool] = createCheckBox(tool.toString(), tool in tools, panel, cs)
-            if (cs.gridx == 0) {
-                cs.gridx = 1
-            } else {
-                cs.gridy++
-                cs.gridx = 0
-            }
-        }
+        cbTools = createCheckBoxSet(BurpTool.values(), tools, panel, cs)
     }
+}
+
+fun <E> createCheckBoxSet(items: Array<E>, selected: Set<E>, panel: Container, cs: GridBagConstraints): Map<E, JCheckBox> {
+    cs.gridy++
+    cs.gridwidth = 1
+
+    return items.map {
+        val cb = createCheckBox(it.toString(), it in selected, panel, cs)
+        if (cs.gridx == 0) {
+            cs.gridx = 1
+        } else {
+            cs.gridy++
+            cs.gridx = 0
+        }
+        it to cb
+    }.toMap()
 }
 
 fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, parent: Component): Piper.MessageMatch? {
