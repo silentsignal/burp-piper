@@ -80,7 +80,7 @@ class BurpExtender : IBurpExtender, ITab {
             })
         }
 
-        populateTabs(cfg)
+        populateTabs(cfg, null)
         callbacks.addSuiteTab(this)
     }
 
@@ -104,11 +104,11 @@ class BurpExtender : IBurpExtender, ITab {
         }
     }
 
-    private fun populateTabs(cfg: Piper.Config) {
-        tabs.addTab("Message viewers", createMessageViewersTab(cfg.messageViewerList))
+    private fun populateTabs(cfg: Piper.Config, parent: Component?) {
+        tabs.addTab("Message viewers", createMessageViewersTab(cfg.messageViewerList, parent))
         // TODO tabs.addTab("Load/Save configuration")
-        tabs.addTab("Context menu items", createMenuItemsTab(cfg.menuItemList))
-        tabs.addTab("Macros", createMacrosTab(cfg.macroList))
+        tabs.addTab("Context menu items", createMenuItemsTab(cfg.menuItemList, parent))
+        tabs.addTab("Macros", createMacrosTab(cfg.macroList, parent))
         // TODO tabs.addTab("Commentators")
     }
 
@@ -211,16 +211,9 @@ class BurpExtender : IBurpExtender, ITab {
         fun main (args: Array<String>) {
             val be = BurpExtender()
             val cfg = loadDefaultConfig()
-            be.populateTabs(cfg)
             val dialog = JDialog()
-            with(dialog) {
-                defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-                add(be.uiComponent)
-                setSize(800, 600)
-                isModal = true
-                title = NAME
-                isVisible = true
-            }
+            be.populateTabs(cfg, dialog)
+            showModalDialog(800, 600, be.uiComponent, NAME, dialog, null)
         }
     }
 }

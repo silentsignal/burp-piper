@@ -24,18 +24,18 @@ data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
     override fun toString(): String = cfgItem.toHumanReadable(false, true)
 }
 
-fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): Component {
+fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>, parent: Component?): Component {
     val pnOuter = JPanel(BorderLayout())
     val pnToolbar = JPanel()
     val model = fillDefaultModel(messageViewers, ::MessageViewerWrapper)
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
-        model[it] = MessageViewerWrapper(showMessageViewerDialog(model[it].cfgItem)
+        model[it] = MessageViewerWrapper(showMessageViewerDialog(model[it].cfgItem, parent)
                 ?: return@addDoubleClickListener)
     }
     val btnAdd = JButton("Add")
     btnAdd.addActionListener {
-        model.addElement(MessageViewerWrapper(showMessageViewerDialog(Piper.MessageViewer.getDefaultInstance())
+        model.addElement(MessageViewerWrapper(showMessageViewerDialog(Piper.MessageViewer.getDefaultInstance(), parent)
                 ?: return@addActionListener))
     }
     pnToolbar.add(btnAdd)
@@ -45,19 +45,19 @@ fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>): Componen
     return pnOuter
 }
 
-fun createMacrosTab(macros: List<Piper.MinimalTool>): Component {
+fun createMacrosTab(macros: List<Piper.MinimalTool>, parent: Component?): Component {
     val listWidget = JList(macros.map(::MinimalToolWrapper).toTypedArray())
     listWidget.addDoubleClickListener {
-        showMacroDialog(macros[it])
+        showMacroDialog(macros[it], parent)
         // TODO handle return value
     }
     return listWidget
 }
 
-fun createMenuItemsTab(menuItems: List<Piper.UserActionTool>): Component {
+fun createMenuItemsTab(menuItems: List<Piper.UserActionTool>, parent: Component?): Component {
     val listWidget = JList(menuItems.map(::UserActionToolWrapper).toTypedArray())
     listWidget.addDoubleClickListener {
-        showMenuItemDialog(menuItems[it])
+        showMenuItemDialog(menuItems[it], parent)
         // TODO handle return value
     }
     return listWidget
@@ -99,7 +99,7 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(),
 
     companion object {
         fun create(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints): MinimalToolWidget {
-            val mtw = MinimalToolWidget(cciw = CollapsedCommandInvocationWidget(cmd = tool.cmd),
+            val mtw = MinimalToolWidget(cciw = CollapsedCommandInvocationWidget(cmd = tool.cmd, parent = panel),
                     ccmw = CollapsedMessageMatchWidget(mm = tool.filter, showHeaderMatch = true, caption = "Filter: "))
 
             with(cs) {
@@ -148,7 +148,7 @@ class CollapsedMessageMatchWidget(var mm: Piper.MessageMatch?, val showHeaderMat
         val btnEditFilter = JButton("Edit...")
         btnEditFilter.addActionListener {
             val filter = showMessageMatchDialog(mm ?: Piper.MessageMatch.getDefaultInstance(),
-                    showHeaderMatch = showHeaderMatch) ?: return@addActionListener
+                    showHeaderMatch = showHeaderMatch, parent = panel) ?: return@addActionListener
             mm = filter
             update()
         }
@@ -172,7 +172,7 @@ class CollapsedMessageMatchWidget(var mm: Piper.MessageMatch?, val showHeaderMat
     }
 }
 
-open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation) {
+open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation, protected val parent: Component) {
     private val label: JLabel = JLabel()
     private val btnEdit: JButton = JButton("Edit...")
 
@@ -190,7 +190,7 @@ open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation) {
         cs.gridx = 2 ; panel.add(btnEdit, cs)
     }
 
-    open fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = false)
+    open fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = false, parent = parent)
 
     init {
         btnEdit.addActionListener {
@@ -212,14 +212,14 @@ class CollapsedCommandInvocationMatchWidget : CollapsedCommandInvocationWidget {
     override val stringRepr: String
         get() = cmd.toHumanReadable(false)
 
-    constructor(initialValue: Piper.CommandInvocation) : super(initialValue) {
+    constructor(initialValue: Piper.CommandInvocation, parent: Component) : super(initialValue, parent) {
         btnRemove.addActionListener {
             cmd = Piper.CommandInvocation.getDefaultInstance()
             update()
         }
     }
 
-    override fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = true)
+    override fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = true, parent = parent)
 
     override fun buildGUI(panel: Container, cs: GridBagConstraints) {
         super.buildGUI(panel, cs)
@@ -229,7 +229,7 @@ class CollapsedCommandInvocationMatchWidget : CollapsedCommandInvocationWidget {
 
 data class MessageViewerDialogState(var result: Piper.MessageViewer? = null)
 
-private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.MessageViewer? {
+private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?): Piper.MessageViewer? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
@@ -251,7 +251,7 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.M
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit message editor \"${messageViewer.common.name}\"", dialog)
+    showModalDialog(800, 600, panel, "Edit message editor \"${messageViewer.common.name}\"", dialog, parent)
 
     return state.result
 }
@@ -265,7 +265,7 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
 
 data class MenuItemDialogState(var result: Piper.UserActionTool? = null)
 
-private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserActionTool? {
+private fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Piper.UserActionTool? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
@@ -302,7 +302,7 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserAction
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit menu item \"${menuItem.common.name}\"", dialog)
+    showModalDialog(800, 600, panel, "Edit menu item \"${menuItem.common.name}\"", dialog, parent)
 
     return state.result
 }
@@ -319,7 +319,7 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
 
 data class MacroState(var result: Piper.MinimalTool? = null)
 
-private fun showMacroDialog(macro: Piper.MinimalTool): Piper.MinimalTool? {
+private fun showMacroDialog(macro: Piper.MinimalTool, parent: Component?): Piper.MinimalTool? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
@@ -334,7 +334,7 @@ private fun showMacroDialog(macro: Piper.MinimalTool): Piper.MinimalTool? {
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit macro \"${macro.name}\"", dialog)
+    showModalDialog(800, 600, panel, "Edit macro \"${macro.name}\"", dialog, parent)
 
     return state.result
 }
@@ -358,7 +358,7 @@ fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Conta
 
 data class HeaderMatchDialogState(var result: Piper.HeaderMatch? = null)
 
-fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
+fun showHeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component): Piper.HeaderMatch? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
@@ -386,7 +386,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
         true
     }
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(480, 320, panel, "Edit header filter", dialog)
+    showModalDialog(480, 320, panel, "Edit header filter", dialog, parent)
 
     return state.result
 }
@@ -403,7 +403,7 @@ data class CommandLineParameter(val value: String?) { // null = input file name
     }
 }
 
-fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolean): Piper.CommandInvocation? {
+fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolean, parent: Component): Piper.CommandInvocation? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
@@ -584,7 +584,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
         true
     }
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit command invocation", dialog)
+    showModalDialog(800, 600, panel, "Edit command invocation", dialog, parent)
 
     return state.result
 }
@@ -765,14 +765,14 @@ class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<R
     }
 }
 
-fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean): Piper.MessageMatch? {
+fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, parent: Component): Piper.MessageMatch? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
     val prefixField  = HexASCIITextField("prefix",  mm.prefix,  dialog)
     val postfixField = HexASCIITextField("postfix", mm.postfix, dialog)
     val state = MessageMatchDialogState()
-    val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd)
+    val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd, dialog)
 
     with(cs) {
         fill = GridBagConstraints.HORIZONTAL
@@ -817,7 +817,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean): Pi
 
         btnHeaderEdit.addActionListener {
             val current = state.header ?: Piper.HeaderMatch.getDefaultInstance()
-            val header = showHeaderMatchDialog(current) ?: return@addActionListener
+            val header = showHeaderMatchDialog(current, dialog) ?: return@addActionListener
             lbHeader.text = header.toHumanReadable(false)
             state.header = header
             btnHeaderRemove.isEnabled = true
@@ -835,8 +835,8 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean): Pi
     cciw.buildGUI(panel, cs)
 
     val spList = JSplitPane()
-    val (andAlsoPanel, andAlsoModel) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList, showHeaderMatch)
-    val ( orElsePanel,  orElseModel) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList,  showHeaderMatch)
+    val (andAlsoPanel, andAlsoModel) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList, showHeaderMatch, dialog)
+    val ( orElsePanel,  orElseModel) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList,  showHeaderMatch, dialog)
     spList.leftComponent = andAlsoPanel
     spList.rightComponent = orElsePanel
 
@@ -864,12 +864,12 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean): Pi
         true
     }
     panel.add(pnButtons, cs)
-    showModalDialog(800, 600, panel, "Edit filter", dialog)
+    showModalDialog(800, 600, panel, "Edit filter", dialog, parent)
 
     return state.result
 }
 
-private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean): Pair<Component, ListModel<MessageMatchWrapper>> {
+private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean, parent: Component): Pair<Component, ListModel<MessageMatchWrapper>> {
     val model = fillDefaultModel(source, ::MessageMatchWrapper)
 
     val list = JList<MessageMatchWrapper>(model)
@@ -887,11 +887,13 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
 
     btnAdd.addActionListener {
         model.addElement(MessageMatchWrapper(
-                showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance(), showHeaderMatch = showHeaderMatch) ?: return@addActionListener))
+                showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
+                        showHeaderMatch = showHeaderMatch, parent = parent) ?: return@addActionListener))
     }
 
     btnEdit.addActionListener {
-        val edited = showMessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener, showHeaderMatch = showHeaderMatch)
+        val edited = showMessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener,
+                showHeaderMatch = showHeaderMatch, parent = parent)
         if (edited != null) model.set(list.selectedIndex, MessageMatchWrapper(edited))
     }
 
@@ -941,11 +943,12 @@ private fun <S, D> fillDefaultModel(source: Sequence<S>, transform: (S) -> D): D
     return model
 }
 
-private fun showModalDialog(width: Int, height: Int, widget: Component, caption: String, dialog: JDialog) {
+fun showModalDialog(width: Int, height: Int, widget: Component, caption: String, dialog: JDialog, parent: Component?) {
     with(dialog) {
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(widget)
         setSize(width, height)
+        setLocationRelativeTo(parent)
         title = caption
         isModal = true
         isVisible = true
