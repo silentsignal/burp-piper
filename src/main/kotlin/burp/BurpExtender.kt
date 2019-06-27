@@ -45,14 +45,37 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     override fun intervalRemoved(p0: ListDataEvent?) = saveConfig()
     // TODO update Burp registry w.r.t messageViewer, macro, httpListener lists
 
+    private open inner class ConfigChangeListener : ListDataListener {
+        override fun contentsChanged(p0: ListDataEvent?) = handler()
+        override fun intervalAdded(p0: ListDataEvent?)   = handler()
+        override fun intervalRemoved(p0: ListDataEvent?) = handler()
+
+        open fun handler() {
+            saveConfig()
+        }
+    }
+
+    private inner class ReloaderConfigChangeListener<E>(private val enumerator: () -> Iterable<E>,
+                                                        private val eraser: (E) -> Unit,
+                                                        private val reloader: () -> Unit) : ConfigChangeListener() {
+        override fun handler() {
+            super.handler()
+            enumerator().forEach(eraser)
+            reloader()
+        }
+    }
+
     override fun registerExtenderCallbacks(callbacks: IBurpExtenderCallbacks) {
         this.callbacks = callbacks
         helpers = callbacks.helpers
         val cfg = loadConfig()
         configModel = ConfigModel(cfg)
-        configModel.listModels.forEach {
-            it.addListDataListener(this)
-        }
+
+        configModel.menuItems.addListDataListener(ConfigChangeListener())  // Menu items are loaded on-demand, thus saving the config is enough
+        configModel.messageViewers.addListDataListener(ReloaderConfigChangeListener(
+                callbacks::getMessageEditorTabFactories, callbacks::removeMessageEditorTabFactory, ::registerMessageViewers))
+        configModel.macros.addListDataListener(ReloaderConfigChangeListener(
+                callbacks::getSessionHandlingActions,    callbacks::removeSessionHandlingAction,   ::registerMacros))
 
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
@@ -245,7 +268,6 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val macros: DefaultListModel<MinimalToolWrapper> = fillDefaultModel(config.macroList, ::MinimalToolWrapper)
     val messageViewers: DefaultListModel<MessageViewerWrapper> = fillDefaultModel(config.messageViewerList, ::MessageViewerWrapper)
     val menuItems: DefaultListModel<UserActionToolWrapper> = fillDefaultModel(config.menuItemList, ::UserActionToolWrapper)
-    val listModels = arrayOf(macros, messageViewers, menuItems)
     // TODO val httpListeners: DefaultListModel<>
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
