@@ -145,8 +145,7 @@ fun <E : Enum<E>> enumFromString(value: String, cls: Class<E>): E {
 }
 
 fun Map<String, Any>.stringOrDie(key: String): String {
-    val value = this[key]
-    when (value) {
+    when (val value = this[key]) {
         null -> throw RuntimeException("Missing value for $key")
         is String -> return value
         else -> throw RuntimeException("Invalid value for $key: $value")
