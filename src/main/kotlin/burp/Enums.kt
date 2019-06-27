@@ -69,3 +69,10 @@ enum class MatchNegation(val negation: Boolean, private val description: String)
 
     override fun toString(): String = description
 }
+
+enum class HttpListenerRequestResponse(val rr: Piper.HttpListener.RequestResponse) {
+    REQUEST (Piper.HttpListener.RequestResponse.REQUEST),
+    RESPONSE(Piper.HttpListener.RequestResponse.RESPONSE);
+
+    override fun toString(): String = "HTTP ${rr.toString().toLowerCase()}s"
+}

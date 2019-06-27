@@ -159,6 +159,10 @@ val Piper.RegularExpression.flagSet: Set<RegExpFlag>
 fun Piper.RegularExpression.Builder.setFlagSet(flags: Set<RegExpFlag>): Piper.RegularExpression.Builder =
         this.setFlags(flags.fold(0) { acc: Int, regExpFlag: RegExpFlag -> acc or regExpFlag.value })
 
+val Piper.HttpListener.flagSet: Set<BurpTool>
+    get() = if (this.tool == 0) EnumSet.allOf(BurpTool::class.java)
+    else EnumSet.copyOf(BurpTool.values().filter { this.tool.and(it.value) != 0 })
+
 fun Piper.HttpListener.Builder.setToolSet(tools: Set<BurpTool>): Piper.HttpListener.Builder =
         this.setTool(tools.fold(0) { acc: Int, tool: BurpTool -> acc or tool.value })
 

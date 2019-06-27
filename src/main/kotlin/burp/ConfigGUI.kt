@@ -21,6 +21,10 @@ data class UserActionToolWrapper(val cfgItem: Piper.UserActionTool) {
     override fun toString(): String = cfgItem.common.name
 }
 
+data class HttpListenerWrapper(val cfgItem: Piper.HttpListener) {
+    override fun toString(): String = cfgItem.common.name
+}
+
 data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
     override fun toString(): String = cfgItem.toHumanReadable(negation = false, hideParentheses = true)
 }
@@ -233,6 +237,38 @@ fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Componen
 
     addFullWidthComponent(pnButtons, panel, cs)
     showModalDialog(800, 600, panel, "Edit message editor \"${messageViewer.common.name}\"", dialog, parent)
+
+    return state.result
+}
+
+data class HttpListenerDialogState(var result: Piper.HttpListener? = null)
+
+fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?): Piper.HttpListener? {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+    val state = HttpListenerDialogState()
+
+    val mtw = MinimalToolWidget.create(httpListener.common, panel, cs)
+
+    val lsScope = createLabeledWidget("Listen to ", JComboBox(HttpListenerRequestResponse.values()), panel, cs)
+    var btw = BurpToolWidget.create(httpListener.flagSet, panel, cs)
+
+    val pnButtons = dialog.createOkCancelButtonsPanel {
+        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+        val bt = btw.toBurpToolSet()
+
+        with (Piper.HttpListener.newBuilder()) {
+            common = mt
+            scope = (lsScope.selectedItem as HttpListenerRequestResponse).rr
+            if (bt.size < BurpTool.values().size) setToolSet(bt)
+            state.result = build()
+        }
+        true
+    }
+
+    addFullWidthComponent(pnButtons, panel, cs)
+    showModalDialog(800, 600, panel, "Edit HTTP listener \"${httpListener.common.name}\"", dialog, parent)
 
     return state.result
 }
@@ -754,6 +790,33 @@ class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<R
                 }
             }
             return RegExpWidget(tf, cbFlags)
+        }
+    }
+}
+
+class BurpToolWidget(private val cbTools: Map<BurpTool, JCheckBox>) {
+    fun toBurpToolSet(): Set<BurpTool> {
+        return cbTools.filter { e -> e.value.isSelected }.keys
+    }
+
+    companion object {
+        fun create(tools: Set<BurpTool>, panel: Container, cs: GridBagConstraints): BurpToolWidget {
+            addFullWidthComponent(JLabel("sent/received by"), panel, cs)
+
+            cs.gridy++
+            cs.gridwidth = 1
+
+            val cbTools = EnumMap<BurpTool, JCheckBox>(BurpTool::class.java)
+            BurpTool.values().forEach { tool ->
+                cbTools[tool] = createCheckBox(tool.toString(), tool in tools, panel, cs)
+                if (cs.gridx == 3) {
+                    cs.gridy++
+                    cs.gridx = 0
+                } else {
+                    cs.gridx++
+                }
+            }
+            return BurpToolWidget(cbTools)
         }
     }
 }

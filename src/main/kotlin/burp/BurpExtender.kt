@@ -75,6 +75,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 callbacks::getMessageEditorTabFactories, callbacks::removeMessageEditorTabFactory, ::registerMessageViewers))
         configModel.macros.addListDataListener(ReloaderConfigChangeListener(
                 callbacks::getSessionHandlingActions,    callbacks::removeSessionHandlingAction,   ::registerMacros))
+        configModel.httpListeners.addListDataListener(ReloaderConfigChangeListener(
+                callbacks::getHttpListeners,             callbacks::removeHttpListener,            ::registerHttpListeners))
 
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
@@ -86,9 +88,15 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }
 
         registerMessageViewers()
+        registerHttpListeners()
+        registerMacros()
 
-        // TODO add to model
-        cfg.httpListenerList.forEach {
+        populateTabs(configModel, null)
+        callbacks.addSuiteTab(this)
+    }
+
+    private fun registerHttpListeners() {
+        configModel.httpListeners.map(HttpListenerWrapper::cfgItem).forEach {
             if (it.common.enabled) {
                 callbacks.registerHttpListener { toolFlag, messageIsRequest, messageInfo ->
                     if ((messageIsRequest xor (it.scope == Piper.HttpListener.RequestResponse.REQUEST))
@@ -97,11 +105,6 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 }
             }
         }
-
-        registerMacros()
-
-        populateTabs(configModel, null)
-        callbacks.addSuiteTab(this)
     }
 
     private fun registerMacros() {
@@ -155,6 +158,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 UserActionToolWrapper::cfgItem, ::showMenuItemDialog, Piper.UserActionTool::getDefaultInstance))
         tabs.addTab("Macros", createListEditor(cfg.macros, parent, ::MinimalToolWrapper,
                 MinimalToolWrapper::cfgItem, ::showMacroDialog, Piper.MinimalTool::getDefaultInstance))
+        tabs.addTab("HTTP listeners", createListEditor(cfg.httpListeners, parent, ::HttpListenerWrapper,
+                HttpListenerWrapper::cfgItem, ::showHttpListenerDialog, Piper.HttpListener::getDefaultInstance))
         // TODO tabs.addTab("Commentators")
     }
 
@@ -267,13 +272,13 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val macros: DefaultListModel<MinimalToolWrapper> = fillDefaultModel(config.macroList, ::MinimalToolWrapper)
     val messageViewers: DefaultListModel<MessageViewerWrapper> = fillDefaultModel(config.messageViewerList, ::MessageViewerWrapper)
     val menuItems: DefaultListModel<UserActionToolWrapper> = fillDefaultModel(config.menuItemList, ::UserActionToolWrapper)
-    // TODO val httpListeners: DefaultListModel<>
+    val httpListeners: DefaultListModel<HttpListenerWrapper> = fillDefaultModel(config.httpListenerList, ::HttpListenerWrapper)
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
             .addAllMacro(macros.map(MinimalToolWrapper::cfgItem))
             .addAllMessageViewer(messageViewers.map(MessageViewerWrapper::cfgItem))
             .addAllMenuItem(menuItems.map(UserActionToolWrapper::cfgItem))
-            // TODO .addAllHttpListener(httpListeners.map(...))
+            .addAllHttpListener(httpListeners.map(HttpListenerWrapper::cfgItem))
             .build()
 }
 
