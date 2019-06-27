@@ -918,7 +918,7 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
     }
 
     list.addDoubleClickListener {
-        showMessageMatchDialog(source[it], showHeaderMatch = showHeaderMatch)
+        btnEdit.doClick()
     }
 
     return panel to model
