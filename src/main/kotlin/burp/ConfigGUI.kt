@@ -252,7 +252,7 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
     val mtw = MinimalToolWidget.create(httpListener.common, panel, cs)
 
     val lsScope = createLabeledWidget("Listen to ", JComboBox(HttpListenerRequestResponse.values()), panel, cs)
-    var btw = BurpToolWidget.create(httpListener.flagSet, panel, cs)
+    var btw = BurpToolWidget(httpListener.flagSet, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
@@ -794,29 +794,27 @@ class RegExpWidget(private val tfPattern: JTextField, private val cbFlags: Map<R
     }
 }
 
-class BurpToolWidget(private val cbTools: Map<BurpTool, JCheckBox>) {
+class BurpToolWidget(tools: Set<BurpTool>, panel: Container, cs: GridBagConstraints) {
+    private val cbTools: MutableMap<BurpTool, JCheckBox> = EnumMap(BurpTool::class.java)
+
     fun toBurpToolSet(): Set<BurpTool> {
         return cbTools.filter { e -> e.value.isSelected }.keys
     }
 
-    companion object {
-        fun create(tools: Set<BurpTool>, panel: Container, cs: GridBagConstraints): BurpToolWidget {
-            addFullWidthComponent(JLabel("sent/received by"), panel, cs)
+    init {
+        addFullWidthComponent(JLabel("sent/received by"), panel, cs)
 
-            cs.gridy++
-            cs.gridwidth = 1
+        cs.gridy++
+        cs.gridwidth = 1
 
-            val cbTools = EnumMap<BurpTool, JCheckBox>(BurpTool::class.java)
-            BurpTool.values().forEach { tool ->
-                cbTools[tool] = createCheckBox(tool.toString(), tool in tools, panel, cs)
-                if (cs.gridx == 3) {
-                    cs.gridy++
-                    cs.gridx = 0
-                } else {
-                    cs.gridx++
-                }
+        BurpTool.values().forEach { tool ->
+            cbTools[tool] = createCheckBox(tool.toString(), tool in tools, panel, cs)
+            if (cs.gridx == 0) {
+                cs.gridx = 1
+            } else {
+                cs.gridy++
+                cs.gridx = 0
             }
-            return BurpToolWidget(cbTools)
         }
     }
 }
