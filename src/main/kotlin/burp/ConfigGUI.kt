@@ -434,6 +434,17 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
         }
     }
 
+    lsParams.addDoubleClickListener {
+        if (paramsModel[it].isInputFileName()) {
+            JOptionPane.showMessageDialog(dialog,
+                    "<INPUT> is a special placeholder for the names of the input file(s), and thus cannot be edited.")
+            return@addDoubleClickListener
+        }
+        paramsModel[it] = CommandLineParameter(
+                JOptionPane.showInputDialog(dialog, "Edit command line parameter no. ${it + 1}:", paramsModel[it].value)
+                        ?: return@addDoubleClickListener)
+    }
+
     cs.fill = GridBagConstraints.HORIZONTAL
     cs.gridy = 0
     cs.gridx = 0
