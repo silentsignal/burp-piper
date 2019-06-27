@@ -58,10 +58,12 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     })
 }
 
-class MinimalToolWidget(private val tfName: JTextField = JTextField(),
-                        private val cbEnabled: JCheckBox = JCheckBox("Enabled"),
-                        private val cciw: CollapsedCommandInvocationWidget,
-                        private val ccmw: CollapsedMessageMatchWidget) {
+class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints) {
+    private val tfName: JTextField
+    private val cbEnabled: JCheckBox
+    private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(cmd = tool.cmd, parent = panel)
+    private val ccmw: CollapsedMessageMatchWidget = CollapsedMessageMatchWidget(mm = tool.filter, showHeaderMatch = true, caption = "Filter: ")
+
     fun toMinimalTool(dialog: Component): Piper.MinimalTool? {
         if (tfName.text.isEmpty()) {
             JOptionPane.showMessageDialog(dialog, "Name cannot be empty.")
@@ -82,40 +84,14 @@ class MinimalToolWidget(private val tfName: JTextField = JTextField(),
         }
     }
 
-    companion object {
-        fun create(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints): MinimalToolWidget {
-            val mtw = MinimalToolWidget(cciw = CollapsedCommandInvocationWidget(cmd = tool.cmd, parent = panel),
-                    ccmw = CollapsedMessageMatchWidget(mm = tool.filter, showHeaderMatch = true, caption = "Filter: "))
+    init {
+        cs.fill = GridBagConstraints.HORIZONTAL
 
-            with(cs) {
-                fill = GridBagConstraints.HORIZONTAL
-                gridx = 0
-                gridy = 0
-                gridwidth = 1
-            }
-
-            panel.add(JLabel("Name: "), cs)
-
-            cs.gridx = 1
-            cs.gridwidth = 2
-
-            mtw.tfName.text = tool.name
-            panel.add(mtw.tfName, cs)
-
-            cs.gridy = 1 ; mtw.ccmw.buildGUI(panel, cs)
-            cs.gridy = 2 ; mtw.cciw.buildGUI(panel, cs)
-
-            cs.gridy = 3
-            cs.gridx = 0
-            cs.gridwidth = 3
-
-            mtw.cbEnabled.isSelected = tool.enabled
-            panel.add(mtw.cbEnabled, cs)
-
-            cs.gridy = 4
-
-            return mtw
-        }
+        cs.gridy = 0 ; tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
+        cs.gridy = 1 ; ccmw.buildGUI(panel, cs)
+        cs.gridy = 2 ; cciw.buildGUI(panel, cs)
+        cs.gridy = 3 ; cs.gridx = 0 ; cbEnabled = createCheckBox("Enabled", tool.enabled, panel, cs)
+        cs.gridy = 4
     }
 }
 
@@ -220,7 +196,7 @@ fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Componen
     val cs = GridBagConstraints()
     val state = MessageViewerDialogState()
 
-    val mtw = MinimalToolWidget.create(messageViewer.common, panel, cs)
+    val mtw = MinimalToolWidget(messageViewer.common, panel, cs)
 
     val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
@@ -249,7 +225,7 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
     val cs = GridBagConstraints()
     val state = HttpListenerDialogState()
 
-    val mtw = MinimalToolWidget.create(httpListener.common, panel, cs)
+    val mtw = MinimalToolWidget(httpListener.common, panel, cs)
 
     val lsScope = createLabeledWidget("Listen to ", JComboBox(HttpListenerRequestResponse.values()), panel, cs)
     var btw = BurpToolWidget(httpListener.flagSet, panel, cs)
@@ -288,7 +264,7 @@ fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Pipe
     val cs = GridBagConstraints()
     val state = MenuItemDialogState()
 
-    val mtw = MinimalToolWidget.create(menuItem.common, panel, cs)
+    val mtw = MinimalToolWidget(menuItem.common, panel, cs)
 
     val cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
 
@@ -342,7 +318,7 @@ fun showMacroDialog(macro: Piper.MinimalTool, parent: Component?): Piper.Minimal
     val cs = GridBagConstraints()
     val state = MacroState()
 
-    val mtw = MinimalToolWidget.create(macro, panel, cs)
+    val mtw = MinimalToolWidget(macro, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
