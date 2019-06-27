@@ -39,7 +39,7 @@ fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boole
 }
 
 fun Piper.HeaderMatch.toHumanReadable(negation: Boolean): String =
-    "header \"${header}\" " + regex.toHumanReadable(negation)
+    "header \"$header\" " + regex.toHumanReadable(negation)
 
 fun Piper.CommandInvocation.toHumanReadable(negation: Boolean): String = sequence {
     if (this@toHumanReadable.exitCodeCount > 0) {
