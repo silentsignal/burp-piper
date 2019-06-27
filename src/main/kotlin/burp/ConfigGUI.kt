@@ -25,42 +25,23 @@ data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
     override fun toString(): String = cfgItem.toHumanReadable(negation = false, hideParentheses = true)
 }
 
-fun createMessageViewersTab(model: DefaultListModel<MessageViewerWrapper>, parent: Component?): Component {
+fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap: (S) -> W, unwrap: (W) -> S,
+                            dialog: (S, Component?) -> S?, default: () -> S): Component {
     val pnOuter = JPanel(BorderLayout())
     val pnToolbar = JPanel()
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
-        model[it] = MessageViewerWrapper(showMessageViewerDialog(model[it].cfgItem, parent)
-                ?: return@addDoubleClickListener)
+        model[it] = wrap(dialog(unwrap(model[it]), parent) ?: return@addDoubleClickListener)
     }
     val btnAdd = JButton("Add")
     btnAdd.addActionListener {
-        model.addElement(MessageViewerWrapper(showMessageViewerDialog(Piper.MessageViewer.getDefaultInstance(), parent)
-                ?: return@addActionListener))
+        model.addElement(wrap(dialog(default(), parent) ?: return@addActionListener))
     }
     pnToolbar.add(btnAdd)
     pnToolbar.add(createRemoveButton("Remove", listWidget, model))
     pnOuter.add(pnToolbar, BorderLayout.PAGE_START)
     pnOuter.add(listWidget, BorderLayout.CENTER)
     return pnOuter
-}
-
-fun createMacrosTab(model: DefaultListModel<MinimalToolWrapper>, parent: Component?): Component {
-    val listWidget = JList(model)
-    listWidget.addDoubleClickListener {
-        showMacroDialog(model[it].cfgItem, parent)
-        // TODO handle return value
-    }
-    return listWidget
-}
-
-fun createMenuItemsTab(model: DefaultListModel<UserActionToolWrapper>, parent: Component?): Component {
-    val listWidget = JList(model)
-    listWidget.addDoubleClickListener {
-        showMenuItemDialog(model[it].cfgItem, parent)
-        // TODO handle return value
-    }
-    return listWidget
 }
 
 fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
@@ -229,7 +210,7 @@ class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocatio
 
 data class MessageViewerDialogState(var result: Piper.MessageViewer? = null)
 
-private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?): Piper.MessageViewer? {
+fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?): Piper.MessageViewer? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
@@ -265,7 +246,7 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
 
 data class MenuItemDialogState(var result: Piper.UserActionTool? = null)
 
-private fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Piper.UserActionTool? {
+fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Piper.UserActionTool? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
@@ -319,7 +300,7 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
 
 data class MacroState(var result: Piper.MinimalTool? = null)
 
-private fun showMacroDialog(macro: Piper.MinimalTool, parent: Component?): Piper.MinimalTool? {
+fun showMacroDialog(macro: Piper.MinimalTool, parent: Component?): Piper.MinimalTool? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
