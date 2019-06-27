@@ -22,7 +22,7 @@ data class UserActionToolWrapper(val cfgItem: Piper.UserActionTool) {
 }
 
 data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
-    override fun toString(): String = cfgItem.toHumanReadable(false, true)
+    override fun toString(): String = cfgItem.toHumanReadable(negation = false, hideParentheses = true)
 }
 
 fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>, parent: Component?): Component {
@@ -141,7 +141,7 @@ class CollapsedMessageMatchWidget(var mm: Piper.MessageMatch?, val showHeaderMat
 
     private fun update() {
         val f = mm
-        label.text = if (f == null) "(no filter) " else f.toHumanReadable(false, true) + " "
+        label.text = if (f == null) "(no filter) " else f.toHumanReadable(negation = false, hideParentheses = true) + " "
         btnRemoveFilter.isEnabled = (f != null)
     }
 
