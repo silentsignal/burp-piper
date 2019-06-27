@@ -63,15 +63,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             return@registerContextMenuFactory Collections.singletonList(topLevel)
         }
 
-        cfg.messageViewerList.forEach {
-            if (it.common.enabled) {
-                callbacks.registerMessageEditorTabFactory { _, _ ->
-                    if (it.usesColors) TerminalEditor(it, helpers)
-                    else TextEditor(it, helpers, callbacks)
-                }
-            }
-        }
+        registerMessageViewers()
 
+        // TODO add to model
         cfg.httpListenerList.forEach {
             if (it.common.enabled) {
                 callbacks.registerHttpListener { toolFlag, messageIsRequest, messageInfo ->
@@ -82,18 +76,33 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             }
         }
 
-        cfg.macroList.filter(Piper.MinimalTool::getEnabled).forEach {
+        registerMacros()
+
+        populateTabs(configModel, null)
+        callbacks.addSuiteTab(this)
+    }
+
+    private fun registerMacros() {
+        configModel.macros.map(MinimalToolWrapper::cfgItem).filter(Piper.MinimalTool::getEnabled).forEach {
             callbacks.registerSessionHandlingAction(object : ISessionHandlingAction {
                 override fun performAction(currentRequest: IHttpRequestResponse?, macroItems: Array<out IHttpRequestResponse>?) {
                     it.pipeMessage(RequestResponse.REQUEST, currentRequest ?: return)
                 }
 
-                override fun getActionName() : String = it.name
+                override fun getActionName(): String = it.name
             })
         }
+    }
 
-        populateTabs(configModel, null)
-        callbacks.addSuiteTab(this)
+    private fun registerMessageViewers() {
+        configModel.messageViewers.map(MessageViewerWrapper::cfgItem).forEach {
+            if (it.common.enabled) {
+                callbacks.registerMessageEditorTabFactory { _, _ ->
+                    if (it.usesColors) TerminalEditor(it, helpers)
+                    else TextEditor(it, helpers, callbacks)
+                }
+            }
+        }
     }
 
     private fun Piper.MinimalTool.pipeMessage(rr: RequestResponse, messageInfo: IHttpRequestResponse) {
