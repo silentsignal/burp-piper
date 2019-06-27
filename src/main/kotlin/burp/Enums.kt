@@ -49,7 +49,7 @@ enum class RequestResponse {
 
     companion object {
         fun fromBoolean(isRequest: Boolean) =
-                if (isRequest) RequestResponse.REQUEST else RequestResponse.RESPONSE
+                if (isRequest) REQUEST else RESPONSE
     }
 }
 
