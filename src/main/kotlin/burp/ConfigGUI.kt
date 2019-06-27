@@ -25,10 +25,9 @@ data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
     override fun toString(): String = cfgItem.toHumanReadable(negation = false, hideParentheses = true)
 }
 
-fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>, parent: Component?): Component {
+fun createMessageViewersTab(model: DefaultListModel<MessageViewerWrapper>, parent: Component?): Component {
     val pnOuter = JPanel(BorderLayout())
     val pnToolbar = JPanel()
-    val model = fillDefaultModel(messageViewers, ::MessageViewerWrapper)
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
         model[it] = MessageViewerWrapper(showMessageViewerDialog(model[it].cfgItem, parent)
@@ -46,19 +45,19 @@ fun createMessageViewersTab(messageViewers: List<Piper.MessageViewer>, parent: C
     return pnOuter
 }
 
-fun createMacrosTab(macros: List<Piper.MinimalTool>, parent: Component?): Component {
-    val listWidget = JList(macros.map(::MinimalToolWrapper).toTypedArray())
+fun createMacrosTab(model: DefaultListModel<MinimalToolWrapper>, parent: Component?): Component {
+    val listWidget = JList(model)
     listWidget.addDoubleClickListener {
-        showMacroDialog(macros[it], parent)
+        showMacroDialog(model[it].cfgItem, parent)
         // TODO handle return value
     }
     return listWidget
 }
 
-fun createMenuItemsTab(menuItems: List<Piper.UserActionTool>, parent: Component?): Component {
-    val listWidget = JList(menuItems.map(::UserActionToolWrapper).toTypedArray())
+fun createMenuItemsTab(model: DefaultListModel<UserActionToolWrapper>, parent: Component?): Component {
+    val listWidget = JList(model)
     listWidget.addDoubleClickListener {
-        showMenuItemDialog(menuItems[it], parent)
+        showMenuItemDialog(model[it].cfgItem, parent)
         // TODO handle return value
     }
     return listWidget

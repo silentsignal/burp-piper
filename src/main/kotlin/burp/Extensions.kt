@@ -5,6 +5,7 @@ import java.io.File
 import java.io.InputStream
 import java.util.*
 import java.util.regex.Pattern
+import javax.swing.DefaultListModel
 
 fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boolean = false): String {
     val match = this
@@ -167,3 +168,6 @@ fun <E> Pair<Process, List<File>>.processOutput(processor: (Process) -> E): E {
     this.second.forEach { it.delete() }
     return output
 }
+
+fun <S, T> DefaultListModel<S>.map(transform: (S) -> T): Iterable<T> = toIterable().map(transform)
+fun <E> DefaultListModel<E>.toIterable(): Iterable<E> = (0 until size).map(this::elementAt)

@@ -23,6 +23,8 @@ import org.zeromq.codec.Z85
 import java.awt.*
 import java.util.*
 import javax.swing.*
+import javax.swing.event.ListDataEvent
+import javax.swing.event.ListDataListener
 import kotlin.concurrent.thread
 
 
@@ -31,16 +33,26 @@ const val EXTENSION_SETTINGS_KEY = "settings"
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?)
 
-class BurpExtender : IBurpExtender, ITab {
+class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private lateinit var callbacks: IBurpExtenderCallbacks
     private lateinit var helpers: IExtensionHelpers
+    private lateinit var configModel: ConfigModel
     private val tabs = JTabbedPane()
+
+    override fun contentsChanged(p0: ListDataEvent?) = saveConfig()
+    override fun intervalAdded(p0: ListDataEvent?)   = saveConfig()
+    override fun intervalRemoved(p0: ListDataEvent?) = saveConfig()
+    // TODO update Burp registry w.r.t messageViewer, macro, httpListener lists
 
     override fun registerExtenderCallbacks(callbacks: IBurpExtenderCallbacks) {
         this.callbacks = callbacks
         helpers = callbacks.helpers
         val cfg = loadConfig()
+        configModel = ConfigModel(cfg)
+        configModel.listModels.forEach {
+            it.addListDataListener(this)
+        }
 
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
@@ -80,7 +92,7 @@ class BurpExtender : IBurpExtender, ITab {
             })
         }
 
-        populateTabs(cfg, null)
+        populateTabs(configModel, null)
         callbacks.addSuiteTab(this)
     }
 
@@ -104,11 +116,11 @@ class BurpExtender : IBurpExtender, ITab {
         }
     }
 
-    private fun populateTabs(cfg: Piper.Config, parent: Component?) {
-        tabs.addTab("Message viewers", createMessageViewersTab(cfg.messageViewerList, parent))
+    private fun populateTabs(cfg: ConfigModel, parent: Component?) {
+        tabs.addTab("Message viewers", createMessageViewersTab(cfg.messageViewers, parent))
         // TODO tabs.addTab("Load/Save configuration")
-        tabs.addTab("Context menu items", createMenuItemsTab(cfg.menuItemList, parent))
-        tabs.addTab("Macros", createMacrosTab(cfg.macroList, parent))
+        tabs.addTab("Context menu items", createMenuItemsTab(cfg.menuItems, parent))
+        tabs.addTab("Macros", createMacrosTab(cfg.macros, parent))
         // TODO tabs.addTab("Commentators")
     }
 
@@ -120,7 +132,6 @@ class BurpExtender : IBurpExtender, ITab {
 
     private fun generateContextMenu(messages: Array<IHttpRequestResponse>): JMenuItem {
         val topLevel = JMenu(NAME)
-        val cfg = loadConfig()
         val msize = messages.size
         val plural = if (msize == 1) "" else "s"
 
@@ -145,7 +156,7 @@ class BurpExtender : IBurpExtender, ITab {
             }
         }
 
-        for (cfgItem in cfg.menuItemList) {
+        for (cfgItem in configModel.menuItems.map(UserActionToolWrapper::cfgItem)) {
             // TODO check dependencies
             if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize)
                     || cfgItem.minInputs > msize || !cfgItem.common.enabled) continue
@@ -157,7 +168,7 @@ class BurpExtender : IBurpExtender, ITab {
                     topLevel.add(outItem)
                 }
                 if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
-                    cfg.messageViewerList.forEach { mv ->
+                    configModel.messageViewers.map(MessageViewerWrapper::cfgItem).forEach { mv ->
                         if (mv.common.cmd.passHeaders == msrc.includeHeaders && mv.common.canProcess(md, helpers)) {
                             val noun = msrc.direction.name.toLowerCase()
                             val outItem = JMenuItem("${mv.common.name} | ${cfgItem.common.name} ($noun$plural)")
@@ -183,7 +194,7 @@ class BurpExtender : IBurpExtender, ITab {
         }
     }
 
-    private fun saveConfig(cfg: Piper.Config) {
+    private fun saveConfig(cfg: Piper.Config = configModel.serialize()) {
         val serialized = Z85.Z85Encoder(pad4(compress(cfg.toByteArray())))
         callbacks.saveExtensionSetting(EXTENSION_SETTINGS_KEY, serialized)
     }
@@ -212,10 +223,25 @@ class BurpExtender : IBurpExtender, ITab {
             val be = BurpExtender()
             val cfg = loadDefaultConfig()
             val dialog = JDialog()
-            be.populateTabs(cfg, dialog)
+            be.populateTabs(ConfigModel(cfg), dialog)
             showModalDialog(800, 600, be.uiComponent, NAME, dialog, null)
         }
     }
+}
+
+class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
+    val macros: DefaultListModel<MinimalToolWrapper> = fillDefaultModel(config.macroList, ::MinimalToolWrapper)
+    val messageViewers: DefaultListModel<MessageViewerWrapper> = fillDefaultModel(config.messageViewerList, ::MessageViewerWrapper)
+    val menuItems: DefaultListModel<UserActionToolWrapper> = fillDefaultModel(config.menuItemList, ::UserActionToolWrapper)
+    val listModels = arrayOf(macros, messageViewers, menuItems)
+    // TODO val httpListeners: DefaultListModel<>
+
+    fun serialize(): Piper.Config = Piper.Config.newBuilder()
+            .addAllMacro(macros.map(MinimalToolWrapper::cfgItem))
+            .addAllMessageViewer(messageViewers.map(MessageViewerWrapper::cfgItem))
+            .addAllMenuItem(menuItems.map(UserActionToolWrapper::cfgItem))
+            // TODO .addAllHttpListener(httpListeners.map(...))
+            .build()
 }
 
 private fun loadDefaultConfig(): Piper.Config {
