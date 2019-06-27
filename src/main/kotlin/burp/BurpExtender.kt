@@ -43,7 +43,6 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     override fun contentsChanged(p0: ListDataEvent?) = saveConfig()
     override fun intervalAdded(p0: ListDataEvent?)   = saveConfig()
     override fun intervalRemoved(p0: ListDataEvent?) = saveConfig()
-    // TODO update Burp registry w.r.t messageViewer, macro, httpListener lists
 
     private open inner class ConfigChangeListener : ListDataListener {
         override fun contentsChanged(p0: ListDataEvent?) = handler()
