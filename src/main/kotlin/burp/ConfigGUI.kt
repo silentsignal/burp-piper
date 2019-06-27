@@ -7,6 +7,7 @@ import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
+import kotlin.math.max
 
 data class MessageViewerWrapper(val cfgItem: Piper.MessageViewer) {
     override fun toString(): String = cfgItem.common.name
@@ -276,7 +277,7 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component
     val cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
 
     val smMinInputs = createSpinner("Minimum required number of selected items: ",
-            Math.max(menuItem.minInputs, 1), 1, panel, cs)
+            max(menuItem.minInputs, 1), 1, panel, cs)
     val smMaxInputs = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
             menuItem.maxInputs, 0, panel, cs)
 
