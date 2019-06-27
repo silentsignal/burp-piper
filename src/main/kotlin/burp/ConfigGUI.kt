@@ -251,14 +251,7 @@ private fun showMessageViewerDialog(messageViewer: Piper.MessageViewer): Piper.M
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    with(dialog) {
-        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        add(panel)
-        setSize(800, 600)
-        title = "Edit message editor \"${messageViewer.common.name}\""
-        isModal = true
-        isVisible = true
-    }
+    showModalDialog(800, 600, panel, "Edit message editor \"${messageViewer.common.name}\"", dialog)
 
     return state.result
 }
@@ -309,14 +302,7 @@ private fun showMenuItemDialog(menuItem: Piper.UserActionTool): Piper.UserAction
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    with(dialog) {
-        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        add(panel)
-        setSize(800, 600)
-        title = "Edit menu item \"${menuItem.common.name}\""
-        isModal = true
-        isVisible = true
-    }
+    showModalDialog(800, 600, panel, "Edit menu item \"${menuItem.common.name}\"", dialog)
 
     return state.result
 }
@@ -348,14 +334,7 @@ private fun showMacroDialog(macro: Piper.MinimalTool): Piper.MinimalTool? {
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    with(dialog) {
-        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        add(panel)
-        setSize(800, 600)
-        title = "Edit macro \"${macro.name}\""
-        isModal = true
-        isVisible = true
-    }
+    showModalDialog(800, 600, panel, "Edit macro \"${macro.name}\"", dialog)
 
     return state.result
 }
@@ -407,15 +386,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch): Piper.HeaderMatch? {
         true
     }
     addFullWidthComponent(pnButtons, panel, cs)
-
-    with(dialog) {
-        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        add(panel)
-        setSize(480, 320)
-        title = "Edit header filter"
-        isModal = true
-        isVisible = true
-    }
+    showModalDialog(480, 320, panel, "Edit header filter", dialog)
 
     return state.result
 }
@@ -613,15 +584,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
         true
     }
     addFullWidthComponent(pnButtons, panel, cs)
-
-    with(dialog) {
-        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        add(panel)
-        setSize(800, 600)
-        title = "Edit command invocation"
-        isModal = true
-        isVisible = true
-    }
+    showModalDialog(800, 600, panel, "Edit command invocation", dialog)
 
     return state.result
 }
@@ -901,15 +864,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean): Pi
         true
     }
     panel.add(pnButtons, cs)
-
-    with(dialog) {
-        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        add(panel)
-        setSize(800, 600)
-        title = "Edit filter"
-        isModal = true
-        isVisible = true
-    }
+    showModalDialog(800, 600, panel, "Edit filter", dialog)
 
     return state.result
 }
@@ -984,4 +939,15 @@ private fun <S, D> fillDefaultModel(source: Sequence<S>, transform: (S) -> D): D
     val model = DefaultListModel<D>()
     source.map(transform).forEach(model::addElement)
     return model
+}
+
+private fun showModalDialog(width: Int, height: Int, widget: Component, caption: String, dialog: JDialog) {
+    with(dialog) {
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(widget)
+        setSize(width, height)
+        title = caption
+        isModal = true
+        isVisible = true
+    }
 }
