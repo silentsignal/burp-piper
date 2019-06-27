@@ -59,7 +59,7 @@ enum class BurpTool {
     val value = IBurpExtenderCallbacks::class.java.getField("TOOL_$name").getInt(null)
 
     override fun toString(): String {
-        return name.capitalize()
+        return name.toLowerCase().capitalize()
     }
 }
 
