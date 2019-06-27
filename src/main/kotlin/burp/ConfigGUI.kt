@@ -202,7 +202,7 @@ open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation, pr
     }
 }
 
-class CollapsedCommandInvocationMatchWidget : CollapsedCommandInvocationWidget {
+class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocation, parent: Component) : CollapsedCommandInvocationWidget(initialValue, parent) {
     private val btnRemove: JButton = JButton("Remove")
 
     override fun update() {
@@ -213,7 +213,7 @@ class CollapsedCommandInvocationMatchWidget : CollapsedCommandInvocationWidget {
     override val stringRepr: String
         get() = cmd.toHumanReadable(false)
 
-    constructor(initialValue: Piper.CommandInvocation, parent: Component) : super(initialValue, parent) {
+    init {
         btnRemove.addActionListener {
             cmd = Piper.CommandInvocation.getDefaultInstance()
             update()
