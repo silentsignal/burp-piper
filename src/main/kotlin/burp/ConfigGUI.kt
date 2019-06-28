@@ -691,8 +691,8 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
 
         rbASCII.addActionListener {
             if (isASCII) return@addActionListener
-            val bytes = parseHex(dialog)
-            if (bytes == null) {
+            val bytes = try { parseHex() } catch(e: NumberFormatException) {
+                JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string ${e.message}")
                 rbHex.isSelected = true
                 return@addActionListener
             }
@@ -707,22 +707,21 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         }
     }
 
-    private fun parseHex(dialog: Component): ByteArray? {
-        val hexstring = tf.text.filter(Char::isLetterOrDigit)
-        if (hexstring.length % 2 != 0) {
-            JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string needs to contain an even number of hex digits")
-            return null
+    private fun parseHex(): ByteArray = tf.text.filter(Char::isLetterOrDigit).run {
+        if (length % 2 != 0) {
+            throw NumberFormatException("needs to contain an even number of hex digits")
         }
-        if (hexstring.any { c -> c in 'g'..'z' || c in 'G'..'Z' }) {
-            JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string contains non-hexadecimal letters (maybe typo?)")
-            return null
+        if (any { c -> c in 'g'..'z' || c in 'G'..'Z' }) {
+            throw NumberFormatException("contains non-hexadecimal letters (maybe typo?)")
         }
-        return hexstring.chunked(2) { ds -> ds.toString().toInt(16).toByte() }.toByteArray()
+        chunked(2) { ds -> ds.toString().toInt(16).toByte() }.toByteArray()
     }
 
-    fun getByteString(dialog: Component): ByteString? {
-        return if (isASCII) ByteString.copyFromUtf8(tf.text) else ByteString.copyFrom(parseHex(dialog)
-                ?: return null)
+    fun getByteString(dialog: Component): ByteString? = if (isASCII) ByteString.copyFromUtf8(tf.text) else try {
+        ByteString.copyFrom(parseHex())
+    } catch (e: NumberFormatException) {
+        JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string ${e.message}")
+        null
     }
 
     fun addWidgets(caption: String, cs: GridBagConstraints, panel: Container) {
