@@ -577,17 +577,11 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
                     return@createOkCancelButtonsPanel  false
                 }
             }
-            var pre = true
-            for (i in 0 until paramsModel.size) {
-                val item = paramsModel.getElementAt(i)!!
-                if (pre) {
-                    if (item.value == null) {
-                        pre = false
-                        inputMethod = Piper.CommandInvocation.InputMethod.FILENAME
-                    }
-                    else addPrefix(item.value)
-                }
-                else addPostfix(item.value)
+            val params = paramsModel.map(CommandLineParameter::value)
+            addAllPrefix(params.takeWhile(Objects::nonNull))
+            if (prefixCount < paramsModel.size) {
+                inputMethod = Piper.CommandInvocation.InputMethod.FILENAME
+                addAllPostfix(params.drop(prefixCount + 1))
             }
             if (cbPassHeaders.isSelected) passHeaders = true
             state.result = build()
