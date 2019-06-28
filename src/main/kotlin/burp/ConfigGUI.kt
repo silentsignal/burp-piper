@@ -385,7 +385,13 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component): Piper.Heade
     return state.result
 }
 
-data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = null, var tfExitCode: JTextField? = null)
+data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = null, var tfExitCode: JTextField? = null) {
+    fun parseExitCodeList(): Iterable<Int> {
+        val text = tfExitCode!!.text
+        return if (text.isEmpty()) emptyList()
+        else text.filterNot(Char::isWhitespace).split(',').map(String::toInt)
+    }
+}
 
 data class CommandLineParameter(val value: String?) { // null = input file name
     fun isInputFileName(): Boolean {
@@ -561,12 +567,12 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
                 if (ccmwStdout.mm != null) stdout = ccmwStdout.mm
                 if (ccmwStderr.mm != null) stderr = ccmwStderr.mm
                 try {
-                    addAllExitCode(state.tfExitCode!!.text.filterNot(Char::isWhitespace).split(',').map(String::toInt))
+                    addAllExitCode(state.parseExitCodeList())
                 } catch (e: NumberFormatException) {
                     JOptionPane.showMessageDialog(dialog, "Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
                     return@createOkCancelButtonsPanel false
                 }
-                if (ccmwStdout.mm == null && ccmwStderr.mm == null && state.tfExitCode!!.text.isEmpty()) {
+                if (ccmwStdout.mm == null && ccmwStderr.mm == null && exitCodeCount == 0) {
                     JOptionPane.showMessageDialog(dialog, "No filters are defined for stdio or exit code.")
                     return@createOkCancelButtonsPanel  false
                 }
