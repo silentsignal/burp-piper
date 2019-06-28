@@ -267,6 +267,7 @@ fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Pipe
 
     val mtw = MinimalToolWidget(menuItem.common, panel, cs)
 
+    cs.gridwidth = 4
     val cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
 
     val smMinInputs = createSpinner("Minimum required number of selected items: ",
@@ -306,7 +307,7 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
 
     cs.gridy++
     cs.gridx = 0 ; cs.gridwidth = 2 ; panel.add(JLabel(caption), cs)
-    cs.gridx = 2 ; cs.gridwidth = 1 ; panel.add(JSpinner(model), cs)
+    cs.gridx = 2 ; cs.gridwidth = 2 ; panel.add(JSpinner(model), cs)
 
     return model
 }
