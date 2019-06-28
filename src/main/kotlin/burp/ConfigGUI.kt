@@ -717,7 +717,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
             JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string contains non-hexadecimal letters (maybe typo?)")
             return null
         }
-        return hexstring.chunked(2).map { ds -> ds.toInt(16).toByte() }.toByteArray()
+        return hexstring.chunked(2) { ds -> ds.toString().toInt(16).toByte() }.toByteArray()
     }
 
     fun getByteString(dialog: Component): ByteString? {
