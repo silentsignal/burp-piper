@@ -772,7 +772,7 @@ fun <E> createCheckBoxSet(items: Array<E>, selected: Set<E>, panel: Container, c
     cs.gridy++
     cs.gridwidth = 1
 
-    return items.map {
+    return items.asIterable().associateWith {
         val cb = createCheckBox(it.toString(), it in selected, panel, cs)
         if (cs.gridx == 0) {
             cs.gridx = 1
@@ -780,7 +780,7 @@ fun <E> createCheckBoxSet(items: Array<E>, selected: Set<E>, panel: Container, c
             cs.gridy++
             cs.gridx = 0
         }
-        it to cb
+        cb
     }.toMap()
 }
 
