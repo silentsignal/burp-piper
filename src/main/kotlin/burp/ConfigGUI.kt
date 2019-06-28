@@ -745,7 +745,7 @@ class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBag
     }
 
     fun toRegularExpression(): Piper.RegularExpression {
-        val flagSet = cbFlags.filter { e -> e.value.isSelected }.keys
+        val flagSet = cbFlags.filterValues(JCheckBox::isSelected).keys
         return Piper.RegularExpression.newBuilder().setPattern(tfPattern.text).setFlagSet(flagSet).build()
     }
 
@@ -759,7 +759,7 @@ class BurpToolWidget(tools: Set<BurpTool>, panel: Container, cs: GridBagConstrai
     private val cbTools: Map<BurpTool, JCheckBox>
 
     fun toBurpToolSet(): Set<BurpTool> {
-        return cbTools.filter { e -> e.value.isSelected }.keys
+        return cbTools.filterValues(JCheckBox::isSelected).keys
     }
 
     init {
