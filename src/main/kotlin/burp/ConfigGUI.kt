@@ -879,7 +879,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
 
         if (state.header != null) builder.header = state.header
 
-        // TODO cciw.cmd -> builder.cmd
+        if (cciw.cmd != Piper.CommandInvocation.getDefaultInstance()) builder.cmd = cciw.cmd
 
         for (i in 0 until andAlsoModel.size) builder.addAndAlso(andAlsoModel.getElementAt(i).cfgItem)
         for (i in 0 until  orElseModel.size) builder.addOrElse(  orElseModel.getElementAt(i).cfgItem)
