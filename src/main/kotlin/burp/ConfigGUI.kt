@@ -213,7 +213,7 @@ fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Componen
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit message editor \"${messageViewer.common.name}\"", dialog, parent)
+    showModalDialog(800, 600, panel, generateCaption("message editor",  messageViewer.common.name), dialog, parent)
 
     return state.result
 }
@@ -245,7 +245,7 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit HTTP listener \"${httpListener.common.name}\"", dialog, parent)
+    showModalDialog(800, 600, panel, generateCaption("HTTP listener", httpListener.common.name), dialog, parent)
 
     return state.result
 }
@@ -297,7 +297,7 @@ fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Pipe
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit menu item \"${menuItem.common.name}\"", dialog, parent)
+    showModalDialog(800, 600, panel, generateCaption("menu item", menuItem.common.name), dialog, parent)
 
     return state.result
 }
@@ -329,7 +329,7 @@ fun showMacroDialog(macro: Piper.MinimalTool, parent: Component?): Piper.Minimal
     }
 
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit macro \"${macro.name}\"", dialog, parent)
+    showModalDialog(800, 600, panel, generateCaption("macro", macro.name), dialog, parent)
 
     return state.result
 }
@@ -381,7 +381,7 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component): Piper.Heade
         true
     }
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(480, 320, panel, "Edit header filter", dialog, parent)
+    showModalDialog(480, 320, panel, "Header filter editor", dialog, parent)
 
     return state.result
 }
@@ -590,7 +590,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
         true
     }
     addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Edit command invocation", dialog, parent)
+    showModalDialog(800, 600, panel, "Command invocation editor", dialog, parent)
 
     return state.result
 }
@@ -883,7 +883,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
         true
     }
     panel.add(pnButtons, cs)
-    showModalDialog(800, 600, panel, "Edit filter", dialog, parent)
+    showModalDialog(800, 600, panel, "Filter editor", dialog, parent)
 
     return state.result
 }
@@ -961,6 +961,8 @@ fun <S, D> fillDefaultModel(source: Sequence<S>, transform: (S) -> D): DefaultLi
     source.map(transform).forEach(model::addElement)
     return model
 }
+
+fun generateCaption(noun: String, name: String): String = if (name.isEmpty()) "Add $noun" else "Edit $noun \"$name\""
 
 fun showModalDialog(width: Int, height: Int, widget: Component, caption: String, dialog: JDialog, parent: Component?) {
     with(dialog) {
