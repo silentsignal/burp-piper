@@ -647,11 +647,8 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
 }
 
 private fun JDialog.createOkCancelButtonsPanel(okHandler: () -> Boolean): Component {
-    val pnButtons = JPanel()
     val btnOK = JButton("OK")
     val btnCancel = JButton("Cancel")
-    pnButtons.add(btnOK)
-    pnButtons.add(btnCancel)
     rootPane.defaultButton = btnOK
 
     btnOK.addActionListener {
@@ -662,7 +659,10 @@ private fun JDialog.createOkCancelButtonsPanel(okHandler: () -> Boolean): Compon
         isVisible = false
     }
 
-    return pnButtons
+    return JPanel().apply {
+        add(btnOK)
+        add(btnCancel)
+    }
 }
 
 private fun addFullWidthComponent(c: Component, panel: Container, cs: GridBagConstraints) {
