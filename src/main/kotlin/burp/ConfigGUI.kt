@@ -750,7 +750,7 @@ class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBag
 
     init {
         addFullWidthComponent(JLabel("Regular expression flags: (see JDK documentation)"), panel, cs)
-        cbFlags = createCheckBoxSet(RegExpFlag.values(), regex.flagSet, panel, cs)
+        cbFlags = createCheckBoxSet(RegExpFlag::class.java, regex.flagSet, panel, cs)
     }
 }
 
@@ -763,15 +763,15 @@ class BurpToolWidget(tools: Set<BurpTool>, panel: Container, cs: GridBagConstrai
 
     init {
         addFullWidthComponent(JLabel("sent/received by"), panel, cs)
-        cbTools = createCheckBoxSet(BurpTool.values(), tools, panel, cs)
+        cbTools = createCheckBoxSet(BurpTool::class.java, tools, panel, cs)
     }
 }
 
-fun <E> createCheckBoxSet(items: Array<E>, selected: Set<E>, panel: Container, cs: GridBagConstraints): Map<E, JCheckBox> {
+private fun <E : Enum<E>> createCheckBoxSet(enumClass: Class<E>, selected: Set<E>, panel: Container, cs: GridBagConstraints): Map<E, JCheckBox> {
     cs.gridy++
     cs.gridwidth = 1
 
-    return items.asIterable().associateWith {
+    return enumClass.enumConstants.asIterable().associateWithTo(EnumMap(enumClass)) {
         val cb = createCheckBox(it.toString(), it in selected, panel, cs)
         if (cs.gridx == 0) {
             cs.gridx = 1
@@ -780,7 +780,7 @@ fun <E> createCheckBoxSet(items: Array<E>, selected: Set<E>, panel: Container, c
             cs.gridx = 0
         }
         cb
-    }.toMap()
+    }.toMap() as Map<E, JCheckBox>
 }
 
 fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, parent: Component): Piper.MessageMatch? {
