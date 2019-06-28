@@ -31,8 +31,6 @@ data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
 
 fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap: (S) -> W, unwrap: (W) -> S,
                             dialog: (S, Component?) -> S?, default: () -> S): Component {
-    val pnOuter = JPanel(BorderLayout())
-    val pnToolbar = JPanel()
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
         model[it] = wrap(dialog(unwrap(model[it]), parent) ?: return@addDoubleClickListener)
@@ -41,11 +39,14 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
     btnAdd.addActionListener {
         model.addElement(wrap(dialog(default(), parent) ?: return@addActionListener))
     }
-    pnToolbar.add(btnAdd)
-    pnToolbar.add(createRemoveButton("Remove", listWidget, model))
-    pnOuter.add(pnToolbar, BorderLayout.PAGE_START)
-    pnOuter.add(listWidget, BorderLayout.CENTER)
-    return pnOuter
+    val pnToolbar = JPanel().apply {
+        add(btnAdd)
+        add(createRemoveButton("Remove", listWidget, model))
+    }
+    return JPanel(BorderLayout()).apply {
+        add(pnToolbar, BorderLayout.PAGE_START)
+        add(listWidget, BorderLayout.CENTER)
+    }
 }
 
 fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
