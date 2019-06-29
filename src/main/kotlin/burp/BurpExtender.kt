@@ -152,14 +152,18 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private fun populateTabs(cfg: ConfigModel, parent: Component?) {
         tabs.addTab("Message viewers", createListEditor(cfg.messageViewers, parent, ::MessageViewerWrapper,
-                MessageViewerWrapper::cfgItem, ::showMessageViewerDialog, Piper.MessageViewer::getDefaultInstance))
+                MessageViewerWrapper::cfgItem, ::showMessageViewerDialog, Piper.MessageViewer::getDefaultInstance,
+                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
         // TODO tabs.addTab("Load/Save configuration")
         tabs.addTab("Context menu items", createListEditor(cfg.menuItems, parent, ::UserActionToolWrapper,
-                UserActionToolWrapper::cfgItem, ::showMenuItemDialog, Piper.UserActionTool::getDefaultInstance))
+                UserActionToolWrapper::cfgItem, ::showMenuItemDialog, Piper.UserActionTool::getDefaultInstance,
+                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
         tabs.addTab("Macros", createListEditor(cfg.macros, parent, ::MinimalToolWrapper,
-                MinimalToolWrapper::cfgItem, ::showMacroDialog, Piper.MinimalTool::getDefaultInstance))
+                MinimalToolWrapper::cfgItem, ::showMacroDialog, Piper.MinimalTool::getDefaultInstance,
+                Piper.MinimalTool::getEnabled, { toBuilder().setEnabled(it).build() }))
         tabs.addTab("HTTP listeners", createListEditor(cfg.httpListeners, parent, ::HttpListenerWrapper,
-                HttpListenerWrapper::cfgItem, ::showHttpListenerDialog, Piper.HttpListener::getDefaultInstance))
+                HttpListenerWrapper::cfgItem, ::showHttpListenerDialog, Piper.HttpListener::getDefaultInstance,
+                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
         // TODO tabs.addTab("Commentators")
     }
 

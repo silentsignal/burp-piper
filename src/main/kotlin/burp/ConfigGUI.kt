@@ -10,27 +10,32 @@ import javax.swing.event.ListDataListener
 import kotlin.math.max
 
 data class MessageViewerWrapper(val cfgItem: Piper.MessageViewer) {
-    override fun toString(): String = cfgItem.common.name
+    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
 }
 
 data class MinimalToolWrapper(val cfgItem: Piper.MinimalTool) {
-    override fun toString(): String = cfgItem.name
+    override fun toString(): String = minimalToolHumanReadableName(cfgItem)
 }
 
 data class UserActionToolWrapper(val cfgItem: Piper.UserActionTool) {
-    override fun toString(): String = cfgItem.common.name
+    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
 }
 
 data class HttpListenerWrapper(val cfgItem: Piper.HttpListener) {
-    override fun toString(): String = cfgItem.common.name
+    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
 }
 
 data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
     override fun toString(): String = cfgItem.toHumanReadable(negation = false, hideParentheses = true)
 }
 
+private fun minimalToolHumanReadableName(cfgItem: Piper.MinimalTool) = if (cfgItem.enabled) cfgItem.name else cfgItem.name + " [disabled]"
+
+const val TOGGLE_DEFAULT = "Toggle enabled"
+
 fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap: (S) -> W, unwrap: (W) -> S,
-                            dialog: (S, Component?) -> S?, default: () -> S): Component {
+                            dialog: (S, Component?) -> S?, default: () -> S,
+                            isEnabled: S.() -> Boolean, enabler: S.(Boolean) -> S): Component {
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
         model[it] = wrap(dialog(unwrap(model[it]), parent) ?: return@addDoubleClickListener)
@@ -39,9 +44,33 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
     btnAdd.addActionListener {
         model.addElement(wrap(dialog(default(), parent) ?: return@addActionListener))
     }
+    val btnEnableDisable = JButton(TOGGLE_DEFAULT)
+    btnEnableDisable.isEnabled = false
+    btnEnableDisable.addActionListener {
+        (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
+            val entry = unwrap(value)
+            model[index] = wrap(enabler(entry, !isEnabled(entry)))
+        }
+    }
+    val btnClone = JButton("Clone")
+    btnClone.isEnabled = false
+    btnClone.addActionListener {
+        (listWidget.selectedValuesList.reversed().asSequence() zip listWidget.selectedIndices.reversed().asSequence()).forEach {(value, index) ->
+            model.insertElementAt(value, index)
+        }
+    }
+    listWidget.addListSelectionListener {
+        val selection = listWidget.selectedValuesList
+        btnEnableDisable.isEnabled = selection.isNotEmpty()
+        btnClone.isEnabled = selection.isNotEmpty()
+        val states = selection.asSequence().map(unwrap).map(isEnabled).toSet()
+        btnEnableDisable.text = if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
+    }
     val pnToolbar = JPanel().apply {
         add(btnAdd)
         add(createRemoveButton("Remove", listWidget, model))
+        add(btnEnableDisable)
+        add(btnClone)
     }
     return JPanel(BorderLayout()).apply {
         add(pnToolbar, BorderLayout.PAGE_START)
