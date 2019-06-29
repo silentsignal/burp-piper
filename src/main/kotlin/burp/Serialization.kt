@@ -37,7 +37,7 @@ fun minimalToolFromMap(source: Map<String, Any>): Piper.MinimalTool {
 fun httpListenerFromMap(source: Map<String, Any>): Piper.HttpListener {
     val b = Piper.HttpListener.newBuilder()!!
             .setScope(enumFromString(source.stringOrDie("scope"),
-                    Piper.HttpListener.RequestResponse::class.java))
+                    Piper.RequestResponse::class.java))
     val ss = source.stringSequence("tool", required = false)
             .map { enumFromString(it, BurpTool::class.java) }
     if (ss.isNotEmpty()) b.setToolSet(ss.toSet())

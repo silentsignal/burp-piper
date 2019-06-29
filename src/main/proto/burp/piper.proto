@@ -75,13 +75,14 @@ message MessageViewer {
     bool usesColors = 2;
 }
 
+enum RequestResponse {
+    REQUEST = 0;
+    RESPONSE = 1;
+}
+
 message HttpListener {
     MinimalTool common = 1;
     int32 tool = 2;
-    enum RequestResponse {
-        REQUEST = 0;
-        RESPONSE = 1;
-    }
     RequestResponse scope = 3;
 }
 
