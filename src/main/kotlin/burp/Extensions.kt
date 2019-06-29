@@ -112,9 +112,7 @@ fun ByteArray.endsWith(value: ByteString): Boolean {
 fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, List<File>> {
     val tempFiles = if (this.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) {
         inputs.map {
-            val f = File.createTempFile("piper-", ".bin")
-            f.writeBytes(it)
-            f
+            File.createTempFile("piper-", ".bin").apply { writeBytes(it) }
         }
     } else emptyList()
     val args = this.prefixList + tempFiles.map { it.absolutePath } + this.postfixList
