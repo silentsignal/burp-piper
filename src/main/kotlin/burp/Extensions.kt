@@ -115,7 +115,7 @@ fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, Lis
             File.createTempFile("piper-", ".bin").apply { writeBytes(it) }
         }
     } else emptyList()
-    val args = this.prefixList + tempFiles.map { it.absolutePath } + this.postfixList
+    val args = this.prefixList + tempFiles.map(File::getAbsolutePath) + this.postfixList
     val p = Runtime.getRuntime().exec(args.toTypedArray())
     if (this.inputMethod == Piper.CommandInvocation.InputMethod.STDIN) {
         p.outputStream.use {
