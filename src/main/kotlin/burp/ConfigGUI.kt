@@ -744,7 +744,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         if (any { c -> c in 'g'..'z' || c in 'G'..'Z' }) {
             throw NumberFormatException("contains non-hexadecimal letters (maybe typo?)")
         }
-        chunked(2) { ds -> ds.toString().toInt(16).toByte() }.toByteArray()
+        chunked(2, ::parseHexByte).toByteArray()
     }
 
     fun getByteString(dialog: Component): ByteString? = if (isASCII) ByteString.copyFromUtf8(tf.text) else try {
@@ -762,6 +762,11 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         cs.gridx = 3 ; panel.add(rbHex,   cs)
     }
 }
+
+private fun parseHexByte(cs: CharSequence): Byte = (parseHexNibble(cs[0]) shl 4 or parseHexNibble(cs[1])).toByte()
+
+private fun parseHexNibble(c: Char): Int = if (c in '0'..'9') (c - '0')
+else ((c.toLowerCase() - 'a') + 0xA)
 
 data class MessageMatchDialogState(var result: Piper.MessageMatch? = null, var header: Piper.HeaderMatch? = null)
 
