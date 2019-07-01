@@ -70,7 +70,7 @@ enum class MatchNegation(val negation: Boolean, private val description: String)
     override fun toString(): String = description
 }
 
-enum class HttpListenerRequestResponse(val rr: Piper.RequestResponse) {
+enum class ConfigRequestResponse(val rr: Piper.RequestResponse) {
     REQUEST (Piper.RequestResponse.REQUEST),
     RESPONSE(Piper.RequestResponse.RESPONSE);
 

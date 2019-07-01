@@ -262,7 +262,7 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
 
     val mtw = MinimalToolWidget(httpListener.common, panel, cs)
 
-    val lsScope = createLabeledWidget("Listen to ", JComboBox(HttpListenerRequestResponse.values()), panel, cs)
+    val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
     var btw = BurpToolWidget(httpListener.toolSet, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
@@ -271,7 +271,7 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
 
         with (Piper.HttpListener.newBuilder()) {
             common = mt
-            scope = (lsScope.selectedItem as HttpListenerRequestResponse).rr
+            scope = (lsScope.selectedItem as ConfigRequestResponse).rr
             if (bt.size < BurpTool.values().size) setToolSet(bt)
             state.result = build()
         }
@@ -298,14 +298,14 @@ fun showCommentatorDialog(commentator: Piper.Commentator, parent: Component?): P
     val cbOverwrite = createCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
 
     cs.gridy++
-    val lsSource = createLabeledWidget("Data source: ", JComboBox(HttpListenerRequestResponse.values()), panel, cs)
+    val lsSource = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
 
         with (Piper.Commentator.newBuilder()) {
             common = mt
-            source = (lsSource.selectedItem as HttpListenerRequestResponse).rr
+            source = (lsSource.selectedItem as ConfigRequestResponse).rr
             if (cbOverwrite.isSelected) overwrite = true
             state.result = build()
         }
