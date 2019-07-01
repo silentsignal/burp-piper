@@ -440,6 +440,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
     val state = CommandInvocationDialogState()
     val ccmwStdout = CollapsedMessageMatchWidget(mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
     val ccmwStderr = CollapsedMessageMatchWidget(mm = ci.stderr, showHeaderMatch = false, caption = "Match on stderr: ")
+    val monospaced12 = Font("monospaced", Font.PLAIN, 12)
 
     val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
 
@@ -450,6 +451,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
     }, ::CommandLineParameter)
     val lsParams = JList<CommandLineParameter>(paramsModel)
     lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+    lsParams.font = monospaced12
 
     lsParams.cellRenderer = object : DefaultListCellRenderer() {
         override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
@@ -528,6 +530,7 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
         tfParam.text = ""
     }
 
+    tfParam.font = monospaced12
     tfParam.addKeyListener(object : KeyAdapter() {
         override fun keyTyped(e: KeyEvent) {
             if (cbSpace.isSelected) {
