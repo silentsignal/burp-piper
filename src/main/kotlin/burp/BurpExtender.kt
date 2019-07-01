@@ -312,11 +312,21 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     private val httpListeners get() = httpListenersModel.map(HttpListenerWrapper::cfgItem)
     private val commentators get() = commentatorsModel.map(CommentatorWrapper::cfgItem)
 
-    val macrosModel = fillDefaultModel(config.macroList, ::MinimalToolWrapper)
-    val messageViewersModel = fillDefaultModel(config.messageViewerList, ::MessageViewerWrapper)
-    val menuItemsModel = fillDefaultModel(config.menuItemList, ::UserActionToolWrapper)
-    val httpListenersModel = fillDefaultModel(config.httpListenerList, ::HttpListenerWrapper)
-    val commentatorsModel = fillDefaultModel(config.commentatorList, ::CommentatorWrapper)
+    val macrosModel = DefaultListModel<MinimalToolWrapper>()
+    val messageViewersModel = DefaultListModel<MessageViewerWrapper>()
+    val menuItemsModel = DefaultListModel<UserActionToolWrapper>()
+    val httpListenersModel = DefaultListModel<HttpListenerWrapper>()
+    val commentatorsModel = DefaultListModel<CommentatorWrapper>()
+
+    init { fillModels(config) }
+
+    fun fillModels(config: Piper.Config) {
+        fillDefaultModel(config.macroList,           ::MinimalToolWrapper, macrosModel)
+        fillDefaultModel(config.messageViewerList, ::MessageViewerWrapper, messageViewersModel)
+        fillDefaultModel(config.menuItemList,     ::UserActionToolWrapper, menuItemsModel)
+        fillDefaultModel(config.httpListenerList,   ::HttpListenerWrapper, httpListenersModel)
+        fillDefaultModel(config.commentatorList,     ::CommentatorWrapper, commentatorsModel)
+    }
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
             .addAllMacro(macros)
