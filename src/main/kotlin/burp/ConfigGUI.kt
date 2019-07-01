@@ -1045,6 +1045,7 @@ private fun <E> createRemoveButton(caption: String, listWidget: JList<E>, listMo
 fun <S, D> fillDefaultModel(source: Iterable<S>, transform: (S) -> D, model: DefaultListModel<D> = DefaultListModel()): DefaultListModel<D> =
         fillDefaultModel(source.asSequence(), transform, model)
 fun <S, D> fillDefaultModel(source: Sequence<S>, transform: (S) -> D, model: DefaultListModel<D> = DefaultListModel()): DefaultListModel<D> {
+    model.clear()
     source.map(transform).forEach(model::addElement)
     return model
 }

@@ -344,8 +344,6 @@ private fun createLoadSaveUI(cfg: ConfigModel, parent: Component?): Component {
                 if (JOptionPane.showConfirmDialog(parent,
                                 "This will overwrite your currently loaded configuration with the default one. Are you sure?",
                                 "Confirm restoring default configuration", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
-                    listOf(cfg.macrosModel, cfg.messageViewersModel, cfg.menuItemsModel,
-                            cfg.httpListenersModel, cfg.commentatorsModel).forEach { it.clear() }
                     cfg.fillModels(loadDefaultConfig())
                 }
             }
