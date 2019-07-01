@@ -151,20 +151,20 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     private fun populateTabs(cfg: ConfigModel, parent: Component?) {
         tabs.addTab("Message viewers", createListEditor(cfg.messageViewersModel, parent, ::MessageViewerWrapper,
                 MessageViewerWrapper::cfgItem, ::showMessageViewerDialog, Piper.MessageViewer::getDefaultInstance,
-                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
+                { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
         // TODO tabs.addTab("Load/Save configuration")
         tabs.addTab("Context menu items", createListEditor(cfg.menuItemsModel, parent, ::UserActionToolWrapper,
                 UserActionToolWrapper::cfgItem, ::showMenuItemDialog, Piper.UserActionTool::getDefaultInstance,
-                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
+                { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
         tabs.addTab("Macros", createListEditor(cfg.macrosModel, parent, ::MinimalToolWrapper,
                 MinimalToolWrapper::cfgItem, ::showMacroDialog, Piper.MinimalTool::getDefaultInstance,
-                Piper.MinimalTool::getEnabled, { toBuilder().setEnabled(it).build() }))
+                Piper.MinimalTool::getEnabled, Piper.MinimalTool::buildEnabled))
         tabs.addTab("HTTP listeners", createListEditor(cfg.httpListenersModel, parent, ::HttpListenerWrapper,
                 HttpListenerWrapper::cfgItem, ::showHttpListenerDialog, Piper.HttpListener::getDefaultInstance,
-                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
+                { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
         tabs.addTab("Commentators", createListEditor(cfg.commentatorsModel, parent, ::CommentatorWrapper,
                 CommentatorWrapper::cfgItem, ::showCommentatorDialog, Piper.Commentator::getDefaultInstance,
-                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
+                { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
     }
 
     // ITab members
@@ -332,18 +332,18 @@ private fun loadDefaultConfig(): Piper.Config {
     val cfg = configFromYaml(BurpExtender::class.java.classLoader
             .getResourceAsStream("defaults.yaml").reader().readText())
     return Piper.Config.newBuilder()
-            .addAllMacro(cfg.macroList.map { it.toBuilder().setEnabled(true).build() })
+            .addAllMacro(cfg.macroList.map { it.buildEnabled() })
             .addAllMenuItem(cfg.menuItemList.map {
-                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+                it.toBuilder().setCommon(it.common.buildEnabled()).build()
             })
             .addAllMessageViewer(cfg.messageViewerList.map {
-                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+                it.toBuilder().setCommon(it.common.buildEnabled()).build()
             })
             .addAllHttpListener(cfg.httpListenerList.map {
-                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+                it.toBuilder().setCommon(it.common.buildEnabled()).build()
             })
             .addAllCommentator(cfg.commentatorList.map {
-                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+                it.toBuilder().setCommon(it.common.buildEnabled()).build()
             })
             .build()
 }

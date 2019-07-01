@@ -90,6 +90,8 @@ fun ByteArray.toHexPairs(): String = this.joinToString(separator = ":",
 fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
         !this.hasFilter() || messages.all { this.filter.matches(it, helpers) }
 
+fun Piper.MinimalTool.buildEnabled(value: Boolean = true): Piper.MinimalTool = toBuilder().setEnabled(value).build()
+
 fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers): Boolean = (
         (this.prefix == null  || this.prefix.size() == 0  || message.content.startsWith(this.prefix)) &&
                 (this.postfix == null || this.postfix.size() == 0 || message.content.endsWith(this.postfix)) &&
