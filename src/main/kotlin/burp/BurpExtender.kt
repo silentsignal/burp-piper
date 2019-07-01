@@ -25,6 +25,7 @@ import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
+import javax.swing.filechooser.FileNameExtensionFilter
 import kotlin.concurrent.thread
 
 
@@ -348,6 +349,26 @@ private fun createLoadSaveUI(cfg: ConfigModel, parent: Component?): Component {
                 }
             }
         })
+        add(JButton("Export to YAML file"      ).apply { addActionListener { exportConfig(ConfigFormat.YAML,     cfg, parent) } })
+        add(JButton("Export to ProtoBuf file"  ).apply { addActionListener { exportConfig(ConfigFormat.PROTOBUF, cfg, parent) } })
+        add(JButton("Import from YAML file"    ).apply { addActionListener { importConfig(ConfigFormat.YAML,     cfg, parent) } })
+        add(JButton("Import from ProtoBuf file").apply { addActionListener { importConfig(ConfigFormat.PROTOBUF, cfg, parent) } })
+        }
+    }
+
+private fun exportConfig(fmt: ConfigFormat, cfg: ConfigModel, parent: Component?) {
+    val fc = JFileChooser()
+    fc.fileFilter = FileNameExtensionFilter(fmt.name, fmt.fileExtension)
+    if (fc.showSaveDialog(parent) == JFileChooser.APPROVE_OPTION) {
+        fc.selectedFile.writeBytes(fmt.serialize(cfg.serialize()))
+    }
+}
+
+private fun importConfig(fmt: ConfigFormat, cfg: ConfigModel, parent: Component?) {
+    val fc = JFileChooser()
+    fc.fileFilter = FileNameExtensionFilter(fmt.name, fmt.fileExtension)
+    if (fc.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) {
+        cfg.fillModels(fmt.parse(fc.selectedFile.readBytes()))
     }
 }
 

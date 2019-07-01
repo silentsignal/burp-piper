@@ -1,5 +1,7 @@
 package burp
 
+import org.snakeyaml.engine.v1.api.Dump
+import org.snakeyaml.engine.v1.api.DumpSettingsBuilder
 import java.util.regex.Pattern
 
 enum class RegExpFlag {
@@ -74,4 +76,26 @@ enum class ConfigRequestResponse(val rr: Piper.RequestResponse) {
     RESPONSE(Piper.RequestResponse.RESPONSE);
 
     override fun toString(): String = "HTTP ${rr.toString().toLowerCase()}s"
+}
+
+enum class ConfigFormat {
+    YAML {
+        override fun parse(blob: ByteArray): Piper.Config = configFromYaml(String(blob, Charsets.UTF_8))
+        override fun serialize(config: Piper.Config): ByteArray =
+                Dump(DumpSettingsBuilder().build()).dumpToString(config.toSettings()).toByteArray(/* default is UTF-8 */)
+
+        override val fileExtension: String
+            get() = "yaml"
+    },
+
+    PROTOBUF {
+        override fun parse(blob: ByteArray): Piper.Config = Piper.Config.parseFrom(blob)
+        override fun serialize(config: Piper.Config): ByteArray = config.toByteArray()
+        override val fileExtension: String
+            get() = "pb"
+    };
+
+    abstract fun serialize(config: Piper.Config): ByteArray
+    abstract fun parse(blob: ByteArray): Piper.Config
+    abstract val fileExtension: String
 }
