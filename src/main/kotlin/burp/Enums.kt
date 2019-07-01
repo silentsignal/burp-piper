@@ -48,8 +48,7 @@ enum class RequestResponse {
     abstract fun getHeaders(data: ByteArray, helpers: IExtensionHelpers): List<String>
 
     companion object {
-        fun fromBoolean(isRequest: Boolean) =
-                if (isRequest) REQUEST else RESPONSE
+        fun fromBoolean(isRequest: Boolean) = if (isRequest) REQUEST else RESPONSE
     }
 }
 
