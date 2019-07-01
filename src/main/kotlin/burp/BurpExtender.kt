@@ -72,6 +72,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
         val ccl = ConfigChangeListener()
         configModel.menuItems.addListDataListener(ccl)  // Menu items are loaded on-demand, thus saving the config is enough
+        configModel.commentators.addListDataListener(ccl)  // Commentators are menu items as well, see above
         configModel.messageViewers.addListDataListener(ReloaderConfigChangeListener(
                 callbacks::getMessageEditorTabFactories, callbacks::removeMessageEditorTabFactory, ::registerMessageViewers))
         configModel.macros.addListDataListener(ReloaderConfigChangeListener(
@@ -165,7 +166,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         tabs.addTab("HTTP listeners", createListEditor(cfg.httpListeners, parent, ::HttpListenerWrapper,
                 HttpListenerWrapper::cfgItem, ::showHttpListenerDialog, Piper.HttpListener::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
-        // TODO tabs.addTab("Commentators")
+        tabs.addTab("Commentators", createListEditor(cfg.commentators, parent, ::CommentatorWrapper,
+                CommentatorWrapper::cfgItem, ::showCommentatorDialog, Piper.Commentator::getDefaultInstance,
+                { common.enabled }, { toBuilder().setCommon(common.toBuilder().setEnabled(it)).build() }))
     }
 
     // ITab members
@@ -223,6 +226,25 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 }
             }
         }
+
+        var separatorAdded = false
+        for (cfgItem in configModel.commentators.map(CommentatorWrapper::cfgItem)) {
+            if (!cfgItem.common.enabled) continue
+
+            for ((msrc, md) in messageDetails) {
+                if (cfgItem.common.cmd.passHeaders == msrc.includeHeaders && msrc.direction.name == cfgItem.source.name
+                        && cfgItem.common.canProcess(md, helpers)) {
+                    val outItem = JMenuItem(cfgItem.common.name)
+                    outItem.addActionListener { performCommentator(cfgItem, md zip messages) }
+                    if (!separatorAdded) {
+                        separatorAdded = true
+                        topLevel.addSeparator()
+                    }
+                    topLevel.add(outItem)
+                }
+            }
+        }
+
         return topLevel
     }
 
@@ -261,6 +283,17 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }.start()
     }
 
+    private fun performCommentator(cfgItem: Piper.Commentator, messages: List<Pair<MessageInfo, IHttpRequestResponse>>) {
+        messages.forEach { (mi, hrr) ->
+            if (hrr.comment.isEmpty() || cfgItem.overwrite) {
+                val stdout = cfgItem.common.cmd.execute(mi.content).processOutput { process ->
+                    process.inputStream.readBytes()
+                }
+                hrr.comment = String(stdout, Charsets.UTF_8)
+            }
+        }
+    }
+
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
@@ -278,12 +311,14 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val messageViewers: DefaultListModel<MessageViewerWrapper> = fillDefaultModel(config.messageViewerList, ::MessageViewerWrapper)
     val menuItems: DefaultListModel<UserActionToolWrapper> = fillDefaultModel(config.menuItemList, ::UserActionToolWrapper)
     val httpListeners: DefaultListModel<HttpListenerWrapper> = fillDefaultModel(config.httpListenerList, ::HttpListenerWrapper)
+    val commentators: DefaultListModel<CommentatorWrapper> = fillDefaultModel(config.commentatorList, ::CommentatorWrapper)
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
             .addAllMacro(macros.map(MinimalToolWrapper::cfgItem))
             .addAllMessageViewer(messageViewers.map(MessageViewerWrapper::cfgItem))
             .addAllMenuItem(menuItems.map(UserActionToolWrapper::cfgItem))
             .addAllHttpListener(httpListeners.map(HttpListenerWrapper::cfgItem))
+            .addAllCommentator(commentators.map(CommentatorWrapper::cfgItem))
             .build()
 }
 
@@ -300,6 +335,9 @@ private fun loadDefaultConfig(): Piper.Config {
                 it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
             })
             .addAllHttpListener(cfg.httpListenerList.map {
+                it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
+            })
+            .addAllCommentator(cfg.commentatorList.map {
                 it.toBuilder().setCommon(it.common.toBuilder().setEnabled(true)).build()
             })
             .build()

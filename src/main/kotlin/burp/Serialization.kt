@@ -16,8 +16,17 @@ fun configFromYaml(value: String): Piper.Config {
         copyListOfStructured("macros", b::addMacro, ::minimalToolFromMap)
         copyListOfStructured("menuItems", b::addMenuItem, UserActionToolFromMap)
         copyListOfStructured("httpListeners", b::addHttpListener, ::httpListenerFromMap)
+        copyListOfStructured("commentators", b::addCommentator, ::commentatorFromMap)
     }
     return b.build()
+}
+
+fun commentatorFromMap(source: Map<String, Any>): Piper.Commentator {
+    val b = Piper.Commentator.newBuilder()!!
+            .setSource(enumFromString(source.stringOrDie("source"),
+                    Piper.RequestResponse::class.java))
+    source.copyBooleanFlag("overwrite", b::setOverwrite)
+    return b.setCommon(minimalToolFromMap(source)).build()
 }
 
 fun messageViewerFromMap(source: Map<String, Any>): Piper.MessageViewer {
@@ -208,6 +217,7 @@ fun Piper.Config.toSettings(): Map<String, Any> {
     m.add("menuItems", this.menuItemList, Piper.UserActionTool::toMap)
     m.add("macros", this.macroList, Piper.MinimalTool::toMap)
     m.add("httpListeners", this.httpListenerList, Piper.HttpListener::toMap)
+    m.add("commentators", this.commentatorList, Piper.Commentator::toMap)
     return m
 }
 
@@ -235,6 +245,13 @@ fun Piper.HttpListener.toMap(): Map<String, Any> {
     val m = this.common.toMap()
     if (this.tool != 0) m["tool"] = this.toolSet.asSequence().map(BurpTool::toString).sorted().toList()
     m["scope"] = this.scope.name.toLowerCase()
+    return m
+}
+
+fun Piper.Commentator.toMap(): Map<String, Any> {
+    val m = this.common.toMap()
+    if (this.overwrite) m["overwrite"] = true
+    m["source"] = this.source.name.toLowerCase()
     return m
 }
 

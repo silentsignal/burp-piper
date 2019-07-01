@@ -29,6 +29,10 @@ data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
     override fun toString(): String = cfgItem.toHumanReadable(negation = false, hideParentheses = true)
 }
 
+data class CommentatorWrapper(val cfgItem: Piper.Commentator) {
+    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
+}
+
 private fun minimalToolHumanReadableName(cfgItem: Piper.MinimalTool) = if (cfgItem.enabled) cfgItem.name else cfgItem.name + " [disabled]"
 
 const val TOGGLE_DEFAULT = "Toggle enabled"
@@ -275,6 +279,40 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
 
     addFullWidthComponent(pnButtons, panel, cs)
     showModalDialog(800, 600, panel, generateCaption("HTTP listener", httpListener.common.name), dialog, parent)
+
+    return state.result
+}
+
+data class CommentatorDialogState(var result: Piper.Commentator? = null)
+
+fun showCommentatorDialog(commentator: Piper.Commentator, parent: Component?): Piper.Commentator? {
+    val dialog = JDialog()
+    val panel = JPanel(GridBagLayout())
+    val cs = GridBagConstraints()
+    val state = CommentatorDialogState()
+
+    val mtw = MinimalToolWidget(commentator.common, panel, cs)
+
+    cs.gridwidth = 4
+    val cbOverwrite = createCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
+
+    cs.gridy++
+    val lsSource = createLabeledWidget("Data source: ", JComboBox(HttpListenerRequestResponse.values()), panel, cs)
+
+    val pnButtons = dialog.createOkCancelButtonsPanel {
+        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+
+        with (Piper.Commentator.newBuilder()) {
+            common = mt
+            source = (lsSource.selectedItem as HttpListenerRequestResponse).rr
+            if (cbOverwrite.isSelected) overwrite = true
+            state.result = build()
+        }
+        true
+    }
+
+    addFullWidthComponent(pnButtons, panel, cs)
+    showModalDialog(800, 600, panel, generateCaption("Commentator", commentator.common.name), dialog, parent)
 
     return state.result
 }

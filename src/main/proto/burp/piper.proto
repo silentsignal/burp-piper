@@ -86,9 +86,16 @@ message HttpListener {
     RequestResponse scope = 3;
 }
 
+message Commentator {
+    MinimalTool common = 1;
+    RequestResponse source = 2;
+    bool overwrite = 3;
+}
+
 message Config {
     repeated MinimalTool macro = 1;
     repeated MessageViewer messageViewer = 2;
     repeated UserActionTool menuItem = 3;
     repeated HttpListener httpListener = 4;
+    repeated Commentator commentator = 5;
 }
