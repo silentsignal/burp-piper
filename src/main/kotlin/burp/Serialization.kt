@@ -207,6 +207,7 @@ fun Piper.Config.toSettings(): Map<String, Any> {
     m.add("messageViewers", this.messageViewerList, Piper.MessageViewer::toMap)
     m.add("menuItems", this.menuItemList, Piper.UserActionTool::toMap)
     m.add("macros", this.macroList, Piper.MinimalTool::toMap)
+    m.add("httpListeners", this.httpListenerList, Piper.HttpListener::toMap)
     return m
 }
 
@@ -227,6 +228,13 @@ fun Piper.UserActionTool.toMap(): Map<String, Any> {
     if (this.hasGUI) m["hasGUI"] = true
     if (this.minInputs != 0) m["minInputs"] = this.minInputs
     if (this.maxInputs != 0) m["maxInputs"] = this.maxInputs
+    return m
+}
+
+fun Piper.HttpListener.toMap(): Map<String, Any> {
+    val m = this.common.toMap()
+    if (this.tool != 0) m["tool"] = this.toolSet.asSequence().map(BurpTool::toString).sorted().toList()
+    m["scope"] = this.scope.name.toLowerCase()
     return m
 }
 
