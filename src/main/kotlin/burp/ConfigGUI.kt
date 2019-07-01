@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString
 import java.awt.*
 import java.awt.event.*
 import java.util.*
+import java.util.regex.PatternSyntaxException
 import javax.swing.*
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
@@ -440,10 +441,15 @@ fun showHeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component): Piper.Heade
             return@createOkCancelButtonsPanel false
         }
 
-        with (Piper.HeaderMatch.newBuilder()) {
-            header = text
-            regex = regExpWidget.toRegularExpression()
-            state.result = build()
+        try {
+            with(Piper.HeaderMatch.newBuilder()) {
+                header = text
+                regex = regExpWidget.toRegularExpression()
+                state.result = build()
+            }
+        } catch (pse: PatternSyntaxException) {
+            JOptionPane.showMessageDialog(dialog, pse.message)
+            return@createOkCancelButtonsPanel false
         }
         true
     }
@@ -821,7 +827,7 @@ class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBag
 
     fun toRegularExpression(): Piper.RegularExpression {
         val flagSet = cbFlags.filterValues(JCheckBox::isSelected).keys
-        return Piper.RegularExpression.newBuilder().setPattern(tfPattern.text).setFlagSet(flagSet).build()
+        return Piper.RegularExpression.newBuilder().setPattern(tfPattern.text).setFlagSet(flagSet).build().apply { compile() }
     }
 
     init {
@@ -945,7 +951,14 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
         builder.postfix = postfixField.getByteString(dialog) ?: return@createOkCancelButtonsPanel false
         builder.prefix  =  prefixField.getByteString(dialog) ?: return@createOkCancelButtonsPanel false
 
-        if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
+        if (regExpWidget.hasPattern()) {
+            try {
+                builder.regex = regExpWidget.toRegularExpression()
+            } catch (pse: PatternSyntaxException) {
+                JOptionPane.showMessageDialog(dialog, pse.message)
+                return@createOkCancelButtonsPanel false
+            }
+        }
 
         if (state.header != null) builder.header = state.header
 
