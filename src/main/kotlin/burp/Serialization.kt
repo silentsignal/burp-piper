@@ -243,7 +243,7 @@ fun Piper.UserActionTool.toMap(): Map<String, Any> {
 
 fun Piper.HttpListener.toMap(): Map<String, Any> {
     val m = this.common.toMap()
-    if (this.tool != 0) m["tool"] = this.toolSet.asSequence().map(BurpTool::toString).sorted().toList()
+    if (this.tool != 0) m["tool"] = this.toolSet.toSortedStringList()
     m["scope"] = this.scope.name.toLowerCase()
     return m
 }
@@ -290,8 +290,10 @@ fun Piper.CommandInvocation.toMap(): MutableMap<String, Any> {
 
 fun Piper.RegularExpression.toMap(): Map<String, Any> {
     val m = mutableMapOf<String, Any>("pattern" to this.pattern!!)
-    if (this.flags != 0) m["flags"] = this.flagSet.asSequence().map(RegExpFlag::toString).sorted().toList()
+    if (this.flags != 0) m["flags"] = this.flagSet.toSortedStringList()
     return m
 }
+
+fun <E> Set<E>.toSortedStringList() = this.asSequence().map { it.toString() }.sorted().toList()
 
 fun Piper.HeaderMatch.toMap() = mapOf(("header" to this.header), ("regex" to this.regex.toMap()))
