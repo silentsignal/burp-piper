@@ -42,7 +42,7 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
     }
     val btnAdd = JButton("Add")
     btnAdd.addActionListener {
-        model.addElement(wrap(dialog(default(), parent) ?: return@addActionListener))
+        model.addElement(wrap(dialog(enabler(default(), true), parent) ?: return@addActionListener))
     }
     val btnEnableDisable = JButton(TOGGLE_DEFAULT)
     btnEnableDisable.isEnabled = false
