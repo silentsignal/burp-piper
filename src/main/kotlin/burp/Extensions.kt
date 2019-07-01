@@ -157,15 +157,13 @@ fun Piper.RegularExpression.matches(subject: String): Boolean =
 fun Piper.RegularExpression.compile(): Pattern = Pattern.compile(this.pattern, this.flags)
 
 val Piper.RegularExpression.flagSet: Set<RegExpFlag>
-    get() = if (this.flags == 0) EnumSet.noneOf(RegExpFlag::class.java)
-    else EnumSet.copyOf(RegExpFlag.values().filter { this.flags.and(it.value) != 0 })
+    get() = calcEnumSet(RegExpFlag::class.java, RegExpFlag::value, flags, EnumSet.noneOf(RegExpFlag::class.java))
 
 fun Piper.RegularExpression.Builder.setFlagSet(flags: Set<RegExpFlag>): Piper.RegularExpression.Builder =
         this.setFlags(flags.fold(0) { acc: Int, regExpFlag: RegExpFlag -> acc or regExpFlag.value })
 
 val Piper.HttpListener.toolSet: Set<BurpTool>
-    get() = if (this.tool == 0) EnumSet.allOf(BurpTool::class.java)
-    else EnumSet.copyOf(BurpTool.values().filter { this.tool.and(it.value) != 0 })
+    get() = calcEnumSet(BurpTool::class.java, BurpTool::value, tool, EnumSet.allOf(BurpTool::class.java))
 
 fun Piper.HttpListener.Builder.setToolSet(tools: Set<BurpTool>): Piper.HttpListener.Builder =
         this.setTool(tools.fold(0) { acc: Int, tool: BurpTool -> acc or tool.value })
@@ -176,6 +174,9 @@ fun <E> Pair<Process, List<File>>.processOutput(processor: (Process) -> E): E {
     this.second.forEach { it.delete() }
     return output
 }
+
+fun <E : Enum<E>> calcEnumSet(enumClass: Class<E>, getter: (E) -> Int, value: Int, zero: Set<E>): Set<E> =
+        if (value == 0) zero else EnumSet.copyOf(enumClass.enumConstants.filter { (getter(it) and value) != 0 })
 
 fun <S, T> DefaultListModel<S>.map(transform: (S) -> T): Iterable<T> = toIterable().map(transform)
 fun <E> DefaultListModel<E>.toIterable(): Iterable<E> = (0 until size).map(this::elementAt)
