@@ -7,6 +7,8 @@ import java.util.*
 import java.util.regex.Pattern
 import javax.swing.DefaultListModel
 
+////////////////////////////////////// GUI //////////////////////////////////////
+
 fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boolean = false): String {
     val match = this
     val negated = negation xor match.negation
@@ -82,6 +84,8 @@ fun ByteString.toHexPairs(): String = this.toByteArray().toHexPairs()
 
 fun ByteArray.toHexPairs(): String = this.joinToString(separator = ":",
         transform = { it.toInt().and(0xFF).toString(16).padStart(2, '0') })
+
+////////////////////////////////////// MATCHING //////////////////////////////////////
 
 fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
         !this.hasFilter() || messages.all { this.filter.matches(it, helpers) }
