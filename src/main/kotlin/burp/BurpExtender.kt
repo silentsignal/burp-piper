@@ -152,7 +152,6 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         tabs.addTab("Message viewers", createListEditor(cfg.messageViewersModel, parent, ::MessageViewerWrapper,
                 MessageViewerWrapper::cfgItem, ::showMessageViewerDialog, Piper.MessageViewer::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
-        // TODO tabs.addTab("Load/Save configuration")
         tabs.addTab("Context menu items", createListEditor(cfg.menuItemsModel, parent, ::UserActionToolWrapper,
                 UserActionToolWrapper::cfgItem, ::showMenuItemDialog, Piper.UserActionTool::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
@@ -165,6 +164,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         tabs.addTab("Commentators", createListEditor(cfg.commentatorsModel, parent, ::CommentatorWrapper,
                 CommentatorWrapper::cfgItem, ::showCommentatorDialog, Piper.Commentator::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
+        tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
     }
 
     // ITab members
@@ -335,6 +335,22 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
             .addAllHttpListener(httpListeners)
             .addAllCommentator(commentators)
             .build()
+}
+
+private fun createLoadSaveUI(cfg: ConfigModel, parent: Component?): Component {
+    return JPanel().apply {
+        add(JButton("Load/restore default config").apply {
+            addActionListener {
+                if (JOptionPane.showConfirmDialog(parent,
+                                "This will overwrite your currently loaded configuration with the default one. Are you sure?",
+                                "Confirm restoring default configuration", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+                    listOf(cfg.macrosModel, cfg.messageViewersModel, cfg.menuItemsModel,
+                            cfg.httpListenersModel, cfg.commentatorsModel).forEach { it.clear() }
+                    cfg.fillModels(loadDefaultConfig())
+                }
+            }
+        })
+    }
 }
 
 private fun loadDefaultConfig(): Piper.Config {
