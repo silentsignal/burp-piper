@@ -70,7 +70,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         val cfg = loadConfig()
         configModel = ConfigModel(cfg)
 
-        configModel.menuItems.addListDataListener(ConfigChangeListener())  // Menu items are loaded on-demand, thus saving the config is enough
+        val ccl = ConfigChangeListener()
+        configModel.menuItems.addListDataListener(ccl)  // Menu items are loaded on-demand, thus saving the config is enough
         configModel.messageViewers.addListDataListener(ReloaderConfigChangeListener(
                 callbacks::getMessageEditorTabFactories, callbacks::removeMessageEditorTabFactory, ::registerMessageViewers))
         configModel.macros.addListDataListener(ReloaderConfigChangeListener(
