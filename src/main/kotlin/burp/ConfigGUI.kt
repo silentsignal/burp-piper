@@ -258,7 +258,7 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
     val mtw = MinimalToolWidget(httpListener.common, panel, cs)
 
     val lsScope = createLabeledWidget("Listen to ", JComboBox(HttpListenerRequestResponse.values()), panel, cs)
-    var btw = BurpToolWidget(httpListener.flagSet, panel, cs)
+    var btw = BurpToolWidget(httpListener.toolSet, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
