@@ -263,11 +263,11 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
     val mtw = MinimalToolWidget(httpListener.common, panel, cs)
 
     val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
-    var btw = BurpToolWidget(httpListener.toolSet, panel, cs)
+    val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
         val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
-        val bt = btw.toBurpToolSet()
+        val bt = btw.toSet()
 
         with (Piper.HttpListener.newBuilder()) {
             common = mt
@@ -803,51 +803,37 @@ else ((c.toLowerCase() - 'a') + 0xA)
 data class MessageMatchDialogState(var result: Piper.MessageMatch? = null, var header: Piper.HeaderMatch? = null)
 
 class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints) {
-    private val tfPattern: JTextField = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
-    private val cbFlags: Map<RegExpFlag, JCheckBox>
+    private val tfPattern = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
+    private val esw = EnumSetWidget(regex.flagSet, panel, cs, "Regular expression flags: (see JDK documentation)", RegExpFlag::class.java)
 
-    fun hasPattern(): Boolean {
-        return tfPattern.text.isNotEmpty()
-    }
+    fun hasPattern(): Boolean = tfPattern.text.isNotEmpty()
 
     fun toRegularExpression(): Piper.RegularExpression {
-        val flagSet = cbFlags.filterValues(JCheckBox::isSelected).keys
-        return Piper.RegularExpression.newBuilder().setPattern(tfPattern.text).setFlagSet(flagSet).build().apply { compile() }
-    }
-
-    init {
-        addFullWidthComponent(JLabel("Regular expression flags: (see JDK documentation)"), panel, cs)
-        cbFlags = createCheckBoxSet(RegExpFlag::class.java, regex.flagSet, panel, cs)
+        return Piper.RegularExpression.newBuilder().setPattern(tfPattern.text).setFlagSet(esw.toSet()).build().apply { compile() }
     }
 }
 
-class BurpToolWidget(tools: Set<BurpTool>, panel: Container, cs: GridBagConstraints) {
-    private val cbTools: Map<BurpTool, JCheckBox>
+class EnumSetWidget<E : Enum<E>>(set: Set<E>, panel: Container, cs: GridBagConstraints, caption: String, enumClass: Class<E>) {
+    private val cbMap: Map<E, JCheckBox>
 
-    fun toBurpToolSet(): Set<BurpTool> {
-        return cbTools.filterValues(JCheckBox::isSelected).keys
-    }
+    fun toSet(): Set<E> = cbMap.filterValues(JCheckBox::isSelected).keys
 
     init {
-        addFullWidthComponent(JLabel("sent/received by"), panel, cs)
-        cbTools = createCheckBoxSet(BurpTool::class.java, tools, panel, cs)
+        addFullWidthComponent(JLabel(caption), panel, cs)
+        cs.gridy++
+        cs.gridwidth = 1
+
+        cbMap = enumClass.enumConstants.asIterable().associateWithTo(EnumMap(enumClass)) {
+            val cb = createCheckBox(it.toString(), it in set, panel, cs)
+            if (cs.gridx == 0) {
+                cs.gridx = 1
+            } else {
+                cs.gridy++
+                cs.gridx = 0
+            }
+            cb
+        }.toMap() as Map<E, JCheckBox>
     }
-}
-
-private fun <E : Enum<E>> createCheckBoxSet(enumClass: Class<E>, selected: Set<E>, panel: Container, cs: GridBagConstraints): Map<E, JCheckBox> {
-    cs.gridy++
-    cs.gridwidth = 1
-
-    return enumClass.enumConstants.asIterable().associateWithTo(EnumMap(enumClass)) {
-        val cb = createCheckBox(it.toString(), it in selected, panel, cs)
-        if (cs.gridx == 0) {
-            cs.gridx = 1
-        } else {
-            cs.gridy++
-            cs.gridx = 0
-        }
-        cb
-    }.toMap() as Map<E, JCheckBox>
 }
 
 fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, parent: Component): Piper.MessageMatch? {
