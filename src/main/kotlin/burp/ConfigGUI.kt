@@ -223,13 +223,13 @@ class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocatio
     }
 }
 
-data class MessageViewerDialogState(var result: Piper.MessageViewer? = null)
+data class DialogState<E>(var result: E? = null)
 
 fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?): Piper.MessageViewer? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
-    val state = MessageViewerDialogState()
+    val state = DialogState<Piper.MessageViewer>()
 
     val mtw = MinimalToolWidget(messageViewer.common, panel, cs)
 
@@ -252,13 +252,11 @@ fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Componen
     return state.result
 }
 
-data class HttpListenerDialogState(var result: Piper.HttpListener? = null)
-
 fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?): Piper.HttpListener? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
-    val state = HttpListenerDialogState()
+    val state = DialogState<Piper.HttpListener>()
 
     val mtw = MinimalToolWidget(httpListener.common, panel, cs)
 
@@ -284,13 +282,11 @@ fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?)
     return state.result
 }
 
-data class CommentatorDialogState(var result: Piper.Commentator? = null)
-
 fun showCommentatorDialog(commentator: Piper.Commentator, parent: Component?): Piper.Commentator? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
-    val state = CommentatorDialogState()
+    val state = DialogState<Piper.Commentator>()
 
     val mtw = MinimalToolWidget(commentator.common, panel, cs)
 
@@ -325,13 +321,11 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
     return cb
 }
 
-data class MenuItemDialogState(var result: Piper.UserActionTool? = null)
-
 fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Piper.UserActionTool? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
-    val state = MenuItemDialogState()
+    val state = DialogState<Piper.UserActionTool>()
 
     val mtw = MinimalToolWidget(menuItem.common, panel, cs)
 
@@ -418,13 +412,11 @@ fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Conta
     return widget
 }
 
-data class HeaderMatchDialogState(var result: Piper.HeaderMatch? = null)
-
 fun showHeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component): Piper.HeaderMatch? {
     val dialog = JDialog()
     val panel = JPanel(GridBagLayout())
     val cs = GridBagConstraints()
-    val state = HeaderMatchDialogState()
+    val state = DialogState<Piper.HeaderMatch>()
     val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
             "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
 
