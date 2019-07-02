@@ -29,12 +29,12 @@ fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boole
 
         if (match.andAlsoCount > 0) {
             yield(match.andAlsoList.joinToString(separator = (if (negated) " or " else " and "),
-                    transform = { it.toHumanReadable(negation) } ))
+                    transform = { it.toHumanReadable(negated) } ))
         }
 
         if (match.orElseCount > 0) {
             yield(match.orElseList.joinToString(separator = (if (negated) " and " else " or "),
-                    transform = { it.toHumanReadable(negation) } ))
+                    transform = { it.toHumanReadable(negated) } ))
         }
     }.toList()
     val result = items.joinToString(separator = (if (negated) " or " else " and "))
