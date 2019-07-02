@@ -99,15 +99,9 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
     private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(cmd = tool.cmd, parent = panel)
     private val ccmw: CollapsedMessageMatchWidget = CollapsedMessageMatchWidget(mm = tool.filter, showHeaderMatch = true, caption = "Filter: ")
 
-    fun toMinimalTool(dialog: Component): Piper.MinimalTool? {
-        if (tfName.text.isEmpty()) {
-            JOptionPane.showMessageDialog(dialog, "Name cannot be empty.")
-            return null
-        }
-        if (cciw.cmd.prefixCount + cciw.cmd.postfixCount == 0) {
-            JOptionPane.showMessageDialog(dialog, "The command must contain at least one argument.")
-            return null
-        }
+    fun toMinimalTool(): Piper.MinimalTool {
+        if (tfName.text.isEmpty()) throw RuntimeException("Name cannot be empty.")
+        if (cciw.cmd.prefixCount + cciw.cmd.postfixCount == 0) throw RuntimeException("The command must contain at least one argument.")
 
         val f = ccmw.mm
         with (Piper.MinimalTool.newBuilder()) {
@@ -240,29 +234,28 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
         return state
     }
 
-    abstract fun processGUI(): Boolean
+    abstract fun processGUI()
 }
 
 abstract class MinimalToolDialog<E>(common: Piper.MinimalTool, parent: Component?) : ConfigDialog<E>(parent) {
     private val mtw = MinimalToolWidget(common, panel, cs)
 
-    override fun processGUI(): Boolean {
-        return processGUI(mtw.toMinimalTool(this) ?: return false)
+    override fun processGUI() {
+        processGUI(mtw.toMinimalTool())
     }
 
-    abstract fun processGUI(mt: Piper.MinimalTool): Boolean
+    abstract fun processGUI(mt: Piper.MinimalTool)
 }
 
 class MessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?) : MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent) {
     private val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
-    override fun processGUI(mt: Piper.MinimalTool): Boolean {
+    override fun processGUI(mt: Piper.MinimalTool) {
         with (Piper.MessageViewer.newBuilder()) {
             common = mt
             if (cbUsesColors.isSelected) usesColors = true
             state = build()
         }
-        return true
     }
 
     init {
@@ -275,7 +268,7 @@ class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) :
     private val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
-    override fun processGUI(mt: Piper.MinimalTool): Boolean {
+    override fun processGUI(mt: Piper.MinimalTool) {
         val bt = btw.toSet()
         with (Piper.HttpListener.newBuilder()) {
             common = mt
@@ -283,7 +276,6 @@ class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) :
             if (bt.size < BurpTool.values().size) setToolSet(bt)
             state = build()
         }
-        return true
     }
 
     init {
@@ -296,14 +288,13 @@ class CommentatorDialog(commentator: Piper.Commentator, parent: Component?) : Mi
     private val cbOverwrite: JCheckBox
     private val lsSource: JComboBox<ConfigRequestResponse>
 
-    override fun processGUI(mt: Piper.MinimalTool): Boolean {
+    override fun processGUI(mt: Piper.MinimalTool) {
         with (Piper.Commentator.newBuilder()) {
             common = mt
             source = (lsSource.selectedItem as ConfigRequestResponse).rr
             if (cbOverwrite.isSelected) overwrite = true
             state = build()
         }
-        return true
     }
 
     init {
@@ -330,15 +321,12 @@ class MenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?) : Minim
     private val smMinInputs: SpinnerNumberModel
     private val smMaxInputs: SpinnerNumberModel
 
-    override fun processGUI(mt: Piper.MinimalTool): Boolean {
+    override fun processGUI(mt: Piper.MinimalTool) {
         val minInputsValue = smMinInputs.number.toInt()
         val maxInputsValue = smMaxInputs.number.toInt()
 
-        if (maxInputsValue in 1 until minInputsValue) {
-            JOptionPane.showMessageDialog(this, "Maximum allowed number of selected items cannot " +
-                    "be lower than minimum required number of selected items.")
-            return false
-        }
+        if (maxInputsValue in 1 until minInputsValue) throw RuntimeException(
+            "Maximum allowed number of selected items cannot be lower than minimum required number of selected items.")
 
         with (Piper.UserActionTool.newBuilder()) {
             common = mt
@@ -347,7 +335,6 @@ class MenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?) : Minim
             if (maxInputsValue > 0) maxInputs = maxInputsValue
             state = build()
         }
-        return true
     }
 
     init {
@@ -374,9 +361,8 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
 }
 
 class MacroDialog(macro: Piper.MinimalTool, parent: Component?) : MinimalToolDialog<Piper.MinimalTool>(macro, parent) {
-    override fun processGUI(mt: Piper.MinimalTool): Boolean {
+    override fun processGUI(mt: Piper.MinimalTool) {
         state = mt
-        return true
     }
 
     init {
@@ -417,24 +403,15 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
         title = "Header filter editor"
     }
 
-    override fun processGUI(): Boolean {
+    override fun processGUI() {
         val text = cbHeader.selectedItem?.toString()
-        if (text.isNullOrEmpty()) {
-            JOptionPane.showMessageDialog(this, "The header name cannot be empty.")
-            return false
-        }
+        if (text.isNullOrEmpty()) throw RuntimeException("The header name cannot be empty.")
 
-        try {
-            with(Piper.HeaderMatch.newBuilder()) {
-                header = text
-                regex = regExpWidget.toRegularExpression()
-                state = build()
-            }
-        } catch (pse: PatternSyntaxException) {
-            JOptionPane.showMessageDialog(this, pse.message)
-            return false
+        with(Piper.HeaderMatch.newBuilder()) {
+            header = text
+            regex = regExpWidget.toRegularExpression()
+            state = build()
         }
-        return true
     }
 }
 
@@ -617,12 +594,10 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
                 try {
                     addAllExitCode(state.parseExitCodeList())
                 } catch (e: NumberFormatException) {
-                    JOptionPane.showMessageDialog(dialog, "Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
-                    return@createOkCancelButtonsPanel false
+                    throw RuntimeException("Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
                 }
                 if (ccmwStdout.mm == null && ccmwStderr.mm == null && exitCodeCount == 0) {
-                    JOptionPane.showMessageDialog(dialog, "No filters are defined for stdio or exit code.")
-                    return@createOkCancelButtonsPanel  false
+                    throw RuntimeException("No filters are defined for stdio or exit code.")
                 }
             }
             val params = paramsModel.map(CommandLineParameter::value)
@@ -634,7 +609,6 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
             if (cbPassHeaders.isSelected) passHeaders = true
             state.result = build()
         }
-        true
     }
     addFullWidthComponent(pnButtons, panel, cs)
     showModalDialog(800, 600, panel, "Command invocation editor", dialog, parent)
@@ -687,13 +661,18 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
     }
 }
 
-private fun JDialog.createOkCancelButtonsPanel(okHandler: () -> Boolean): Component {
+private fun JDialog.createOkCancelButtonsPanel(okHandler: () -> Unit): Component {
     val btnOK = JButton("OK")
     val btnCancel = JButton("Cancel")
     rootPane.defaultButton = btnOK
 
     btnOK.addActionListener {
-        if (okHandler()) isVisible = false
+        try {
+            okHandler()
+            isVisible = false
+        } catch (e: Exception) {
+            JOptionPane.showMessageDialog(this, e.message)
+        }
     }
 
     btnCancel.addActionListener {
@@ -758,11 +737,10 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         chunked(2, ::parseHexByte).toByteArray()
     }
 
-    fun getByteString(dialog: Component): ByteString? = if (isASCII) ByteString.copyFromUtf8(tf.text) else try {
+    fun getByteString(): ByteString = if (isASCII) ByteString.copyFromUtf8(tf.text) else try {
         ByteString.copyFrom(parseHex())
     } catch (e: NumberFormatException) {
-        JOptionPane.showMessageDialog(dialog, "Error in $field field: hexadecimal string ${e.message}")
-        null
+        throw RuntimeException("Error in $field field: hexadecimal string ${e.message}")
     }
 
     fun addWidgets(caption: String, cs: GridBagConstraints, panel: Container) {
@@ -898,17 +876,10 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
 
         if ((cbNegation.selectedItem as MatchNegation).negation) builder.negation = true
 
-        builder.postfix = postfixField.getByteString(dialog) ?: return@createOkCancelButtonsPanel false
-        builder.prefix  =  prefixField.getByteString(dialog) ?: return@createOkCancelButtonsPanel false
+        builder.postfix = postfixField.getByteString(dialog)
+        builder.prefix  =  prefixField.getByteString(dialog)
 
-        if (regExpWidget.hasPattern()) {
-            try {
-                builder.regex = regExpWidget.toRegularExpression()
-            } catch (pse: PatternSyntaxException) {
-                JOptionPane.showMessageDialog(dialog, pse.message)
-                return@createOkCancelButtonsPanel false
-            }
-        }
+        if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
 
         if (state.header != null) builder.header = state.header
 
@@ -918,7 +889,6 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
         builder.addAllOrElse (orElseModel .map(MessageMatchWrapper::cfgItem))
 
         state.result = builder.build()
-        true
     }
     panel.add(pnButtons, cs)
     showModalDialog(800, 600, panel, "Filter editor", dialog, parent)
