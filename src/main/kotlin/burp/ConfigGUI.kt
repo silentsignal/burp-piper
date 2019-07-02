@@ -176,7 +176,7 @@ open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation, pr
         cs.gridx = 2 ; panel.add(btnEdit, cs)
     }
 
-    open fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = false, parent = parent)
+    open fun showDialog(): Piper.CommandInvocation? = CommandInvocationDialog(cmd, showFilters = false, parent = parent).showGUI()
 
     init {
         btnEdit.addActionListener {
@@ -205,7 +205,7 @@ class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocatio
         }
     }
 
-    override fun showDialog(): Piper.CommandInvocation? = showCommandInvocationDialog(cmd, showFilters = true, parent = parent)
+    override fun showDialog(): Piper.CommandInvocation? = CommandInvocationDialog(cmd, showFilters = true, parent = parent).showGUI()
 
     override fun buildGUI(panel: Container, cs: GridBagConstraints) {
         super.buildGUI(panel, cs)
@@ -413,14 +413,6 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
     }
 }
 
-data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = null, var tfExitCode: JTextField? = null) {
-    fun parseExitCodeList(): Iterable<Int> {
-        val text = tfExitCode!!.text
-        return if (text.isEmpty()) emptyList()
-        else text.filterNot(Char::isWhitespace).split(',').map(String::toInt)
-    }
-}
-
 const val CMDLINE_INPUT_FILENAME_PLACEHOLDER = "<INPUT>"
 
 data class CommandLineParameter(val value: String?) { // null = input file name
@@ -428,169 +420,180 @@ data class CommandLineParameter(val value: String?) { // null = input file name
     override fun toString(): String = if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
 }
 
-fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolean, parent: Component): Piper.CommandInvocation? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val state = CommandInvocationDialogState()
-    val ccmwStdout = CollapsedMessageMatchWidget(mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
-    val ccmwStderr = CollapsedMessageMatchWidget(mm = ci.stderr, showHeaderMatch = false, caption = "Match on stderr: ")
-    val monospaced12 = Font("monospaced", Font.PLAIN, 12)
+class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilters: Boolean, parent: Component) : ConfigDialog<Piper.CommandInvocation>(parent) {
+    private val ccmwStdout = CollapsedMessageMatchWidget(mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
+    private val ccmwStderr = CollapsedMessageMatchWidget(mm = ci.stderr, showHeaderMatch = false, caption = "Match on stderr: ")
+    private val monospaced12 = Font("monospaced", Font.PLAIN, 12)
+    private var tfExitCode: JTextField? = null
+    private val cbPassHeaders: JCheckBox
 
-    val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
-
-    val paramsModel = fillDefaultModel(sequence {
+    private val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
+    private val paramsModel = fillDefaultModel(sequence {
         yieldAll(ci.prefixList)
         if (hasFileName) yield(null)
         yieldAll(ci.postfixList)
     }, ::CommandLineParameter)
-    val lsParams = JList<CommandLineParameter>(paramsModel)
-    lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
-    lsParams.font = monospaced12
 
-    lsParams.cellRenderer = object : DefaultListCellRenderer() {
-        override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
-            val c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-            val v = value as CommandLineParameter
-            if (v.isInputFileName()) {
-                c.background = Color.RED
-                c.foreground = if (isSelected) Color.YELLOW else Color.WHITE
+    fun parseExitCodeList(): Iterable<Int> {
+        val text = tfExitCode!!.text
+        return if (text.isEmpty()) emptyList()
+        else text.filterNot(Char::isWhitespace).split(',').map(String::toInt)
+    }
+
+    init {
+        val lsParams = JList<CommandLineParameter>(paramsModel)
+        lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+        lsParams.font = monospaced12
+
+        lsParams.cellRenderer = object : DefaultListCellRenderer() {
+            override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
+                val c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+                val v = value as CommandLineParameter
+                if (v.isInputFileName()) {
+                    c.background = Color.RED
+                    c.foreground = if (isSelected) Color.YELLOW else Color.WHITE
+                }
+                return c
             }
-            return c
         }
-    }
 
-    lsParams.addDoubleClickListener {
-        if (paramsModel[it].isInputFileName()) {
-            JOptionPane.showMessageDialog(dialog, CMDLINE_INPUT_FILENAME_PLACEHOLDER +
-                    " is a special placeholder for the names of the input file(s), and thus cannot be edited.")
-            return@addDoubleClickListener
+        lsParams.addDoubleClickListener {
+            if (paramsModel[it].isInputFileName()) {
+                JOptionPane.showMessageDialog(this, CMDLINE_INPUT_FILENAME_PLACEHOLDER +
+                        " is a special placeholder for the names of the input file(s), and thus cannot be edited.")
+                return@addDoubleClickListener
+            }
+            paramsModel[it] = CommandLineParameter(
+                    JOptionPane.showInputDialog(this, "Edit command line parameter no. ${it + 1}:", paramsModel[it].value)
+                            ?: return@addDoubleClickListener)
         }
-        paramsModel[it] = CommandLineParameter(
-                JOptionPane.showInputDialog(dialog, "Edit command line parameter no. ${it + 1}:", paramsModel[it].value)
-                        ?: return@addDoubleClickListener)
-    }
 
-    cs.fill = GridBagConstraints.HORIZONTAL
-    cs.gridy = 0
-    cs.gridx = 0
-    cs.gridwidth = 3
+        cs.gridwidth = 3
 
-    panel.add(JLabel("Command line parameters: (one per line)"), cs)
+        panel.add(JLabel("Command line parameters: (one per line)"), cs)
 
-    cs.gridy = 1
-    cs.gridheight = 3
+        cs.gridy = 1
+        cs.gridheight = 3
 
-    panel.add(JScrollPane(lsParams), cs)
+        panel.add(JScrollPane(lsParams), cs)
 
-    val btnMoveUp = JButton("Move up")
-    btnMoveUp.addActionListener {
-        val si = lsParams.selectedIndices
-        if (si.isEmpty() || si[0] == 0) return@addActionListener
-        si.forEach {
-            paramsModel.insertElementAt(paramsModel.remove(it - 1), it)
+        val btnMoveUp = JButton("Move up")
+        btnMoveUp.addActionListener {
+            val si = lsParams.selectedIndices
+            if (si.isEmpty() || si[0] == 0) return@addActionListener
+            si.forEach {
+                paramsModel.insertElementAt(paramsModel.remove(it - 1), it)
+            }
         }
-    }
 
-    val btnMoveDown = JButton("Move down")
-    btnMoveDown.addActionListener {
-        val si = lsParams.selectedIndices
-        if (si.isEmpty() || si.last() == paramsModel.size - 1) return@addActionListener
-        si.reversed().forEach {
-            paramsModel.insertElementAt(paramsModel.remove(it + 1), it)
+        val btnMoveDown = JButton("Move down")
+        btnMoveDown.addActionListener {
+            val si = lsParams.selectedIndices
+            if (si.isEmpty() || si.last() == paramsModel.size - 1) return@addActionListener
+            si.reversed().forEach {
+                paramsModel.insertElementAt(paramsModel.remove(it + 1), it)
+            }
+            lsParams.selectedIndices = si.map { it + 1 }.toIntArray()
         }
-        lsParams.selectedIndices = si.map { it + 1 }.toIntArray()
-    }
 
-    cs.gridx = 3
-    cs.gridwidth = 1
-    cs.gridheight = 1
+        cs.gridx = 3
+        cs.gridwidth = 1
+        cs.gridheight = 1
 
-    panel.add(createRemoveButton("Remove", lsParams, paramsModel), cs)
+        panel.add(createRemoveButton("Remove", lsParams, paramsModel), cs)
 
-    cs.gridy = 2 ; panel.add(btnMoveUp,   cs)
-    cs.gridy = 3 ; panel.add(btnMoveDown, cs)
+        cs.gridy = 2; panel.add(btnMoveUp, cs)
+        cs.gridy = 3; panel.add(btnMoveDown, cs)
 
-    val tfParam = JTextField()
-    val cbSpace = JCheckBox("Auto-add upon pressing space or closing quotes")
-    val btnAdd = JButton("Add")
+        val tfParam = JTextField()
+        val cbSpace = JCheckBox("Auto-add upon pressing space or closing quotes")
+        val btnAdd = JButton("Add")
 
-    btnAdd.addActionListener {
-        paramsModel.addElement(CommandLineParameter(tfParam.text))
-        tfParam.text = ""
-    }
+        btnAdd.addActionListener {
+            paramsModel.addElement(CommandLineParameter(tfParam.text))
+            tfParam.text = ""
+        }
 
-    tfParam.font = monospaced12
-    tfParam.addKeyListener(object : KeyAdapter() {
-        override fun keyTyped(e: KeyEvent) {
-            if (cbSpace.isSelected) {
-                val t = tfParam.text
-                if (t.startsWith('"')) {
-                    if (e.keyChar == '"') {
-                        tfParam.text = t.substring(1)
+        tfParam.font = monospaced12
+        tfParam.addKeyListener(object : KeyAdapter() {
+            override fun keyTyped(e: KeyEvent) {
+                if (cbSpace.isSelected) {
+                    val t = tfParam.text
+                    if (t.startsWith('"')) {
+                        if (e.keyChar == '"') {
+                            tfParam.text = t.substring(1)
+                            btnAdd.doClick()
+                            e.consume()
+                        }
+                    } else if (t.startsWith('\'')) {
+                        if (e.keyChar == '\'') {
+                            tfParam.text = t.substring(1)
+                            btnAdd.doClick()
+                            e.consume()
+                        }
+                    } else if (e.keyChar == ' ') {
                         btnAdd.doClick()
                         e.consume()
                     }
-                } else if (t.startsWith('\'')) {
-                    if (e.keyChar == '\'') {
-                        tfParam.text = t.substring(1)
-                        btnAdd.doClick()
-                        e.consume()
-                    }
-                } else if (e.keyChar == ' ') {
-                    btnAdd.doClick()
-                    e.consume()
                 }
             }
+        })
+
+        cbSpace.isSelected = true
+
+        cs.gridy = 4
+        cs.gridwidth = 1
+
+        cs.gridx = 0; cs.gridwidth = 1; panel.add(JLabel("Add parameter: "), cs)
+        cs.gridx = 1; cs.gridwidth = 2; panel.add(tfParam, cs)
+        cs.gridx = 3; cs.gridwidth = 1; panel.add(btnAdd, cs)
+
+        cs.gridy = 5
+        cs.gridx = 0
+        cs.gridwidth = 3
+        panel.add(cbSpace, cs)
+
+        cs.gridy = 6
+
+        InputMethodWidget.create(panel, cs, hasFileName, paramsModel)
+
+        cs.gridy = 7
+        cs.gridx = 0
+        cs.gridwidth = 4
+
+        cbPassHeaders = createCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
+
+        if (showFilters) {
+            val exitValues = ci.exitCodeList.joinToString(", ")
+
+            cs.gridy = 8; ccmwStdout.buildGUI(panel, cs)
+            cs.gridy = 9; ccmwStderr.buildGUI(panel, cs)
+            cs.gridy = 10;
+            val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
+
+            tfExitCode.inputVerifier = object : InputVerifier() {
+                override fun verify(input: JComponent?): Boolean =
+                        try {
+                            parseExitCodeList(); true
+                        } catch (e: NumberFormatException) {
+                            false
+                        }
+            }
+
+            this.tfExitCode = tfExitCode
         }
-    })
 
-    cbSpace.isSelected = true
-
-    cs.gridy = 4
-    cs.gridwidth = 1
-
-    cs.gridx = 0 ; cs.gridwidth = 1; panel.add(JLabel("Add parameter: "), cs)
-    cs.gridx = 1 ; cs.gridwidth = 2; panel.add(tfParam, cs)
-    cs.gridx = 3 ; cs.gridwidth = 1; panel.add(btnAdd, cs)
-
-    cs.gridy = 5
-    cs.gridx = 0
-    cs.gridwidth = 3
-    panel.add(cbSpace, cs)
-
-    cs.gridy = 6
-
-    InputMethodWidget.create(panel, cs, hasFileName, paramsModel)
-
-    cs.gridy = 7
-    cs.gridx = 0
-    cs.gridwidth = 4
-
-    val cbPassHeaders = createCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
-
-    if (showFilters) {
-        val exitValues = ci.exitCodeList.joinToString(", ")
-
-        cs.gridy = 8 ; ccmwStdout.buildGUI(panel, cs)
-        cs.gridy = 9 ; ccmwStderr.buildGUI(panel, cs)
-        cs.gridy = 10 ; val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
-
-        tfExitCode.inputVerifier = object : InputVerifier() {
-            override fun verify(input: JComponent?): Boolean =
-                    try { state.parseExitCodeList(); true } catch (e: NumberFormatException) { false }
-        }
-
-        state.tfExitCode = tfExitCode
+        setSize(800, 600)
+        title = "Command invocation editor"
     }
 
-    val pnButtons = dialog.createOkCancelButtonsPanel {
+    override fun processGUI() {
         with (Piper.CommandInvocation.newBuilder()) {
             if (showFilters) {
                 if (ccmwStdout.mm != null) stdout = ccmwStdout.mm
                 if (ccmwStderr.mm != null) stderr = ccmwStderr.mm
                 try {
-                    addAllExitCode(state.parseExitCodeList())
+                    addAllExitCode(parseExitCodeList())
                 } catch (e: NumberFormatException) {
                     throw RuntimeException("Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
                 }
@@ -605,13 +608,9 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
                 addAllPostfix(params.drop(prefixCount + 1))
             }
             if (cbPassHeaders.isSelected) passHeaders = true
-            state.result = build()
+            state = build()
         }
     }
-    addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, "Command invocation editor", dialog, parent)
-
-    return state.result
 }
 
 private class InputMethodWidget(private val label: JLabel = JLabel(),
