@@ -628,8 +628,8 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
         cs.gridy = 10 ; val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
 
         tfExitCode.inputVerifier = object : InputVerifier() {
-            override fun verify(input: JComponent?): Boolean = tfExitCode.text.isEmpty() ||
-                    tfExitCode.text.filterNot(Char::isWhitespace).split(',').all { it.isNotEmpty() && it.all(Char::isDigit) }
+            override fun verify(input: JComponent?): Boolean =
+                    try { state.parseExitCodeList(); true } catch (e: NumberFormatException) { false }
         }
 
         state.tfExitCode = tfExitCode
