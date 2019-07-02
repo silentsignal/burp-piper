@@ -559,13 +559,8 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
 
     panel.add(createRemoveButton("Remove", lsParams, paramsModel), cs)
 
-    cs.gridy = 2
-
-    panel.add(btnMoveUp, cs)
-
-    cs.gridy = 3
-
-    panel.add(btnMoveDown, cs)
+    cs.gridy = 2 ; panel.add(btnMoveUp,   cs)
+    cs.gridy = 3 ; panel.add(btnMoveDown, cs)
 
     val tfParam = JTextField()
     val cbSpace = JCheckBox("Auto-add upon pressing space or closing quotes")
