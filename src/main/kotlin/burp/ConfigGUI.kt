@@ -651,7 +651,6 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
             imw.update()
             cs.gridwidth = 2
             cs.gridx = 0 ; panel.add(imw.label, cs)
-            cs.gridwidth = 2
             cs.gridx = 2 ; panel.add(imw.button, cs)
 
             paramsModel.addListDataListener(object : ListDataListener {
