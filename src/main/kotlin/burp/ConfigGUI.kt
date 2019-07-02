@@ -223,8 +223,6 @@ class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocatio
     }
 }
 
-data class DialogState<E>(var result: E? = null)
-
 abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
     protected val panel = JPanel(GridBagLayout())
     protected val cs = GridBagConstraints()
