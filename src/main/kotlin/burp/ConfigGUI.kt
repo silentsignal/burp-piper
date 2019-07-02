@@ -792,9 +792,16 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
     private val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd, this)
     private val cbNegation = JComboBox(MatchNegation.values())
     private val regExpWidget: RegExpWidget
-    private var header: Piper.HeaderMatch? = null
+    private var header: Piper.HeaderMatch? = if (mm.hasHeader()) mm.header else null
     private val andAlsoModel: DefaultListModel<MessageMatchWrapper>
     private val orElseModel: DefaultListModel<MessageMatchWrapper>
+    private val lbHeader = JLabel()
+    private val btnHeaderRemove = JButton("Remove")
+
+    private fun updateHeaderGUI() {
+        btnHeaderRemove.isEnabled = header != null
+        lbHeader.text = header?.toHumanReadable(false) ?: "(no header match)"
+    }
 
     init {
         cs.gridwidth = 4
@@ -810,40 +817,25 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         regExpWidget = RegExpWidget(mm.regex, panel, cs)
 
         if (showHeaderMatch) {
-            cs.gridy++
-            cs.gridx = 0
-
-            panel.add(JLabel("Header: "), cs)
-
-            cs.gridx = 1
-
-            val lbHeader = JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)")
-            if (mm.hasHeader()) header = mm.header
-            panel.add(lbHeader, cs)
-
-            cs.gridx = 2
-
             val btnHeaderEdit = JButton("Edit...")
-            panel.add(btnHeaderEdit, cs)
+            updateHeaderGUI()
 
-            cs.gridx = 3
-
-            val btnHeaderRemove = JButton("Remove")
-            panel.add(btnHeaderRemove, cs)
-            btnHeaderRemove.isEnabled = mm.hasHeader()
+            cs.gridy++
+            cs.gridx = 0 ; panel.add(JLabel("Header: "), cs)
+            cs.gridx = 1 ; panel.add(lbHeader, cs)
+            cs.gridx = 2 ; panel.add(btnHeaderEdit, cs)
+            cs.gridx = 3 ; panel.add(btnHeaderRemove, cs)
 
             btnHeaderEdit.addActionListener {
                 val current = header ?: Piper.HeaderMatch.getDefaultInstance()
                 val header = HeaderMatchDialog(current, this).showGUI() ?: return@addActionListener
-                lbHeader.text = header.toHumanReadable(false)
                 this.header = header
-                btnHeaderRemove.isEnabled = true
+                updateHeaderGUI()
             }
 
             btnHeaderRemove.addActionListener {
-                lbHeader.text = "(no header match)"
                 header = null
-                btnHeaderRemove.isEnabled = false
+                updateHeaderGUI()
             }
         }
 
