@@ -1,25 +1,4 @@
-macros:
-- prefix: [sed, 's/foo/bar/g']
-  inputMethod: stdin
-  passHeaders: true
-  name: "foo -> bar with headers"
-- prefix: [sed, 's/foo/bar/g']
-  inputMethod: stdin
-  passHeaders: false
-  name: "foo -> bar without headers"
 messageViewers:
-- prefix: [rev]
-  inputMethod: stdin
-  passHeaders: true
-  name: rev
-  filter:
-    header:
-      header: content-type
-      regex: {pattern: ^text/}
-- prefix: [pygmentize, -g]
-  inputMethod: stdin
-  name: Pygmentize
-  usesColors: true
 - prefix: [openssl, asn1parse, -inform, DER, -i]
   inputMethod: stdin
   name: OpenSSL ASN.1 decoder
@@ -36,6 +15,9 @@ messageViewers:
     orElse:
     - {prefix: '{', postfix: '}'}
     - {prefix: '[', postfix: ']'}
+- prefix: [hd]
+  inputMethod: stdin
+  name: hd
 menuItems:
 - prefix: [okular]
   inputMethod: filename
@@ -75,5 +57,15 @@ menuItems:
 - prefix: [git, diff, --color=always]
   inputMethod: filename
   name: git diff
+  minInputs: 2
+  maxInputs: 2
+- prefix: [git, diff, --color=always, -w]
+  inputMethod: filename
+  name: git diff (ignore whitespace)
+  minInputs: 2
+  maxInputs: 2
+- prefix: [radiff2, -x]
+  inputMethod: filename
+  name: radiff2 (two column hexdump diffing)
   minInputs: 2
   maxInputs: 2
