@@ -295,7 +295,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             val cfg = loadDefaultConfig()
             val dialog = JDialog()
             be.populateTabs(ConfigModel(cfg), dialog)
-            showModalDialog(800, 600, be.uiComponent, NAME, dialog, null)
+            showModalDialog(900, 600, be.uiComponent, NAME, dialog, null)
         }
     }
 }
