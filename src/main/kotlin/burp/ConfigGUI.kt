@@ -225,16 +225,13 @@ class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocatio
 
 data class DialogState<E>(var result: E? = null)
 
-abstract class ConfigDialog<E>(common: Piper.MinimalTool, private val parent: Component?) : JDialog() {
+abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
     protected val panel = JPanel(GridBagLayout())
     protected val cs = GridBagConstraints()
     protected var state: E? = null
-    private val mtw = MinimalToolWidget(common, panel, cs)
 
     fun showGUI(): E? {
-        val pnButtons = createOkCancelButtonsPanel {
-            processGUI(mtw.toMinimalTool(this) ?: return@createOkCancelButtonsPanel false)
-        }
+        val pnButtons = createOkCancelButtonsPanel(this::processGUI)
         addFullWidthComponent(pnButtons, panel, cs)
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(panel)
@@ -245,10 +242,20 @@ abstract class ConfigDialog<E>(common: Piper.MinimalTool, private val parent: Co
         return state
     }
 
+    abstract fun processGUI(): Boolean
+}
+
+abstract class MinimalToolDialog<E>(common: Piper.MinimalTool, parent: Component?) : ConfigDialog<E>(parent) {
+    private val mtw = MinimalToolWidget(common, panel, cs)
+
+    override fun processGUI(): Boolean {
+        return processGUI(mtw.toMinimalTool(this) ?: return false)
+    }
+
     abstract fun processGUI(mt: Piper.MinimalTool): Boolean
 }
 
-class MessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?) : ConfigDialog<Piper.MessageViewer>(messageViewer.common, parent) {
+class MessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?) : MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent) {
     private val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Boolean {
@@ -266,7 +273,7 @@ class MessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?
     }
 }
 
-class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) : ConfigDialog<Piper.HttpListener>(httpListener.common, parent) {
+class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) : MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent) {
     private val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
@@ -287,7 +294,7 @@ class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) :
     }
 }
 
-class CommentatorDialog(commentator: Piper.Commentator, parent: Component?) : ConfigDialog<Piper.Commentator>(commentator.common, parent) {
+class CommentatorDialog(commentator: Piper.Commentator, parent: Component?) : MinimalToolDialog<Piper.Commentator>(commentator.common, parent) {
     private val cbOverwrite: JCheckBox
     private val lsSource: JComboBox<ConfigRequestResponse>
 
@@ -320,7 +327,7 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
     return cb
 }
 
-class MenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?) : ConfigDialog<Piper.UserActionTool>(menuItem.common, parent) {
+class MenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?) : MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent) {
     private val cbHasGUI: JCheckBox
     private val smMinInputs: SpinnerNumberModel
     private val smMaxInputs: SpinnerNumberModel
@@ -368,7 +375,7 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
     return model
 }
 
-class MacroDialog(macro: Piper.MinimalTool, parent: Component?) : ConfigDialog<Piper.MinimalTool>(macro, parent) {
+class MacroDialog(macro: Piper.MinimalTool, parent: Component?) : MinimalToolDialog<Piper.MinimalTool>(macro, parent) {
     override fun processGUI(mt: Piper.MinimalTool): Boolean {
         state = mt
         return true
