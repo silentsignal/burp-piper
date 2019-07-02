@@ -789,7 +789,7 @@ class EnumSetWidget<E : Enum<E>>(set: Set<E>, panel: Container, cs: GridBagConst
     }
 }
 
-class MessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent) {
+class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent) {
     private val prefixField  = HexASCIITextField("prefix",  mm.prefix,  this)
     private val postfixField = HexASCIITextField("postfix", mm.postfix, this)
     private val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd, this)
@@ -855,8 +855,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, paren
         cciw.buildGUI(panel, cs)
 
         val spList = JSplitPane()
-        val (andAlsoPanel, andAlsoModelLocal) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList, showHeaderMatch, this)
-        val ( orElsePanel,  orElseModelLocal) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList,  showHeaderMatch, this)
+        val (andAlsoPanel, andAlsoModelLocal) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList)
+        val ( orElsePanel,  orElseModelLocal) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList)
         spList.leftComponent = andAlsoPanel
         spList.rightComponent = orElsePanel
         andAlsoModel = andAlsoModelLocal
@@ -889,60 +889,60 @@ class MessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, paren
 
         state = builder.build()
     }
-}
 
-private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean, parent: Component): Pair<Component, DefaultListModel<MessageMatchWrapper>> {
-    val model = fillDefaultModel(source, ::MessageMatchWrapper)
+    private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>): Pair<Component, DefaultListModel<MessageMatchWrapper>> {
+        val model = fillDefaultModel(source, ::MessageMatchWrapper)
 
-    val list = JList<MessageMatchWrapper>(model)
-    val toolbar = JPanel()
+        val list = JList<MessageMatchWrapper>(model)
+        val toolbar = JPanel()
 
-    val btnAdd = JButton("+")
-    val btnEdit = JButton("Edit")
+        val btnAdd = JButton("+")
+        val btnEdit = JButton("Edit")
 
-    list.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+        list.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
 
-    btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
-    list.addListSelectionListener {
         btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
+        list.addListSelectionListener {
+            btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
+        }
+
+        btnAdd.addActionListener {
+            model.addElement(MessageMatchWrapper(
+                    MessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
+                            showHeaderMatch = showHeaderMatch, parent = this).showGUI() ?: return@addActionListener))
+        }
+
+        btnEdit.addActionListener {
+            val edited = MessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener,
+                    showHeaderMatch = showHeaderMatch, parent = this).showGUI()
+            if (edited != null) model.set(list.selectedIndex, MessageMatchWrapper(edited))
+        }
+
+        with (toolbar) {
+            layout = BoxLayout(toolbar, BoxLayout.LINE_AXIS)
+            add(btnAdd)
+            add(Box.createRigidArea(Dimension(4, 0)))
+            add(createRemoveButton("--", list, model))
+            add(Box.createRigidArea(Dimension(4, 0)))
+            add(btnEdit)
+        }
+
+        val panel = JPanel()
+
+        with (panel) {
+            layout = BorderLayout()
+            border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
+            add(JLabel(caption), BorderLayout.NORTH)
+            add(JScrollPane(list), BorderLayout.CENTER)
+            add(toolbar, BorderLayout.SOUTH)
+        }
+
+        list.addDoubleClickListener {
+            btnEdit.doClick()
+        }
+
+        return panel to model
     }
-
-    btnAdd.addActionListener {
-        model.addElement(MessageMatchWrapper(
-                MessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
-                        showHeaderMatch = showHeaderMatch, parent = parent).showGUI() ?: return@addActionListener))
-    }
-
-    btnEdit.addActionListener {
-        val edited = MessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener,
-                showHeaderMatch = showHeaderMatch, parent = parent).showGUI()
-        if (edited != null) model.set(list.selectedIndex, MessageMatchWrapper(edited))
-    }
-
-    with (toolbar) {
-        layout = BoxLayout(toolbar, BoxLayout.LINE_AXIS)
-        add(btnAdd)
-        add(Box.createRigidArea(Dimension(4, 0)))
-        add(createRemoveButton("--", list, model))
-        add(Box.createRigidArea(Dimension(4, 0)))
-        add(btnEdit)
-    }
-
-    val panel = JPanel()
-
-    with (panel) {
-        layout = BorderLayout()
-        border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
-        add(JLabel(caption), BorderLayout.NORTH)
-        add(JScrollPane(list), BorderLayout.CENTER)
-        add(toolbar, BorderLayout.SOUTH)
-    }
-
-    list.addDoubleClickListener {
-        btnEdit.doClick()
-    }
-
-    return panel to model
 }
 
 private fun <E> createRemoveButton(caption: String, listWidget: JList<E>, listModel: DefaultListModel<E>): JButton {
