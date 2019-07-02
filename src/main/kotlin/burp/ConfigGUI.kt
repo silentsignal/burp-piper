@@ -223,8 +223,7 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
     protected var state: E? = null
 
     fun showGUI(): E? {
-        val pnButtons = createOkCancelButtonsPanel(this::processGUI)
-        addFullWidthComponent(pnButtons, panel, cs)
+        addFullWidthComponent(createOkCancelButtonsPanel(), panel, cs)
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(panel)
         setSize(width, height)
@@ -232,6 +231,30 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
         isModal = true
         isVisible = true
         return state
+    }
+
+    private fun createOkCancelButtonsPanel(): Component {
+        val btnOK = JButton("OK")
+        val btnCancel = JButton("Cancel")
+        rootPane.defaultButton = btnOK
+
+        btnOK.addActionListener {
+            try {
+                processGUI()
+                isVisible = false
+            } catch (e: Exception) {
+                JOptionPane.showMessageDialog(this, e.message)
+            }
+        }
+
+        btnCancel.addActionListener {
+            isVisible = false
+        }
+
+        return JPanel().apply {
+            add(btnOK)
+            add(btnCancel)
+        }
     }
 
     abstract fun processGUI()
@@ -655,30 +678,6 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
 
             return imw
         }
-    }
-}
-
-private fun JDialog.createOkCancelButtonsPanel(okHandler: () -> Unit): Component {
-    val btnOK = JButton("OK")
-    val btnCancel = JButton("Cancel")
-    rootPane.defaultButton = btnOK
-
-    btnOK.addActionListener {
-        try {
-            okHandler()
-            isVisible = false
-        } catch (e: Exception) {
-            JOptionPane.showMessageDialog(this, e.message)
-        }
-    }
-
-    btnCancel.addActionListener {
-        isVisible = false
-    }
-
-    return JPanel().apply {
-        add(btnOK)
-        add(btnCancel)
     }
 }
 
