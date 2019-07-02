@@ -467,13 +467,15 @@ data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = n
     }
 }
 
+const val CMDLINE_INPUT_FILENAME_PLACEHOLDER = "<INPUT>"
+
 data class CommandLineParameter(val value: String?) { // null = input file name
     fun isInputFileName(): Boolean {
         return value == null
     }
 
     override fun toString(): String {
-        return if (isInputFileName()) "<INPUT>" else value!!
+        return if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
     }
 }
 
@@ -511,8 +513,8 @@ fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolea
 
     lsParams.addDoubleClickListener {
         if (paramsModel[it].isInputFileName()) {
-            JOptionPane.showMessageDialog(dialog,
-                    "<INPUT> is a special placeholder for the names of the input file(s), and thus cannot be edited.")
+            JOptionPane.showMessageDialog(dialog, CMDLINE_INPUT_FILENAME_PLACEHOLDER +
+                    " is a special placeholder for the names of the input file(s), and thus cannot be edited.")
             return@addDoubleClickListener
         }
         paramsModel[it] = CommandLineParameter(
@@ -676,7 +678,8 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
                                 private var hasFileName: Boolean) {
     fun update() {
         label.text = "Input method: " + (if (hasFileName) "filename" else "standard input") + " "
-        button.text = if (hasFileName) "Set to stdin (remove <INPUT>)" else "Set to filename (add <INPUT>)"
+        button.text = if (hasFileName) "Set to stdin (remove $CMDLINE_INPUT_FILENAME_PLACEHOLDER)"
+        else "Set to filename (add $CMDLINE_INPUT_FILENAME_PLACEHOLDER)"
     }
 
     companion object {

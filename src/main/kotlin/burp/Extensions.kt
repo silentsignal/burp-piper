@@ -65,7 +65,7 @@ fun Piper.CommandInvocation.toHumanReadable(negation: Boolean): String = sequenc
 val Piper.CommandInvocation.commandLine: String
     get() = sequence {
         yieldAll(this@commandLine.prefixList.map(::shellQuote))
-        if (this@commandLine.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) yield("<INPUT>")
+        if (this@commandLine.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) yield(CMDLINE_INPUT_FILENAME_PLACEHOLDER)
         yieldAll(this@commandLine.postfixList.map(::shellQuote))
     }.joinToString(separator = " ")
 
