@@ -93,7 +93,7 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
 }
 
 class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints) {
-    private val tfName: JTextField
+    private val tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
     private val cbEnabled: JCheckBox
     private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(cmd = tool.cmd, parent = panel)
     private val ccmw: CollapsedMessageMatchWidget = CollapsedMessageMatchWidget(mm = tool.filter, showHeaderMatch = true, caption = "Filter: ")
@@ -113,7 +113,6 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
     }
 
     init {
-        cs.gridy = 0 ; tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
         cs.gridy = 1 ; ccmw.buildGUI(panel, cs)
         cs.gridy = 2 ; cciw.buildGUI(panel, cs)
         cs.gridy = 3 ; cs.gridx = 0 ; cbEnabled = createCheckBox("Enabled", tool.enabled, panel, cs)
@@ -218,6 +217,8 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
     protected val panel = JPanel(GridBagLayout())
     protected val cs = GridBagConstraints().apply {
         fill = GridBagConstraints.HORIZONTAL
+        gridx = 0
+        gridy = 0
     }
     protected var state: E? = null
 
@@ -388,14 +389,12 @@ fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Conta
 }
 
 class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog<Piper.HeaderMatch>(parent) {
-    private val cbHeader: JComboBox<String>
+    private val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
+            "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
+    private val cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
     private val regExpWidget: RegExpWidget
 
     init {
-        val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
-                "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
-
-        cs.gridy = 0 ; cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
         cs.gridy = 1 ; regExpWidget = RegExpWidget(hm.regex, panel, cs)
 
         setSize(480, 320)
@@ -801,11 +800,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, paren
     private val orElseModel: DefaultListModel<MessageMatchWrapper>
 
     init {
-        with(cs) {
-            gridx = 0
-            gridy = 0
-            gridwidth = 4
-        }
+        cs.gridwidth = 4
 
         panel.add(cbNegation, cs)
 
