@@ -470,13 +470,8 @@ data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = n
 const val CMDLINE_INPUT_FILENAME_PLACEHOLDER = "<INPUT>"
 
 data class CommandLineParameter(val value: String?) { // null = input file name
-    fun isInputFileName(): Boolean {
-        return value == null
-    }
-
-    override fun toString(): String {
-        return if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
-    }
+    fun isInputFileName(): Boolean = value == null
+    override fun toString(): String = if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
 }
 
 fun showCommandInvocationDialog(ci: Piper.CommandInvocation, showFilters: Boolean, parent: Component): Piper.CommandInvocation? {
