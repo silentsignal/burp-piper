@@ -690,10 +690,7 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
 
             paramsModel.addListDataListener(object : ListDataListener {
                 override fun intervalRemoved(p0: ListDataEvent?) {
-                    if (!imw.hasFileName) return
-                    for (i in 0 until paramsModel.size) {
-                        if (paramsModel.getElementAt(i)!!.isInputFileName()) return
-                    }
+                    if (!imw.hasFileName || paramsModel.toIterable().any(CommandLineParameter::isInputFileName)) return
                     imw.hasFileName = false
                     imw.update()
                 }
@@ -704,13 +701,8 @@ private class InputMethodWidget(private val label: JLabel = JLabel(),
 
             imw.button.addActionListener {
                 if (imw.hasFileName) {
-                    for (i in 0 until paramsModel.size) {
-                        val item = paramsModel.getElementAt(i)!!
-                        if (item.isInputFileName()) {
-                            paramsModel.remove(i) // this triggers intervalRemoved above, no explicit update() necessary
-                            break
-                        }
-                    }
+                    val iof = paramsModel.toIterable().indexOfFirst(CommandLineParameter::isInputFileName)
+                    if (iof >= 0) paramsModel.remove(iof) // this triggers intervalRemoved above, no explicit update() necessary
                 } else {
                     paramsModel.addElement(CommandLineParameter(null))
                     imw.hasFileName = true
@@ -964,8 +956,8 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
 
         if (cciw.cmd != Piper.CommandInvocation.getDefaultInstance()) builder.cmd = cciw.cmd
 
-        for (i in 0 until andAlsoModel.size) builder.addAndAlso(andAlsoModel.getElementAt(i).cfgItem)
-        for (i in 0 until  orElseModel.size) builder.addOrElse(  orElseModel.getElementAt(i).cfgItem)
+        builder.addAllAndAlso(andAlsoModel.map(MessageMatchWrapper::cfgItem))
+        builder.addAllOrElse (orElseModel .map(MessageMatchWrapper::cfgItem))
 
         state.result = builder.build()
         true
