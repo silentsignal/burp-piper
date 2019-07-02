@@ -4,7 +4,6 @@ import com.google.protobuf.ByteString
 import java.awt.*
 import java.awt.event.*
 import java.util.*
-import java.util.regex.PatternSyntaxException
 import javax.swing.*
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
@@ -135,8 +134,8 @@ class CollapsedMessageMatchWidget(var mm: Piper.MessageMatch?, val showHeaderMat
     fun buildGUI(panel: Container, cs: GridBagConstraints) {
         val btnEditFilter = JButton("Edit...")
         btnEditFilter.addActionListener {
-            val filter = showMessageMatchDialog(mm ?: Piper.MessageMatch.getDefaultInstance(),
-                    showHeaderMatch = showHeaderMatch, parent = panel) ?: return@addActionListener
+            val filter = MessageMatchDialog(mm ?: Piper.MessageMatch.getDefaultInstance(),
+                    showHeaderMatch = showHeaderMatch, parent = panel).showGUI() ?: return@addActionListener
             mm = filter
             update()
         }
@@ -757,8 +756,6 @@ private fun parseHexByte(cs: CharSequence): Byte = (parseHexNibble(cs[0]) shl 4 
 private fun parseHexNibble(c: Char): Int = if (c in '0'..'9') (c - '0')
 else ((c.toLowerCase() - 'a') + 0xA)
 
-data class MessageMatchDialogState(var result: Piper.MessageMatch? = null, var header: Piper.HeaderMatch? = null)
-
 class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints) {
     private val tfPattern = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
     private val esw = EnumSetWidget(regex.flagSet, panel, cs, "Regular expression flags: (see JDK documentation)", RegExpFlag::class.java)
@@ -793,107 +790,110 @@ class EnumSetWidget<E : Enum<E>>(set: Set<E>, panel: Container, cs: GridBagConst
     }
 }
 
-fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, parent: Component): Piper.MessageMatch? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val prefixField  = HexASCIITextField("prefix",  mm.prefix,  dialog)
-    val postfixField = HexASCIITextField("postfix", mm.postfix, dialog)
-    val state = MessageMatchDialogState()
-    val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd, dialog)
+class MessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent) {
+    private val prefixField  = HexASCIITextField("prefix",  mm.prefix,  this)
+    private val postfixField = HexASCIITextField("postfix", mm.postfix, this)
+    private val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd, this)
+    private val cbNegation = JComboBox(MatchNegation.values())
+    private val regExpWidget: RegExpWidget
+    private var header: Piper.HeaderMatch? = null
+    private val andAlsoModel: DefaultListModel<MessageMatchWrapper>
+    private val orElseModel: DefaultListModel<MessageMatchWrapper>
 
-    with(cs) {
-        fill = GridBagConstraints.HORIZONTAL
-        gridx = 0
-        gridy = 0
-        gridwidth = 4
-    }
+    init {
+        with(cs) {
+            gridx = 0
+            gridy = 0
+            gridwidth = 4
+        }
 
-    val cbNegation = JComboBox(MatchNegation.values())
-    panel.add(cbNegation, cs)
+        panel.add(cbNegation, cs)
 
-    cs.gridwidth = 1
+        cs.gridwidth = 1
 
-    prefixField .addWidgets("Starts with: ", cs, panel)
-    postfixField.addWidgets(  "Ends with: ", cs, panel)
+        prefixField .addWidgets("Starts with: ", cs, panel)
+        postfixField.addWidgets(  "Ends with: ", cs, panel)
 
-    cs.gridy = 3
-    val regExpWidget = RegExpWidget(mm.regex, panel, cs)
+        cs.gridy = 3
+        regExpWidget = RegExpWidget(mm.regex, panel, cs)
 
-    if (showHeaderMatch) {
+        if (showHeaderMatch) {
+            cs.gridy++
+            cs.gridx = 0
+
+            panel.add(JLabel("Header: "), cs)
+
+            cs.gridx = 1
+
+            val lbHeader = JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)")
+            if (mm.hasHeader()) header = mm.header
+            panel.add(lbHeader, cs)
+
+            cs.gridx = 2
+
+            val btnHeaderEdit = JButton("Edit...")
+            panel.add(btnHeaderEdit, cs)
+
+            cs.gridx = 3
+
+            val btnHeaderRemove = JButton("Remove")
+            panel.add(btnHeaderRemove, cs)
+            btnHeaderRemove.isEnabled = mm.hasHeader()
+
+            btnHeaderEdit.addActionListener {
+                val current = header ?: Piper.HeaderMatch.getDefaultInstance()
+                val header = HeaderMatchDialog(current, this).showGUI() ?: return@addActionListener
+                lbHeader.text = header.toHumanReadable(false)
+                this.header = header
+                btnHeaderRemove.isEnabled = true
+            }
+
+            btnHeaderRemove.addActionListener {
+                lbHeader.text = "(no header match)"
+                header = null
+                btnHeaderRemove.isEnabled = false
+            }
+        }
+
         cs.gridy++
         cs.gridx = 0
+        cciw.buildGUI(panel, cs)
 
-        panel.add(JLabel("Header: "), cs)
+        val spList = JSplitPane()
+        val (andAlsoPanel, andAlsoModelLocal) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList, showHeaderMatch, this)
+        val ( orElsePanel,  orElseModelLocal) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList,  showHeaderMatch, this)
+        spList.leftComponent = andAlsoPanel
+        spList.rightComponent = orElsePanel
+        andAlsoModel = andAlsoModelLocal
+        orElseModel = orElseModelLocal
 
-        cs.gridx = 1
+        addFullWidthComponent(spList, panel, cs)
 
-        val lbHeader = JLabel(if (mm.hasHeader()) mm.header.toHumanReadable(false) else "(no header match)")
-        if (mm.hasHeader()) state.header = mm.header
-        panel.add(lbHeader, cs)
+        cs.gridy++
 
-        cs.gridx = 2
-
-        val btnHeaderEdit = JButton("Edit...")
-        panel.add(btnHeaderEdit, cs)
-
-        cs.gridx = 3
-
-        val btnHeaderRemove = JButton("Remove")
-        panel.add(btnHeaderRemove, cs)
-        btnHeaderRemove.isEnabled = mm.hasHeader()
-
-        btnHeaderEdit.addActionListener {
-            val current = state.header ?: Piper.HeaderMatch.getDefaultInstance()
-            val header = HeaderMatchDialog(current, dialog).showGUI() ?: return@addActionListener
-            lbHeader.text = header.toHumanReadable(false)
-            state.header = header
-            btnHeaderRemove.isEnabled = true
-        }
-
-        btnHeaderRemove.addActionListener {
-            lbHeader.text = "(no header match)"
-            state.header = null
-            btnHeaderRemove.isEnabled = false
-        }
+        setSize(800, 600)
+        title = "Filter editor"
     }
 
-    cs.gridy++
-    cs.gridx = 0
-    cciw.buildGUI(panel, cs)
-
-    val spList = JSplitPane()
-    val (andAlsoPanel, andAlsoModel) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList, showHeaderMatch, dialog)
-    val ( orElsePanel,  orElseModel) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList,  showHeaderMatch, dialog)
-    spList.leftComponent = andAlsoPanel
-    spList.rightComponent = orElsePanel
-
-    addFullWidthComponent(spList, panel, cs)
-
-    cs.gridy++
-    val pnButtons = dialog.createOkCancelButtonsPanel {
+    override fun processGUI() {
         val builder = Piper.MessageMatch.newBuilder()
 
         if ((cbNegation.selectedItem as MatchNegation).negation) builder.negation = true
 
-        builder.postfix = postfixField.getByteString(dialog)
-        builder.prefix  =  prefixField.getByteString(dialog)
+        builder.postfix = postfixField.getByteString()
+        builder.prefix  =  prefixField.getByteString()
 
         if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
 
-        if (state.header != null) builder.header = state.header
+        if (header != null) builder.header = header
 
         if (cciw.cmd != Piper.CommandInvocation.getDefaultInstance()) builder.cmd = cciw.cmd
 
         builder.addAllAndAlso(andAlsoModel.map(MessageMatchWrapper::cfgItem))
         builder.addAllOrElse (orElseModel .map(MessageMatchWrapper::cfgItem))
 
-        state.result = builder.build()
+        state = builder.build()
     }
-    panel.add(pnButtons, cs)
-    showModalDialog(800, 600, panel, "Filter editor", dialog, parent)
-
-    return state.result
 }
 
 private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean, parent: Component): Pair<Component, DefaultListModel<MessageMatchWrapper>> {
@@ -914,13 +914,13 @@ private fun createMatchListWidget(caption: String, source: List<Piper.MessageMat
 
     btnAdd.addActionListener {
         model.addElement(MessageMatchWrapper(
-                showMessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
-                        showHeaderMatch = showHeaderMatch, parent = parent) ?: return@addActionListener))
+                MessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
+                        showHeaderMatch = showHeaderMatch, parent = parent).showGUI() ?: return@addActionListener))
     }
 
     btnEdit.addActionListener {
-        val edited = showMessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener,
-                showHeaderMatch = showHeaderMatch, parent = parent)
+        val edited = MessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener,
+                showHeaderMatch = showHeaderMatch, parent = parent).showGUI()
         if (edited != null) model.set(list.selectedIndex, MessageMatchWrapper(edited))
     }
 
