@@ -212,14 +212,12 @@ fun compress(value: ByteArray): ByteArray {
 fun decompress(value: ByteArray): ByteArray =
     InflaterInputStream(value.inputStream()).use(InputStream::readBytes)
 
-fun Piper.Config.toSettings(): Map<String, Any> {
-    val m = mutableMapOf<String, Any>()
-    m.add("messageViewers", this.messageViewerList, Piper.MessageViewer::toMap)
-    m.add("menuItems", this.menuItemList, Piper.UserActionTool::toMap)
-    m.add("macros", this.macroList, Piper.MinimalTool::toMap)
-    m.add("httpListeners", this.httpListenerList, Piper.HttpListener::toMap)
-    m.add("commentators", this.commentatorList, Piper.Commentator::toMap)
-    return m
+fun Piper.Config.toSettings(): Map<String, Any> = mutableMapOf<String, Any>().apply {
+    add("messageViewers", messageViewerList, Piper.MessageViewer::toMap)
+    add("menuItems", menuItemList, Piper.UserActionTool::toMap)
+    add("macros", macroList, Piper.MinimalTool::toMap)
+    add("httpListeners", httpListenerList, Piper.HttpListener::toMap)
+    add("commentators", commentatorList, Piper.Commentator::toMap)
 }
 
 fun <E> MutableMap<String, Any>.add(key: String, value: List<E>, transform: (E) -> Any) {
