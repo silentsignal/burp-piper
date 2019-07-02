@@ -976,7 +976,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
     return state.result
 }
 
-private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean, parent: Component): Pair<Component, ListModel<MessageMatchWrapper>> {
+private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>, showHeaderMatch: Boolean, parent: Component): Pair<Component, DefaultListModel<MessageMatchWrapper>> {
     val model = fillDefaultModel(source, ::MessageMatchWrapper)
 
     val list = JList<MessageMatchWrapper>(model)
