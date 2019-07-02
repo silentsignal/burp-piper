@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString
 import org.snakeyaml.engine.v1.api.Load
 import org.snakeyaml.engine.v1.api.LoadSettingsBuilder
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.lang.RuntimeException
 import java.util.zip.DeflaterOutputStream
 import java.util.zip.InflaterInputStream
@@ -209,7 +210,7 @@ fun compress(value: ByteArray): ByteArray {
 }
 
 fun decompress(value: ByteArray): ByteArray =
-    InflaterInputStream(value.inputStream()).use { it.readBytes() }
+    InflaterInputStream(value.inputStream()).use(InputStream::readBytes)
 
 fun Piper.Config.toSettings(): Map<String, Any> {
     val m = mutableMapOf<String, Any>()
