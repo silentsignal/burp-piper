@@ -120,8 +120,6 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
     }
 
     init {
-        cs.fill = GridBagConstraints.HORIZONTAL
-
         cs.gridy = 0 ; tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
         cs.gridy = 1 ; ccmw.buildGUI(panel, cs)
         cs.gridy = 2 ; cciw.buildGUI(panel, cs)
@@ -225,7 +223,9 @@ class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocatio
 
 abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
     protected val panel = JPanel(GridBagLayout())
-    protected val cs = GridBagConstraints()
+    protected val cs = GridBagConstraints().apply {
+        fill = GridBagConstraints.HORIZONTAL
+    }
     protected var state: E? = null
 
     fun showGUI(): E? {
@@ -409,8 +409,6 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
     init {
         val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
                 "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
-
-        cs.fill = GridBagConstraints.HORIZONTAL
 
         cs.gridy = 0 ; cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
         cs.gridy = 1 ; regExpWidget = RegExpWidget(hm.regex, panel, cs)
