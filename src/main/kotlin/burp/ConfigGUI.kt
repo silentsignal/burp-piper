@@ -39,15 +39,15 @@ private fun minimalToolHumanReadableName(cfgItem: Piper.MinimalTool) = if (cfgIt
 const val TOGGLE_DEFAULT = "Toggle enabled"
 
 fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap: (S) -> W, unwrap: (W) -> S,
-                            dialog: (S, Component?) -> S?, default: () -> S,
+                            dialog: (S, Component?) -> ConfigDialog<S>, default: () -> S,
                             isEnabled: S.() -> Boolean, enabler: S.(Boolean) -> S): Component {
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
-        model[it] = wrap(dialog(unwrap(model[it]), parent) ?: return@addDoubleClickListener)
+        model[it] = wrap(dialog(unwrap(model[it]), parent).showGUI() ?: return@addDoubleClickListener)
     }
     val btnAdd = JButton("Add")
     btnAdd.addActionListener {
-        model.addElement(wrap(dialog(enabler(default(), true), parent) ?: return@addActionListener))
+        model.addElement(wrap(dialog(enabler(default(), true), parent).showGUI() ?: return@addActionListener))
     }
     val btnEnableDisable = JButton(TOGGLE_DEFAULT)
     btnEnableDisable.isEnabled = false
@@ -225,93 +225,92 @@ class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocatio
 
 data class DialogState<E>(var result: E? = null)
 
-fun showMessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?): Piper.MessageViewer? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val state = DialogState<Piper.MessageViewer>()
+abstract class ConfigDialog<E>(common: Piper.MinimalTool, private val parent: Component?) : JDialog() {
+    protected val panel = JPanel(GridBagLayout())
+    protected val cs = GridBagConstraints()
+    protected var state: E? = null
+    private val mtw = MinimalToolWidget(common, panel, cs)
 
-    val mtw = MinimalToolWidget(messageViewer.common, panel, cs)
+    fun showGUI(): E? {
+        val pnButtons = createOkCancelButtonsPanel {
+            processGUI(mtw.toMinimalTool(this) ?: return@createOkCancelButtonsPanel false)
+        }
+        addFullWidthComponent(pnButtons, panel, cs)
+        defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+        add(panel)
+        setSize(width, height)
+        setLocationRelativeTo(parent)
+        isModal = true
+        isVisible = true
+        return state
+    }
 
-    val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
+    abstract fun processGUI(mt: Piper.MinimalTool): Boolean
+}
 
-    val pnButtons = dialog.createOkCancelButtonsPanel {
-        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+class MessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?) : ConfigDialog<Piper.MessageViewer>(messageViewer.common, parent) {
+    private val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
+    override fun processGUI(mt: Piper.MinimalTool): Boolean {
         with (Piper.MessageViewer.newBuilder()) {
             common = mt
             if (cbUsesColors.isSelected) usesColors = true
-            state.result = build()
+            state = build()
         }
-        true
+        return true
     }
 
-    addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, generateCaption("message editor",  messageViewer.common.name), dialog, parent)
-
-    return state.result
+    init {
+        setSize(800, 600)
+        title = generateCaption("message editor", messageViewer.common.name)
+    }
 }
 
-fun showHttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?): Piper.HttpListener? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val state = DialogState<Piper.HttpListener>()
+class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) : ConfigDialog<Piper.HttpListener>(httpListener.common, parent) {
+    private val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
+    private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
-    val mtw = MinimalToolWidget(httpListener.common, panel, cs)
-
-    val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
-    val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
-
-    val pnButtons = dialog.createOkCancelButtonsPanel {
-        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+    override fun processGUI(mt: Piper.MinimalTool): Boolean {
         val bt = btw.toSet()
-
         with (Piper.HttpListener.newBuilder()) {
             common = mt
             scope = (lsScope.selectedItem as ConfigRequestResponse).rr
             if (bt.size < BurpTool.values().size) setToolSet(bt)
-            state.result = build()
+            state = build()
         }
-        true
+        return true
     }
 
-    addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, generateCaption("HTTP listener", httpListener.common.name), dialog, parent)
-
-    return state.result
+    init {
+        setSize(800, 600)
+        title = generateCaption("HTTP listener", httpListener.common.name)
+    }
 }
 
-fun showCommentatorDialog(commentator: Piper.Commentator, parent: Component?): Piper.Commentator? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val state = DialogState<Piper.Commentator>()
+class CommentatorDialog(commentator: Piper.Commentator, parent: Component?) : ConfigDialog<Piper.Commentator>(commentator.common, parent) {
+    private val cbOverwrite: JCheckBox
+    private val lsSource: JComboBox<ConfigRequestResponse>
 
-    val mtw = MinimalToolWidget(commentator.common, panel, cs)
-
-    cs.gridwidth = 4
-    val cbOverwrite = createCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
-
-    cs.gridy++
-    val lsSource = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
-
-    val pnButtons = dialog.createOkCancelButtonsPanel {
-        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
-
+    override fun processGUI(mt: Piper.MinimalTool): Boolean {
         with (Piper.Commentator.newBuilder()) {
             common = mt
             source = (lsSource.selectedItem as ConfigRequestResponse).rr
             if (cbOverwrite.isSelected) overwrite = true
-            state.result = build()
+            state = build()
         }
-        true
+        return true
     }
 
-    addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, generateCaption("Commentator", commentator.common.name), dialog, parent)
+    init {
+        cs.gridwidth = 4
+        cbOverwrite = createCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
 
-    return state.result
+        cs.gridy++
+        lsSource = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
+
+        setSize(800, 600)
+        title = generateCaption("commentator", commentator.common.name)
+    }
 }
 
 private fun createCheckBox(caption: String, initialValue: Boolean, panel: Container, cs: GridBagConstraints): JCheckBox {
@@ -321,31 +320,19 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
     return cb
 }
 
-fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Piper.UserActionTool? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val state = DialogState<Piper.UserActionTool>()
+class MenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?) : ConfigDialog<Piper.UserActionTool>(menuItem.common, parent) {
+    private val cbHasGUI: JCheckBox
+    private val smMinInputs: SpinnerNumberModel
+    private val smMaxInputs: SpinnerNumberModel
 
-    val mtw = MinimalToolWidget(menuItem.common, panel, cs)
-
-    cs.gridwidth = 4
-    val cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
-
-    val smMinInputs = createSpinner("Minimum required number of selected items: ",
-            max(menuItem.minInputs, 1), 1, panel, cs)
-    val smMaxInputs = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
-            menuItem.maxInputs, 0, panel, cs)
-
-    val pnButtons = dialog.createOkCancelButtonsPanel {
-        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
+    override fun processGUI(mt: Piper.MinimalTool): Boolean {
         val minInputsValue = smMinInputs.number.toInt()
         val maxInputsValue = smMaxInputs.number.toInt()
 
         if (maxInputsValue in 1 until minInputsValue) {
-            JOptionPane.showMessageDialog(dialog, "Maximum allowed number of selected items cannot " +
+            JOptionPane.showMessageDialog(this, "Maximum allowed number of selected items cannot " +
                     "be lower than minimum required number of selected items.")
-            return@createOkCancelButtonsPanel false
+            return false
         }
 
         with (Piper.UserActionTool.newBuilder()) {
@@ -353,15 +340,22 @@ fun showMenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?): Pipe
             if (cbHasGUI.isSelected) hasGUI = true
             if (minInputsValue > 1) minInputs = minInputsValue
             if (maxInputsValue > 0) maxInputs = maxInputsValue
-            state.result = build()
+            state = build()
         }
-        true
+        return true
     }
 
-    addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, generateCaption("menu item", menuItem.common.name), dialog, parent)
+    init {
+        cs.gridwidth = 4
+        cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
 
-    return state.result
+        smMinInputs = createSpinner("Minimum required number of selected items: ",
+                max(menuItem.minInputs, 1), 1, panel, cs)
+        smMaxInputs = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
+                menuItem.maxInputs, 0, panel, cs)
+        setSize(800, 600)
+        title = generateCaption("menu item", menuItem.common.name)
+    }
 }
 
 private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Container, cs: GridBagConstraints): SpinnerNumberModel {
@@ -374,25 +368,16 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
     return model
 }
 
-data class MacroState(var result: Piper.MinimalTool? = null)
-
-fun showMacroDialog(macro: Piper.MinimalTool, parent: Component?): Piper.MinimalTool? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val state = MacroState()
-
-    val mtw = MinimalToolWidget(macro, panel, cs)
-
-    val pnButtons = dialog.createOkCancelButtonsPanel {
-        state.result = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
-        true
+class MacroDialog(macro: Piper.MinimalTool, parent: Component?) : ConfigDialog<Piper.MinimalTool>(macro, parent) {
+    override fun processGUI(mt: Piper.MinimalTool): Boolean {
+        state = mt
+        return true
     }
 
-    addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(800, 600, panel, generateCaption("macro", macro.name), dialog, parent)
-
-    return state.result
+    init {
+        setSize(800, 600)
+        title = generateCaption("macro", macro.name)
+    }
 }
 
 fun createLabeledTextField(caption: String, initialValue: String, panel: Container, cs: GridBagConstraints): JTextField {

@@ -151,19 +151,19 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private fun populateTabs(cfg: ConfigModel, parent: Component?) {
         tabs.addTab("Message viewers", createListEditor(cfg.messageViewersModel, parent, ::MessageViewerWrapper,
-                MessageViewerWrapper::cfgItem, ::showMessageViewerDialog, Piper.MessageViewer::getDefaultInstance,
+                MessageViewerWrapper::cfgItem, ::MessageViewerDialog, Piper.MessageViewer::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
         tabs.addTab("Context menu items", createListEditor(cfg.menuItemsModel, parent, ::UserActionToolWrapper,
-                UserActionToolWrapper::cfgItem, ::showMenuItemDialog, Piper.UserActionTool::getDefaultInstance,
+                UserActionToolWrapper::cfgItem, ::MenuItemDialog, Piper.UserActionTool::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
         tabs.addTab("Macros", createListEditor(cfg.macrosModel, parent, ::MinimalToolWrapper,
-                MinimalToolWrapper::cfgItem, ::showMacroDialog, Piper.MinimalTool::getDefaultInstance,
+                MinimalToolWrapper::cfgItem, ::MacroDialog, Piper.MinimalTool::getDefaultInstance,
                 Piper.MinimalTool::getEnabled, Piper.MinimalTool::buildEnabled))
         tabs.addTab("HTTP listeners", createListEditor(cfg.httpListenersModel, parent, ::HttpListenerWrapper,
-                HttpListenerWrapper::cfgItem, ::showHttpListenerDialog, Piper.HttpListener::getDefaultInstance,
+                HttpListenerWrapper::cfgItem, ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
         tabs.addTab("Commentators", createListEditor(cfg.commentatorsModel, parent, ::CommentatorWrapper,
-                CommentatorWrapper::cfgItem, ::showCommentatorDialog, Piper.Commentator::getDefaultInstance,
+                CommentatorWrapper::cfgItem, ::CommentatorDialog, Piper.Commentator::getDefaultInstance,
                 { common.enabled }, { toBuilder().setCommon(common.buildEnabled(it)).build() }))
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
     }
