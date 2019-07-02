@@ -391,8 +391,7 @@ fun showMacroDialog(macro: Piper.MinimalTool, parent: Component?): Piper.Minimal
     val mtw = MinimalToolWidget(macro, panel, cs)
 
     val pnButtons = dialog.createOkCancelButtonsPanel {
-        val mt = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
-        state.result = mt
+        state.result = mtw.toMinimalTool(dialog) ?: return@createOkCancelButtonsPanel false
         true
     }
 
