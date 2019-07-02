@@ -404,42 +404,42 @@ fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Conta
     return widget
 }
 
-fun showHeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component): Piper.HeaderMatch? {
-    val dialog = JDialog()
-    val panel = JPanel(GridBagLayout())
-    val cs = GridBagConstraints()
-    val state = DialogState<Piper.HeaderMatch>()
-    val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
-            "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
+class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog<Piper.HeaderMatch>(parent) {
+    private val cbHeader: JComboBox<String>
+    private val regExpWidget: RegExpWidget
 
-    cs.fill = GridBagConstraints.HORIZONTAL
+    init {
+        val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
+                "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
 
-    cs.gridy = 0 ; val cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
-    cs.gridy = 1 ; val regExpWidget = RegExpWidget(hm.regex, panel, cs)
+        cs.fill = GridBagConstraints.HORIZONTAL
 
-    val pnButtons = dialog.createOkCancelButtonsPanel {
+        cs.gridy = 0 ; cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
+        cs.gridy = 1 ; regExpWidget = RegExpWidget(hm.regex, panel, cs)
+
+        setSize(480, 320)
+        title = "Header filter editor"
+    }
+
+    override fun processGUI(): Boolean {
         val text = cbHeader.selectedItem?.toString()
         if (text.isNullOrEmpty()) {
-            JOptionPane.showMessageDialog(dialog, "The header name cannot be empty.")
-            return@createOkCancelButtonsPanel false
+            JOptionPane.showMessageDialog(this, "The header name cannot be empty.")
+            return false
         }
 
         try {
             with(Piper.HeaderMatch.newBuilder()) {
                 header = text
                 regex = regExpWidget.toRegularExpression()
-                state.result = build()
+                state = build()
             }
         } catch (pse: PatternSyntaxException) {
-            JOptionPane.showMessageDialog(dialog, pse.message)
-            return@createOkCancelButtonsPanel false
+            JOptionPane.showMessageDialog(this, pse.message)
+            return false
         }
-        true
+        return true
     }
-    addFullWidthComponent(pnButtons, panel, cs)
-    showModalDialog(480, 320, panel, "Header filter editor", dialog, parent)
-
-    return state.result
 }
 
 data class CommandInvocationDialogState(var result: Piper.CommandInvocation? = null, var tfExitCode: JTextField? = null) {
@@ -871,7 +871,7 @@ fun showMessageMatchDialog(mm: Piper.MessageMatch, showHeaderMatch: Boolean, par
 
         btnHeaderEdit.addActionListener {
             val current = state.header ?: Piper.HeaderMatch.getDefaultInstance()
-            val header = showHeaderMatchDialog(current, dialog) ?: return@addActionListener
+            val header = HeaderMatchDialog(current, dialog).showGUI() ?: return@addActionListener
             lbHeader.text = header.toHumanReadable(false)
             state.header = header
             btnHeaderRemove.isEnabled = true
