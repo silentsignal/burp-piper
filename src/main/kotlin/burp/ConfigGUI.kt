@@ -72,6 +72,11 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
     }
 
     listWidget.addListSelectionListener { updateBtnEnableDisableState() }
+    model.addListDataListener(object : ListDataListener {
+        override fun contentsChanged(p0: ListDataEvent?) { updateBtnEnableDisableState() }
+        override fun intervalAdded  (p0: ListDataEvent?) { updateBtnEnableDisableState() }
+        override fun intervalRemoved(p0: ListDataEvent?) { updateBtnEnableDisableState() }
+    })
     val pnToolbar = JPanel().apply {
         add(btnAdd)
         add(createRemoveButton("Remove", listWidget, model))
