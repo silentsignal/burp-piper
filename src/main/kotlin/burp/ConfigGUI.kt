@@ -63,13 +63,15 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
             model.insertElementAt(value, index)
         }
     }
-    listWidget.addListSelectionListener {
+    fun updateBtnEnableDisableState() {
         val selection = listWidget.selectedValuesList
         btnEnableDisable.isEnabled = selection.isNotEmpty()
         btnClone.isEnabled = selection.isNotEmpty()
         val states = selection.map { dialog(unwrap(it), parent).isToolEnabled() }.toSet()
         btnEnableDisable.text = if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
     }
+
+    listWidget.addListSelectionListener { updateBtnEnableDisableState() }
     val pnToolbar = JPanel().apply {
         add(btnAdd)
         add(createRemoveButton("Remove", listWidget, model))
