@@ -38,22 +38,22 @@ private fun minimalToolHumanReadableName(cfgItem: Piper.MinimalTool) = if (cfgIt
 const val TOGGLE_DEFAULT = "Toggle enabled"
 
 fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap: (S) -> W, unwrap: (W) -> S,
-                            dialog: (S, Component?) -> MinimalToolDialog<S>, default: () -> S,
-                            enabler: S.(Boolean) -> S): Component {
+                            dialog: (S, Component?) -> MinimalToolDialog<S>, default: () -> S): Component {
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
         model[it] = wrap(dialog(unwrap(model[it]), parent).showGUI() ?: return@addDoubleClickListener)
     }
     val btnAdd = JButton("Add")
     btnAdd.addActionListener {
-        model.addElement(wrap(dialog(enabler(default(), true), parent).showGUI() ?: return@addActionListener))
+        val enabledDefault = dialog(default(), parent).buildEnabled(true)
+        model.addElement(wrap(dialog(enabledDefault, parent).showGUI() ?: return@addActionListener))
     }
     val btnEnableDisable = JButton(TOGGLE_DEFAULT)
     btnEnableDisable.isEnabled = false
     btnEnableDisable.addActionListener {
         (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
             val entry = unwrap(value)
-            model[index] = wrap(enabler(entry, !dialog(entry, parent).isToolEnabled()))
+            model[index] = wrap(dialog(entry, parent).buildEnabled(!dialog(entry, parent).isToolEnabled()))
         }
     }
     val btnClone = JButton("Clone")
@@ -269,10 +269,11 @@ abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, paren
 
     fun isToolEnabled() : Boolean = common.enabled
 
+    abstract fun buildEnabled(value: Boolean) : E
     abstract fun processGUI(mt: Piper.MinimalTool)
 }
 
-class MessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?) : MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent) {
+class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent: Component?) : MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent) {
     private val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool) {
@@ -283,13 +284,16 @@ class MessageViewerDialog(messageViewer: Piper.MessageViewer, parent: Component?
         }
     }
 
+    override fun buildEnabled(value: Boolean): Piper.MessageViewer =
+            messageViewer.toBuilder().setCommon(messageViewer.common.buildEnabled(value)).build()
+
     init {
         setSize(800, 600)
         title = generateCaption("message editor", messageViewer.common.name)
     }
 }
 
-class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) : MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent) {
+class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: Component?) : MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent) {
     private val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
@@ -303,13 +307,16 @@ class HttpListenerDialog(httpListener: Piper.HttpListener, parent: Component?) :
         }
     }
 
+    override fun buildEnabled(value: Boolean): Piper.HttpListener =
+            httpListener.toBuilder().setCommon(httpListener.common.buildEnabled(value)).build()
+
     init {
         setSize(800, 600)
         title = generateCaption("HTTP listener", httpListener.common.name)
     }
 }
 
-class CommentatorDialog(commentator: Piper.Commentator, parent: Component?) : MinimalToolDialog<Piper.Commentator>(commentator.common, parent) {
+class CommentatorDialog(private val commentator: Piper.Commentator, parent: Component?) : MinimalToolDialog<Piper.Commentator>(commentator.common, parent) {
     private val cbOverwrite: JCheckBox
     private val lsSource: JComboBox<ConfigRequestResponse>
 
@@ -321,6 +328,9 @@ class CommentatorDialog(commentator: Piper.Commentator, parent: Component?) : Mi
             state = build()
         }
     }
+
+    override fun buildEnabled(value: Boolean): Piper.Commentator =
+            commentator.toBuilder().setCommon(commentator.common.buildEnabled(value)).build()
 
     init {
         cs.gridwidth = 4
@@ -341,7 +351,7 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
     return cb
 }
 
-class MenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?) : MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent) {
+class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Component?) : MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent) {
     private val cbHasGUI: JCheckBox
     private val smMinInputs: SpinnerNumberModel
     private val smMaxInputs: SpinnerNumberModel
@@ -361,6 +371,9 @@ class MenuItemDialog(menuItem: Piper.UserActionTool, parent: Component?) : Minim
             state = build()
         }
     }
+
+    override fun buildEnabled(value: Boolean): Piper.UserActionTool =
+            menuItem.toBuilder().setCommon(menuItem.common.buildEnabled(value)).build()
 
     init {
         cs.gridwidth = 4
@@ -385,10 +398,12 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
     return model
 }
 
-class MacroDialog(macro: Piper.MinimalTool, parent: Component?) : MinimalToolDialog<Piper.MinimalTool>(macro, parent) {
+class MacroDialog(private val macro: Piper.MinimalTool, parent: Component?) : MinimalToolDialog<Piper.MinimalTool>(macro, parent) {
     override fun processGUI(mt: Piper.MinimalTool) {
         state = mt
     }
+
+    override fun buildEnabled(value: Boolean): Piper.MinimalTool = macro.buildEnabled(value)
 
     init {
         setSize(800, 600)
