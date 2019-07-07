@@ -48,8 +48,7 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
         val enabledDefault = dialog(default(), parent).buildEnabled(true)
         model.addElement(wrap(dialog(enabledDefault, parent).showGUI() ?: return@addActionListener))
     }
-    val btnEnableDisable = JButton(TOGGLE_DEFAULT)
-    btnEnableDisable.isEnabled = false
+    val btnEnableDisable = JButton()
     btnEnableDisable.addActionListener {
         (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
             val entry = unwrap(value)
@@ -77,6 +76,8 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
         override fun intervalAdded  (p0: ListDataEvent?) { updateBtnEnableDisableState() }
         override fun intervalRemoved(p0: ListDataEvent?) { updateBtnEnableDisableState() }
     })
+    updateBtnEnableDisableState()
+
     val pnToolbar = JPanel().apply {
         add(btnAdd)
         add(createRemoveButton("Remove", listWidget, model))
