@@ -38,8 +38,8 @@ private fun minimalToolHumanReadableName(cfgItem: Piper.MinimalTool) = if (cfgIt
 const val TOGGLE_DEFAULT = "Toggle enabled"
 
 fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap: (S) -> W, unwrap: (W) -> S,
-                            dialog: (S, Component?) -> ConfigDialog<S>, default: () -> S,
-                            isEnabled: S.() -> Boolean, enabler: S.(Boolean) -> S): Component {
+                            dialog: (S, Component?) -> MinimalToolDialog<S>, default: () -> S,
+                            enabler: S.(Boolean) -> S): Component {
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
         model[it] = wrap(dialog(unwrap(model[it]), parent).showGUI() ?: return@addDoubleClickListener)
@@ -53,7 +53,7 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
     btnEnableDisable.addActionListener {
         (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
             val entry = unwrap(value)
-            model[index] = wrap(enabler(entry, !isEnabled(entry)))
+            model[index] = wrap(enabler(entry, !dialog(entry, parent).isToolEnabled()))
         }
     }
     val btnClone = JButton("Clone")
@@ -67,7 +67,7 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
         val selection = listWidget.selectedValuesList
         btnEnableDisable.isEnabled = selection.isNotEmpty()
         btnClone.isEnabled = selection.isNotEmpty()
-        val states = selection.asSequence().map(unwrap).map(isEnabled).toSet()
+        val states = selection.map { dialog(unwrap(it), parent).isToolEnabled() }.toSet()
         btnEnableDisable.text = if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
     }
     val pnToolbar = JPanel().apply {
@@ -260,12 +260,14 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
     abstract fun processGUI()
 }
 
-abstract class MinimalToolDialog<E>(common: Piper.MinimalTool, parent: Component?) : ConfigDialog<E>(parent) {
+abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?) : ConfigDialog<E>(parent) {
     private val mtw = MinimalToolWidget(common, panel, cs)
 
     override fun processGUI() {
         processGUI(mtw.toMinimalTool())
     }
+
+    fun isToolEnabled() : Boolean = common.enabled
 
     abstract fun processGUI(mt: Piper.MinimalTool)
 }
