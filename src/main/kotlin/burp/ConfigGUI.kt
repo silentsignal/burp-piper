@@ -9,50 +9,32 @@ import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
 import kotlin.math.max
 
-data class MessageViewerWrapper(val cfgItem: Piper.MessageViewer) {
-    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
-}
-
-data class MinimalToolWrapper(val cfgItem: Piper.MinimalTool) {
-    override fun toString(): String = minimalToolHumanReadableName(cfgItem)
-}
-
-data class UserActionToolWrapper(val cfgItem: Piper.UserActionTool) {
-    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
-}
-
-data class HttpListenerWrapper(val cfgItem: Piper.HttpListener) {
-    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
-}
-
-data class MessageMatchWrapper(val cfgItem: Piper.MessageMatch) {
-    override fun toString(): String = cfgItem.toHumanReadable(negation = false, hideParentheses = true)
-}
-
-data class CommentatorWrapper(val cfgItem: Piper.Commentator) {
-    override fun toString(): String = minimalToolHumanReadableName(cfgItem.common)
-}
-
 private fun minimalToolHumanReadableName(cfgItem: Piper.MinimalTool) = if (cfgItem.enabled) cfgItem.name else cfgItem.name + " [disabled]"
 
 const val TOGGLE_DEFAULT = "Toggle enabled"
 
-fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap: (S) -> W, unwrap: (W) -> S,
-                            dialog: (S, Component?) -> MinimalToolDialog<S>, default: () -> S): Component {
+fun <S> createListEditor(model: DefaultListModel<S>, parent: Component?,
+                         dialog: (S, Component?) -> MinimalToolDialog<S>, default: () -> S): Component {
     val listWidget = JList(model)
     listWidget.addDoubleClickListener {
-        model[it] = wrap(dialog(unwrap(model[it]), parent).showGUI() ?: return@addDoubleClickListener)
+        model[it] = dialog(model[it], parent).showGUI() ?: return@addDoubleClickListener
     }
+    val cr = DefaultListCellRenderer()
+    listWidget.setCellRenderer { list, value, index, isSelected, cellHasFocus ->
+        val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+        cr.text = dialog(value, parent).toHumanReadable()
+        c
+    }
+
     val btnAdd = JButton("Add")
     btnAdd.addActionListener {
         val enabledDefault = dialog(default(), parent).buildEnabled(true)
-        model.addElement(wrap(dialog(enabledDefault, parent).showGUI() ?: return@addActionListener))
+        model.addElement(dialog(enabledDefault, parent).showGUI() ?: return@addActionListener)
     }
     val btnEnableDisable = JButton()
     btnEnableDisable.addActionListener {
         (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
-            val entry = unwrap(value)
-            model[index] = wrap(dialog(entry, parent).buildEnabled(!dialog(entry, parent).isToolEnabled()))
+            model[index] = dialog(value, parent).buildEnabled(!dialog(value, parent).isToolEnabled())
         }
     }
     val btnClone = JButton("Clone")
@@ -66,7 +48,7 @@ fun <S, W> createListEditor(model: DefaultListModel<W>, parent: Component?, wrap
         val selection = listWidget.selectedValuesList
         btnEnableDisable.isEnabled = selection.isNotEmpty()
         btnClone.isEnabled = selection.isNotEmpty()
-        val states = selection.map { dialog(unwrap(it), parent).isToolEnabled() }.toSet()
+        val states = selection.map { dialog(it, parent).isToolEnabled() }.toSet()
         btnEnableDisable.text = if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
     }
 
@@ -273,6 +255,7 @@ abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, paren
     override fun processGUI(): E = processGUI(mtw.toMinimalTool())
 
     fun isToolEnabled() : Boolean = common.enabled
+    fun toHumanReadable(): String = minimalToolHumanReadableName(common)
 
     abstract fun buildEnabled(value: Boolean) : E
     abstract fun processGUI(mt: Piper.MinimalTool): E
@@ -469,7 +452,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
         yieldAll(ci.prefixList)
         if (hasFileName) yield(null)
         yieldAll(ci.postfixList)
-    }, ::CommandLineParameter)
+    }.map(::CommandLineParameter))
 
     fun parseExitCodeList(): Iterable<Int> {
         val text = tfExitCode!!.text
@@ -804,8 +787,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
     private val cbNegation = JComboBox(MatchNegation.values())
     private val regExpWidget: RegExpWidget
     private var header: Piper.HeaderMatch? = if (mm.hasHeader()) mm.header else null
-    private val andAlsoModel: DefaultListModel<MessageMatchWrapper>
-    private val orElseModel: DefaultListModel<MessageMatchWrapper>
+    private val andAlsoModel: DefaultListModel<Piper.MessageMatch>
+    private val orElseModel: DefaultListModel<Piper.MessageMatch>
     private val lbHeader = JLabel()
     private val btnHeaderRemove = JButton("Remove")
 
@@ -884,22 +867,28 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
 
         if (cciw.cmd != Piper.CommandInvocation.getDefaultInstance()) builder.cmd = cciw.cmd
 
-        builder.addAllAndAlso(andAlsoModel.map(MessageMatchWrapper::cfgItem))
-        builder.addAllOrElse (orElseModel .map(MessageMatchWrapper::cfgItem))
+        builder.addAllAndAlso(andAlsoModel.toIterable())
+        builder.addAllOrElse (orElseModel .toIterable())
 
         return builder.build()
     }
 
-    private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>): Pair<Component, DefaultListModel<MessageMatchWrapper>> {
-        val model = fillDefaultModel(source, ::MessageMatchWrapper)
+    private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>): Pair<Component, DefaultListModel<Piper.MessageMatch>> {
+        val model = fillDefaultModel(source)
 
-        val list = JList<MessageMatchWrapper>(model)
+        val list = JList<Piper.MessageMatch>(model)
         val toolbar = JPanel()
 
         val btnAdd = JButton("+")
         val btnEdit = JButton("Edit")
 
         list.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+        val cr = DefaultListCellRenderer()
+        list.setCellRenderer { list, value, index, isSelected, cellHasFocus ->
+            val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            cr.text = value.toHumanReadable(negation = false, hideParentheses = true)
+            c
+        }
 
         btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
         list.addListSelectionListener {
@@ -907,15 +896,15 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         }
 
         btnAdd.addActionListener {
-            model.addElement(MessageMatchWrapper(
+            model.addElement(
                     MessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
-                            showHeaderMatch = showHeaderMatch, parent = this).showGUI() ?: return@addActionListener))
+                            showHeaderMatch = showHeaderMatch, parent = this).showGUI() ?: return@addActionListener)
         }
 
         btnEdit.addActionListener {
-            val edited = MessageMatchDialog(list.selectedValue?.cfgItem ?: return@addActionListener,
+            val edited = MessageMatchDialog(list.selectedValue ?: return@addActionListener,
                     showHeaderMatch = showHeaderMatch, parent = this).showGUI()
-            if (edited != null) model.set(list.selectedIndex, MessageMatchWrapper(edited))
+            if (edited != null) model.set(list.selectedIndex, edited)
         }
 
         with (toolbar) {
@@ -957,11 +946,11 @@ private fun <E> createRemoveButton(caption: String, listWidget: JList<E>, listMo
     return btn
 }
 
-fun <S, D> fillDefaultModel(source: Iterable<S>, transform: (S) -> D, model: DefaultListModel<D> = DefaultListModel()): DefaultListModel<D> =
-        fillDefaultModel(source.asSequence(), transform, model)
-fun <S, D> fillDefaultModel(source: Sequence<S>, transform: (S) -> D, model: DefaultListModel<D> = DefaultListModel()): DefaultListModel<D> {
+fun <E> fillDefaultModel(source: Iterable<E>, model: DefaultListModel<E> = DefaultListModel()): DefaultListModel<E> =
+        fillDefaultModel(source.asSequence(), model)
+fun <E> fillDefaultModel(source: Sequence<E>, model: DefaultListModel<E> = DefaultListModel()): DefaultListModel<E> {
     model.clear()
-    source.map(transform).forEach(model::addElement)
+    source.forEach(model::addElement)
     return model
 }
 

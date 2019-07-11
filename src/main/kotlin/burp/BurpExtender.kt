@@ -150,16 +150,16 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     }
 
     private fun populateTabs(cfg: ConfigModel, parent: Component?) {
-        tabs.addTab("Message viewers", createListEditor(cfg.messageViewersModel, parent, ::MessageViewerWrapper,
-                MessageViewerWrapper::cfgItem, ::MessageViewerDialog, Piper.MessageViewer::getDefaultInstance))
-        tabs.addTab("Context menu items", createListEditor(cfg.menuItemsModel, parent, ::UserActionToolWrapper,
-                UserActionToolWrapper::cfgItem, ::MenuItemDialog, Piper.UserActionTool::getDefaultInstance))
-        tabs.addTab("Macros", createListEditor(cfg.macrosModel, parent, ::MinimalToolWrapper,
-                MinimalToolWrapper::cfgItem, ::MacroDialog, Piper.MinimalTool::getDefaultInstance))
-        tabs.addTab("HTTP listeners", createListEditor(cfg.httpListenersModel, parent, ::HttpListenerWrapper,
-                HttpListenerWrapper::cfgItem, ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance))
-        tabs.addTab("Commentators", createListEditor(cfg.commentatorsModel, parent, ::CommentatorWrapper,
-                CommentatorWrapper::cfgItem, ::CommentatorDialog, Piper.Commentator::getDefaultInstance))
+        tabs.addTab("Message viewers", createListEditor(cfg.messageViewersModel, parent,
+                ::MessageViewerDialog, Piper.MessageViewer::getDefaultInstance))
+        tabs.addTab("Context menu items", createListEditor(cfg.menuItemsModel, parent,
+                ::MenuItemDialog, Piper.UserActionTool::getDefaultInstance))
+        tabs.addTab("Macros", createListEditor(cfg.macrosModel, parent,
+                ::MacroDialog, Piper.MinimalTool::getDefaultInstance))
+        tabs.addTab("HTTP listeners", createListEditor(cfg.httpListenersModel, parent,
+                ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance))
+        tabs.addTab("Commentators", createListEditor(cfg.commentatorsModel, parent,
+                ::CommentatorDialog, Piper.Commentator::getDefaultInstance))
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
     }
 
@@ -296,40 +296,34 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 }
 
 class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
-    val enabledMacros get() = macros.filter(Piper.MinimalTool::getEnabled)
-    val enabledMessageViewers get() = messageViewers.filter { it.common.enabled }
-    val enabledMenuItems get() = menuItems.filter { it.common.enabled }
-    val enabledHttpListeners get() = httpListeners.filter { it.common.enabled }
-    val enabledCommentators get() = commentators.filter { it.common.enabled }
+    val enabledMacros get() = macrosModel.toIterable().filter(Piper.MinimalTool::getEnabled)
+    val enabledMessageViewers get() = messageViewersModel.toIterable().filter { it.common.enabled }
+    val enabledMenuItems get() = menuItemsModel.toIterable().filter { it.common.enabled }
+    val enabledHttpListeners get() = httpListenersModel.toIterable().filter { it.common.enabled }
+    val enabledCommentators get() = commentatorsModel.toIterable().filter { it.common.enabled }
 
-    private val macros get() = macrosModel.map(MinimalToolWrapper::cfgItem)
-    private val messageViewers get() = messageViewersModel.map(MessageViewerWrapper::cfgItem)
-    private val menuItems get() = menuItemsModel.map(UserActionToolWrapper::cfgItem)
-    private val httpListeners get() = httpListenersModel.map(HttpListenerWrapper::cfgItem)
-    private val commentators get() = commentatorsModel.map(CommentatorWrapper::cfgItem)
-
-    val macrosModel = DefaultListModel<MinimalToolWrapper>()
-    val messageViewersModel = DefaultListModel<MessageViewerWrapper>()
-    val menuItemsModel = DefaultListModel<UserActionToolWrapper>()
-    val httpListenersModel = DefaultListModel<HttpListenerWrapper>()
-    val commentatorsModel = DefaultListModel<CommentatorWrapper>()
+    val macrosModel = DefaultListModel<Piper.MinimalTool>()
+    val messageViewersModel = DefaultListModel<Piper.MessageViewer>()
+    val menuItemsModel = DefaultListModel<Piper.UserActionTool>()
+    val httpListenersModel = DefaultListModel<Piper.HttpListener>()
+    val commentatorsModel = DefaultListModel<Piper.Commentator>()
 
     init { fillModels(config) }
 
     fun fillModels(config: Piper.Config) {
-        fillDefaultModel(config.macroList,           ::MinimalToolWrapper, macrosModel)
-        fillDefaultModel(config.messageViewerList, ::MessageViewerWrapper, messageViewersModel)
-        fillDefaultModel(config.menuItemList,     ::UserActionToolWrapper, menuItemsModel)
-        fillDefaultModel(config.httpListenerList,   ::HttpListenerWrapper, httpListenersModel)
-        fillDefaultModel(config.commentatorList,     ::CommentatorWrapper, commentatorsModel)
+        fillDefaultModel(config.macroList,                  macrosModel)
+        fillDefaultModel(config.messageViewerList,  messageViewersModel)
+        fillDefaultModel(config.menuItemList,            menuItemsModel)
+        fillDefaultModel(config.httpListenerList,    httpListenersModel)
+        fillDefaultModel(config.commentatorList,      commentatorsModel)
     }
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
-            .addAllMacro(macros)
-            .addAllMessageViewer(messageViewers)
-            .addAllMenuItem(menuItems)
-            .addAllHttpListener(httpListeners)
-            .addAllCommentator(commentators)
+            .addAllMacro(macrosModel.toIterable())
+            .addAllMessageViewer(messageViewersModel.toIterable())
+            .addAllMenuItem(menuItemsModel.toIterable())
+            .addAllHttpListener(httpListenersModel.toIterable())
+            .addAllCommentator(commentatorsModel.toIterable())
             .build()
 }
 
