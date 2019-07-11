@@ -111,13 +111,12 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
         if (cciw.cmd.prefixCount + cciw.cmd.postfixCount == 0) throw RuntimeException("The command must contain at least one argument.")
 
         val f = ccmw.mm
-        with (Piper.MinimalTool.newBuilder()) {
+        return Piper.MinimalTool.newBuilder().apply {
             name = tfName.text
             if (cbEnabled.isSelected) enabled = true
             if (f != null) filter = f
             cmd = cciw.cmd
-            return build()
-        }
+        }.build()
     }
 
     init {
@@ -228,7 +227,7 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
         gridx = 0
         gridy = 0
     }
-    protected var state: E? = null
+    private var state: E? = null
 
     fun showGUI(): E? {
         addFullWidthComponent(createOkCancelButtonsPanel(), panel, cs)
@@ -248,7 +247,7 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
 
         btnOK.addActionListener {
             try {
-                processGUI()
+                state = processGUI()
                 isVisible = false
             } catch (e: Exception) {
                 JOptionPane.showMessageDialog(this, e.message)
@@ -265,31 +264,28 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
         }
     }
 
-    abstract fun processGUI()
+    abstract fun processGUI(): E
 }
 
 abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?) : ConfigDialog<E>(parent) {
     private val mtw = MinimalToolWidget(common, panel, cs)
 
-    override fun processGUI() {
-        processGUI(mtw.toMinimalTool())
-    }
+    override fun processGUI(): E = processGUI(mtw.toMinimalTool())
 
     fun isToolEnabled() : Boolean = common.enabled
 
     abstract fun buildEnabled(value: Boolean) : E
-    abstract fun processGUI(mt: Piper.MinimalTool)
+    abstract fun processGUI(mt: Piper.MinimalTool): E
 }
 
 class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent: Component?) : MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent) {
     private val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
-    override fun processGUI(mt: Piper.MinimalTool) {
-        with (Piper.MessageViewer.newBuilder()) {
+    override fun processGUI(mt: Piper.MinimalTool): Piper.MessageViewer {
+        return Piper.MessageViewer.newBuilder().apply {
             common = mt
             if (cbUsesColors.isSelected) usesColors = true
-            state = build()
-        }
+        }.build()
     }
 
     override fun buildEnabled(value: Boolean): Piper.MessageViewer =
@@ -305,14 +301,13 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
     private val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
-    override fun processGUI(mt: Piper.MinimalTool) {
+    override fun processGUI(mt: Piper.MinimalTool): Piper.HttpListener {
         val bt = btw.toSet()
-        with (Piper.HttpListener.newBuilder()) {
+        return Piper.HttpListener.newBuilder().apply {
             common = mt
             scope = (lsScope.selectedItem as ConfigRequestResponse).rr
             if (bt.size < BurpTool.values().size) setToolSet(bt)
-            state = build()
-        }
+        }.build()
     }
 
     override fun buildEnabled(value: Boolean): Piper.HttpListener =
@@ -328,13 +323,12 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
     private val cbOverwrite: JCheckBox
     private val lsSource: JComboBox<ConfigRequestResponse>
 
-    override fun processGUI(mt: Piper.MinimalTool) {
-        with (Piper.Commentator.newBuilder()) {
+    override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator {
+        return Piper.Commentator.newBuilder().apply {
             common = mt
             source = (lsSource.selectedItem as ConfigRequestResponse).rr
             if (cbOverwrite.isSelected) overwrite = true
-            state = build()
-        }
+        }.build()
     }
 
     override fun buildEnabled(value: Boolean): Piper.Commentator =
@@ -364,20 +358,19 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
     private val smMinInputs: SpinnerNumberModel
     private val smMaxInputs: SpinnerNumberModel
 
-    override fun processGUI(mt: Piper.MinimalTool) {
+    override fun processGUI(mt: Piper.MinimalTool): Piper.UserActionTool {
         val minInputsValue = smMinInputs.number.toInt()
         val maxInputsValue = smMaxInputs.number.toInt()
 
         if (maxInputsValue in 1 until minInputsValue) throw RuntimeException(
             "Maximum allowed number of selected items cannot be lower than minimum required number of selected items.")
 
-        with (Piper.UserActionTool.newBuilder()) {
+        return Piper.UserActionTool.newBuilder().apply {
             common = mt
             if (cbHasGUI.isSelected) hasGUI = true
             if (minInputsValue > 1) minInputs = minInputsValue
             if (maxInputsValue > 0) maxInputs = maxInputsValue
-            state = build()
-        }
+        }.build()
     }
 
     override fun buildEnabled(value: Boolean): Piper.UserActionTool =
@@ -407,10 +400,7 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
 }
 
 class MacroDialog(private val macro: Piper.MinimalTool, parent: Component?) : MinimalToolDialog<Piper.MinimalTool>(macro, parent) {
-    override fun processGUI(mt: Piper.MinimalTool) {
-        state = mt
-    }
-
+    override fun processGUI(mt: Piper.MinimalTool): Piper.MinimalTool = mt
     override fun buildEnabled(value: Boolean): Piper.MinimalTool = macro.buildEnabled(value)
 
     init {
@@ -449,15 +439,14 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
         title = "Header filter editor"
     }
 
-    override fun processGUI() {
+    override fun processGUI(): Piper.HeaderMatch {
         val text = cbHeader.selectedItem?.toString()
         if (text.isNullOrEmpty()) throw RuntimeException("The header name cannot be empty.")
 
-        with(Piper.HeaderMatch.newBuilder()) {
+        return Piper.HeaderMatch.newBuilder().apply {
             header = text
             regex = regExpWidget.toRegularExpression()
-            state = build()
-        }
+        }.build()
     }
 }
 
@@ -635,30 +624,27 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
         title = "Command invocation editor"
     }
 
-    override fun processGUI() {
-        with (Piper.CommandInvocation.newBuilder()) {
-            if (showFilters) {
-                if (ccmwStdout.mm != null) stdout = ccmwStdout.mm
-                if (ccmwStderr.mm != null) stderr = ccmwStderr.mm
-                try {
-                    addAllExitCode(parseExitCodeList())
-                } catch (e: NumberFormatException) {
-                    throw RuntimeException("Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
-                }
-                if (ccmwStdout.mm == null && ccmwStderr.mm == null && exitCodeCount == 0) {
-                    throw RuntimeException("No filters are defined for stdio or exit code.")
-                }
+    override fun processGUI(): Piper.CommandInvocation = Piper.CommandInvocation.newBuilder().apply {
+        if (showFilters) {
+            if (ccmwStdout.mm != null) stdout = ccmwStdout.mm
+            if (ccmwStderr.mm != null) stderr = ccmwStderr.mm
+            try {
+                addAllExitCode(parseExitCodeList())
+            } catch (e: NumberFormatException) {
+                throw RuntimeException("Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
             }
-            val params = paramsModel.map(CommandLineParameter::value)
-            addAllPrefix(params.takeWhile(Objects::nonNull))
-            if (prefixCount < paramsModel.size) {
-                inputMethod = Piper.CommandInvocation.InputMethod.FILENAME
-                addAllPostfix(params.drop(prefixCount + 1))
+            if (ccmwStdout.mm == null && ccmwStderr.mm == null && exitCodeCount == 0) {
+                throw RuntimeException("No filters are defined for stdio or exit code.")
             }
-            if (cbPassHeaders.isSelected) passHeaders = true
-            state = build()
         }
-    }
+        val params = paramsModel.map(CommandLineParameter::value)
+        addAllPrefix(params.takeWhile(Objects::nonNull))
+        if (prefixCount < paramsModel.size) {
+            inputMethod = Piper.CommandInvocation.InputMethod.FILENAME
+            addAllPostfix(params.drop(prefixCount + 1))
+        }
+        if (cbPassHeaders.isSelected) passHeaders = true
+    }.build()
 }
 
 private class InputMethodWidget(private val label: JLabel = JLabel(),
@@ -884,7 +870,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         title = "Filter editor"
     }
 
-    override fun processGUI() {
+    override fun processGUI(): Piper.MessageMatch {
         val builder = Piper.MessageMatch.newBuilder()
 
         if ((cbNegation.selectedItem as MatchNegation).negation) builder.negation = true
@@ -901,7 +887,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         builder.addAllAndAlso(andAlsoModel.map(MessageMatchWrapper::cfgItem))
         builder.addAllOrElse (orElseModel .map(MessageMatchWrapper::cfgItem))
 
-        state = builder.build()
+        return builder.build()
     }
 
     private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>): Pair<Component, DefaultListModel<MessageMatchWrapper>> {
