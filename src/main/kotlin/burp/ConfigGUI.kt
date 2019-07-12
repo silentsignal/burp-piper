@@ -37,7 +37,7 @@ abstract class ListEditor<E>(protected val model: DefaultListModel<E>, protected
             }
         }
 
-        listOf(btnAdd, createRemoveButton("Remove", listWidget, model), btnClone).map(pnToolbar::add)
+        listOf(btnAdd, createRemoveButton(listWidget, model), btnClone).map(pnToolbar::add)
     }
 
     override fun getListCellRendererComponent(list: JList<out E>?, value: E, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
@@ -536,7 +536,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
         cs.gridwidth = 1
         cs.gridheight = 1
 
-        panel.add(createRemoveButton("Remove", lsParams, paramsModel), cs)
+        panel.add(createRemoveButton(lsParams, paramsModel), cs)
 
         cs.gridy = 2; panel.add(btnMoveUp, cs)
         cs.gridy = 3; panel.add(btnMoveDown, cs)
@@ -901,8 +901,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
     }
 }
 
-private fun <E> createRemoveButton(caption: String, listWidget: JList<E>, listModel: DefaultListModel<E>): JButton {
-    val btn = JButton(caption)
+private fun <E> createRemoveButton(listWidget: JList<E>, listModel: DefaultListModel<E>): JButton {
+    val btn = JButton("Remove")
     btn.isEnabled = listWidget.selectedIndices.isNotEmpty()
     listWidget.addListSelectionListener {
         btn.isEnabled = listWidget.selectedIndices.isNotEmpty()
