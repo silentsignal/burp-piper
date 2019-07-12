@@ -129,19 +129,18 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
 class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints) {
     private val tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
     private val cbEnabled: JCheckBox
-    private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(cmd = tool.cmd, parent = panel)
+    private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(cmd = tool.cmd, match = false)
     private val ccmw: CollapsedMessageMatchWidget = CollapsedMessageMatchWidget(mm = tool.filter, showHeaderMatch = true, caption = "Filter: ")
 
     fun toMinimalTool(): Piper.MinimalTool {
         if (tfName.text.isEmpty()) throw RuntimeException("Name cannot be empty.")
-        if (cciw.cmd.prefixCount + cciw.cmd.postfixCount == 0) throw RuntimeException("The command must contain at least one argument.")
+        val command = cciw.value ?: throw RuntimeException("Command must be specified")
 
-        val f = ccmw.mm
         return Piper.MinimalTool.newBuilder().apply {
             name = tfName.text
             if (cbEnabled.isSelected) enabled = true
-            if (f != null) filter = f
-            cmd = cciw.cmd
+            if (ccmw.value != null) filter = ccmw.value
+            cmd = command
         }.build()
     }
 
@@ -153,27 +152,23 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
     }
 }
 
-class CollapsedMessageMatchWidget(var mm: Piper.MessageMatch?, val showHeaderMatch: Boolean, val caption: String) {
+abstract class CollapsedWidget<E>(var value: E?, private val caption: String, val removable: Boolean) {
     private val label: JLabel = JLabel()
-    private val btnRemoveFilter = JButton("Remove")
+    private val btnRemove = JButton("Remove")
+
+    abstract fun editDialog(value: E, parent: Component): E?
+    abstract fun toHumanReadable(): String
+    abstract val default: E
 
     private fun update() {
-        val f = mm
-        label.text = if (f == null) "(no filter) " else f.toHumanReadable(negation = false, hideParentheses = true) + " "
-        btnRemoveFilter.isEnabled = (f != null)
+        label.text = toHumanReadable() + " "
+        btnRemove.isEnabled = value != null
     }
 
     fun buildGUI(panel: Container, cs: GridBagConstraints) {
         val btnEditFilter = JButton("Edit...")
         btnEditFilter.addActionListener {
-            val filter = MessageMatchDialog(mm ?: Piper.MessageMatch.getDefaultInstance(),
-                    showHeaderMatch = showHeaderMatch, parent = panel).showGUI() ?: return@addActionListener
-            mm = filter
-            update()
-        }
-
-        btnRemoveFilter.addActionListener {
-            mm = null
+            value = editDialog(value ?: default, panel) ?: return@addActionListener
             update()
         }
 
@@ -183,67 +178,43 @@ class CollapsedMessageMatchWidget(var mm: Piper.MessageMatch?, val showHeaderMat
         cs.gridx = 0 ; panel.add(JLabel(caption), cs)
         cs.gridx = 1 ; panel.add(label, cs)
         cs.gridx = 2 ; panel.add(btnEditFilter, cs)
-        cs.gridx = 3 ; panel.add(btnRemoveFilter, cs)
-    }
 
-    init {
-        if (mm == Piper.MessageMatch.getDefaultInstance()) mm = null
-    }
-}
-
-open class CollapsedCommandInvocationWidget(var cmd: Piper.CommandInvocation, protected val parent: Component) {
-    private val label: JLabel = JLabel()
-    private val btnEdit: JButton = JButton("Edit...")
-
-    protected open fun update() {
-        label.text = if (cmd == Piper.CommandInvocation.getDefaultInstance()) "(no command)" else stringRepr
-    }
-
-    protected open val stringRepr: String
-        get() = cmd.commandLine + " "
-
-    open fun buildGUI(panel: Container, cs: GridBagConstraints) {
-        update()
-        cs.gridx = 0 ; panel.add(JLabel("Command: "), cs)
-        cs.gridx = 1 ; panel.add(label, cs)
-        cs.gridx = 2 ; panel.add(btnEdit, cs)
-    }
-
-    open fun showDialog(): Piper.CommandInvocation? = CommandInvocationDialog(cmd, showFilters = false, parent = parent).showGUI()
-
-    init {
-        btnEdit.addActionListener {
-            val edited = showDialog() ?: return@addActionListener
-            cmd = edited
-            update()
-        }
-    }
-}
-
-class CollapsedCommandInvocationMatchWidget(initialValue: Piper.CommandInvocation, parent: Component) : CollapsedCommandInvocationWidget(initialValue, parent) {
-    private val btnRemove: JButton = JButton("Remove")
-
-    override fun update() {
-        super.update()
-        btnRemove.isEnabled = cmd != Piper.CommandInvocation.getDefaultInstance()
-    }
-
-    override val stringRepr: String
-        get() = cmd.toHumanReadable(false)
-
-    init {
-        btnRemove.addActionListener {
-            cmd = Piper.CommandInvocation.getDefaultInstance()
-            update()
+        if (removable) {
+            cs.gridx = 3; panel.add(btnRemove, cs)
+            btnRemove.addActionListener {
+                value = null
+                update()
+            }
         }
     }
 
-    override fun showDialog(): Piper.CommandInvocation? = CommandInvocationDialog(cmd, showFilters = true, parent = parent).showGUI()
-
-    override fun buildGUI(panel: Container, cs: GridBagConstraints) {
-        super.buildGUI(panel, cs)
-        cs.gridx = 3 ; panel.add(btnRemove, cs)
+    init {
+        if (value == default) value = null
     }
+}
+
+class CollapsedMessageMatchWidget(mm: Piper.MessageMatch?, val showHeaderMatch: Boolean, caption: String) :
+        CollapsedWidget<Piper.MessageMatch>(mm, caption, removable = true) {
+
+    override fun editDialog(value: Piper.MessageMatch, parent: Component): Piper.MessageMatch? =
+            MessageMatchDialog(value, showHeaderMatch = showHeaderMatch, parent = parent).showGUI()
+
+    override fun toHumanReadable(): String =
+            value?.toHumanReadable(negation = false, hideParentheses = true) ?: "(no filter)"
+
+    override val default: Piper.MessageMatch
+        get() = Piper.MessageMatch.getDefaultInstance()
+}
+
+class CollapsedCommandInvocationWidget(cmd: Piper.CommandInvocation, private val match: Boolean) :
+        CollapsedWidget<Piper.CommandInvocation>(cmd, "Command: ", removable = match) {
+
+    override fun toHumanReadable(): String = (if (match) value?.toHumanReadable(negation = false) else value?.commandLine) ?: "(no command)"
+    override fun editDialog(value: Piper.CommandInvocation, parent: Component): Piper.CommandInvocation? =
+            CommandInvocationDialog(value, showFilters = match, parent = parent).showGUI()
+
+    override val default: Piper.CommandInvocation
+        get() = Piper.CommandInvocation.getDefaultInstance()
 }
 
 abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
@@ -654,17 +625,18 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
     override fun processGUI(): Piper.CommandInvocation = Piper.CommandInvocation.newBuilder().apply {
         if (showFilters) {
-            if (ccmwStdout.mm != null) stdout = ccmwStdout.mm
-            if (ccmwStderr.mm != null) stderr = ccmwStderr.mm
+            if (ccmwStdout.value != null) stdout = ccmwStdout.value
+            if (ccmwStderr.value != null) stderr = ccmwStderr.value
             try {
                 addAllExitCode(parseExitCodeList())
             } catch (e: NumberFormatException) {
                 throw RuntimeException("Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
             }
-            if (ccmwStdout.mm == null && ccmwStderr.mm == null && exitCodeCount == 0) {
+            if (ccmwStdout.value == null && ccmwStderr.value == null && exitCodeCount == 0) {
                 throw RuntimeException("No filters are defined for stdio or exit code.")
             }
         }
+        if (paramsModel.isEmpty) throw RuntimeException("The command must contain at least one argument.")
         val params = paramsModel.map(CommandLineParameter::value)
         addAllPrefix(params.takeWhile(Objects::nonNull))
         if (prefixCount < paramsModel.size) {
@@ -828,7 +800,7 @@ class EnumSetWidget<E : Enum<E>>(set: Set<E>, panel: Container, cs: GridBagConst
 class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent) {
     private val prefixField  = HexASCIITextField("prefix",  mm.prefix,  this)
     private val postfixField = HexASCIITextField("postfix", mm.postfix, this)
-    private val cciw = CollapsedCommandInvocationMatchWidget(mm.cmd, this)
+    private val cciw = CollapsedCommandInvocationWidget(mm.cmd, match = true)
     private val cbNegation = JComboBox(MatchNegation.values())
     private val regExpWidget: RegExpWidget
     private var header: Piper.HeaderMatch? = if (mm.hasHeader()) mm.header else null
@@ -906,7 +878,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
 
         if (header != null) builder.header = header
 
-        if (cciw.cmd != Piper.CommandInvocation.getDefaultInstance()) builder.cmd = cciw.cmd
+        if (cciw.value != null) builder.cmd = cciw.value
 
         builder.addAllAndAlso(andAlsoPanel.items)
         builder.addAllOrElse ( orElsePanel.items)
