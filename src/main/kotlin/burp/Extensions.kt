@@ -139,7 +139,7 @@ fun Piper.CommandInvocation.matches(subject: ByteArray, helpers: IExtensionHelpe
             (this.hasStdout() && !this.stdout.matches(process.inputStream, helpers))) return false
     val exitCode = process.waitFor()
     tempFiles.forEach { it.delete() }
-    return (this.exitCodeCount == 0) || this.exitCodeList.contains(exitCode)
+    return (this.exitCodeCount == 0) || exitCode in this.exitCodeList
 }
 
 fun Piper.MessageMatch.matches(stream: InputStream, helpers: IExtensionHelpers): Boolean =
