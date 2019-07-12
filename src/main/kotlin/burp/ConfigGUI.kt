@@ -38,11 +38,7 @@ abstract class ListEditor<E>(protected val model: DefaultListModel<E>, protected
             }
         }
 
-        with(pnToolbar) {
-            add(btnAdd)
-            add(createRemoveButton("Remove", listWidget, model))
-            add(btnClone)
-        }
+        listOf(btnAdd, createRemoveButton("Remove", listWidget, model), btnClone).forEach(pnToolbar::add)
     }
 
     override fun getListCellRendererComponent(list: JList<out E>?, value: E, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
