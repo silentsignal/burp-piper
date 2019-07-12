@@ -145,8 +145,8 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
     }
 
     init {
-        cs.gridy = 1 ; ccmw.buildGUI(panel, cs)
-        cs.gridy = 2 ; cciw.buildGUI(panel, cs)
+        ccmw.buildGUI(panel, cs)
+        cciw.buildGUI(panel, cs)
         cs.gridy = 3 ; cs.gridx = 0 ; cbEnabled = createCheckBox("Enabled", tool.enabled, panel, cs)
         cs.gridy = 4
     }
@@ -174,6 +174,7 @@ abstract class CollapsedWidget<E>(var value: E?, private val caption: String, va
 
         update()
         cs.gridwidth = 1
+        cs.gridy++
 
         cs.gridx = 0 ; panel.add(JLabel(caption), cs)
         cs.gridx = 1 ; panel.add(label, cs)
@@ -602,8 +603,8 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
         if (showFilters) {
             val exitValues = ci.exitCodeList.joinToString(", ")
 
-            cs.gridy = 8; ccmwStdout.buildGUI(panel, cs)
-            cs.gridy = 9; ccmwStderr.buildGUI(panel, cs)
+            ccmwStdout.buildGUI(panel, cs)
+            ccmwStderr.buildGUI(panel, cs)
             cs.gridy = 10;
             val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
 
@@ -850,8 +851,6 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
             }
         }
 
-        cs.gridy++
-        cs.gridx = 0
         cciw.buildGUI(panel, cs)
 
         val spList = JSplitPane()
