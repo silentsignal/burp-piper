@@ -150,15 +150,15 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     }
 
     private fun populateTabs(cfg: ConfigModel, parent: Component?) {
-        tabs.addTab("Message viewers", createListEditor(cfg.messageViewersModel, parent,
+        tabs.addTab("Message viewers", MinimalToolListEditor(cfg.messageViewersModel, parent,
                 ::MessageViewerDialog, Piper.MessageViewer::getDefaultInstance))
-        tabs.addTab("Context menu items", createListEditor(cfg.menuItemsModel, parent,
+        tabs.addTab("Context menu items", MinimalToolListEditor(cfg.menuItemsModel, parent,
                 ::MenuItemDialog, Piper.UserActionTool::getDefaultInstance))
-        tabs.addTab("Macros", createListEditor(cfg.macrosModel, parent,
+        tabs.addTab("Macros", MinimalToolListEditor(cfg.macrosModel, parent,
                 ::MacroDialog, Piper.MinimalTool::getDefaultInstance))
-        tabs.addTab("HTTP listeners", createListEditor(cfg.httpListenersModel, parent,
+        tabs.addTab("HTTP listeners", MinimalToolListEditor(cfg.httpListenersModel, parent,
                 ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance))
-        tabs.addTab("Commentators", createListEditor(cfg.commentatorsModel, parent,
+        tabs.addTab("Commentators", MinimalToolListEditor(cfg.commentatorsModel, parent,
                 ::CommentatorDialog, Piper.Commentator::getDefaultInstance))
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
     }

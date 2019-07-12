@@ -7,68 +7,117 @@ import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
+import javax.swing.event.ListSelectionEvent
+import javax.swing.event.ListSelectionListener
 import kotlin.math.max
 
 private fun minimalToolHumanReadableName(cfgItem: Piper.MinimalTool) = if (cfgItem.enabled) cfgItem.name else cfgItem.name + " [disabled]"
 
 const val TOGGLE_DEFAULT = "Toggle enabled"
 
-fun <S> createListEditor(model: DefaultListModel<S>, parent: Component?,
-                         dialog: (S, Component?) -> MinimalToolDialog<S>, default: () -> S): Component {
-    val listWidget = JList(model)
-    listWidget.addDoubleClickListener {
-        model[it] = dialog(model[it], parent).showGUI() ?: return@addDoubleClickListener
-    }
-    val cr = DefaultListCellRenderer()
-    listWidget.setCellRenderer { list, value, index, isSelected, cellHasFocus ->
-        val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-        cr.text = dialog(value, parent).toHumanReadable()
-        c
+abstract class ListEditor<E>(protected val model: DefaultListModel<E>, protected val parent: Component?,
+                             caption: String?) : JPanel(BorderLayout()), ListDataListener, ListCellRenderer<E>, ListSelectionListener {
+    protected val pnToolbar = JPanel()
+    protected val listWidget = JList(model)
+    private val btnClone = JButton("Clone")
+    private val cr = DefaultListCellRenderer()
+
+    abstract fun editDialog(value: E): E?
+    abstract fun addDialog(): E?
+    abstract fun toHumanReadable(value: E): String
+
+    private fun addButtons() {
+        val btnAdd = JButton("Add")
+        btnAdd.addActionListener {
+            model.addElement(addDialog() ?: return@addActionListener)
+        }
+        btnClone.isEnabled = false
+        btnClone.addActionListener {
+            (listWidget.selectedValuesList.reversed().asSequence() zip listWidget.selectedIndices.reversed().asSequence()).forEach {(value, index) ->
+                model.insertElementAt(value, index)
+            }
+        }
+
+        with(pnToolbar) {
+            add(btnAdd)
+            add(createRemoveButton("Remove", listWidget, model))
+            add(btnClone)
+        }
     }
 
-    val btnAdd = JButton("Add")
-    btnAdd.addActionListener {
+    override fun getListCellRendererComponent(list: JList<out E>?, value: E, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
+        val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+        cr.text = toHumanReadable(value)
+        return c
+    }
+
+    override fun valueChanged(p0: ListSelectionEvent?) { updateBtnEnableDisableState() }
+    override fun contentsChanged(p0: ListDataEvent?)   { updateBtnEnableDisableState() }
+    override fun intervalAdded  (p0: ListDataEvent?)   { updateBtnEnableDisableState() }
+    override fun intervalRemoved(p0: ListDataEvent?)   { updateBtnEnableDisableState() }
+
+    private fun updateCloneBtnState() {
+        btnClone.isEnabled = !listWidget.isSelectionEmpty
+    }
+
+    open fun updateBtnEnableDisableState() {
+        updateCloneBtnState()
+    }
+
+    init {
+        listWidget.addDoubleClickListener {
+            model[it] = editDialog(model[it]) ?: return@addDoubleClickListener
+        }
+        listWidget.cellRenderer = this
+
+        listWidget.addListSelectionListener(this)
+        model.addListDataListener(this)
+
+        addButtons()
+        updateCloneBtnState()
+        if (caption == null) {
+            add(pnToolbar, BorderLayout.PAGE_START)
+        } else {
+            add(pnToolbar, BorderLayout.SOUTH)
+            add(JLabel(caption), BorderLayout.PAGE_START)
+        }
+        add(JScrollPane(listWidget), BorderLayout.CENTER)
+    }
+}
+
+class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Component?, private val dialog: (E, Component?) -> MinimalToolDialog<E>,
+                               private val default: () -> E) : ListEditor<E>(model, parent, null) {
+
+    private val btnEnableDisable = JButton()
+
+    override fun addDialog(): E? {
         val enabledDefault = dialog(default(), parent).buildEnabled(true)
-        model.addElement(dialog(enabledDefault, parent).showGUI() ?: return@addActionListener)
+        return dialog(enabledDefault, parent).showGUI()
     }
-    val btnEnableDisable = JButton()
-    btnEnableDisable.addActionListener {
-        (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
-            model[index] = dialog(value, parent).buildEnabled(!dialog(value, parent).isToolEnabled())
-        }
+
+    override fun editDialog(value: E): E? = dialog(value, parent).showGUI()
+    override fun toHumanReadable(value: E): String = dialog(value, parent).toHumanReadable()
+
+    override fun updateBtnEnableDisableState() {
+        super.updateBtnEnableDisableState()
+        updateEnableDisableBtnState()
     }
-    val btnClone = JButton("Clone")
-    btnClone.isEnabled = false
-    btnClone.addActionListener {
-        (listWidget.selectedValuesList.reversed().asSequence() zip listWidget.selectedIndices.reversed().asSequence()).forEach {(value, index) ->
-            model.insertElementAt(value, index)
-        }
-    }
-    fun updateBtnEnableDisableState() {
+
+    private fun updateEnableDisableBtnState() {
         val selection = listWidget.selectedValuesList
         btnEnableDisable.isEnabled = selection.isNotEmpty()
-        btnClone.isEnabled = selection.isNotEmpty()
         val states = selection.map { dialog(it, parent).isToolEnabled() }.toSet()
         btnEnableDisable.text = if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
     }
 
-    listWidget.addListSelectionListener { updateBtnEnableDisableState() }
-    model.addListDataListener(object : ListDataListener {
-        override fun contentsChanged(p0: ListDataEvent?) { updateBtnEnableDisableState() }
-        override fun intervalAdded  (p0: ListDataEvent?) { updateBtnEnableDisableState() }
-        override fun intervalRemoved(p0: ListDataEvent?) { updateBtnEnableDisableState() }
-    })
-    updateBtnEnableDisableState()
-
-    val pnToolbar = JPanel().apply {
-        add(btnAdd)
-        add(createRemoveButton("Remove", listWidget, model))
-        add(btnEnableDisable)
-        add(btnClone)
-    }
-    return JPanel(BorderLayout()).apply {
-        add(pnToolbar, BorderLayout.PAGE_START)
-        add(listWidget, BorderLayout.CENTER)
+    init {
+        btnEnableDisable.addActionListener {
+            (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
+                model[index] = dialog(value, parent).buildEnabled(!dialog(value, parent).isToolEnabled())
+            }
+        }
+        pnToolbar.add(btnEnableDisable)
+        updateEnableDisableBtnState()
     }
 }
 
@@ -788,10 +837,10 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
     private val cbNegation = JComboBox(MatchNegation.values())
     private val regExpWidget: RegExpWidget
     private var header: Piper.HeaderMatch? = if (mm.hasHeader()) mm.header else null
-    private val andAlsoModel: DefaultListModel<Piper.MessageMatch>
-    private val orElseModel: DefaultListModel<Piper.MessageMatch>
     private val lbHeader = JLabel()
     private val btnHeaderRemove = JButton("Remove")
+    private val andAlsoPanel = MatchListEditor("All of these apply: [AND]", mm.andAlsoList)
+    private val  orElsePanel = MatchListEditor("Any of these apply: [OR]",  mm.orElseList)
 
     private fun updateHeaderGUI() {
         btnHeaderRemove.isEnabled = header != null
@@ -839,12 +888,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         cciw.buildGUI(panel, cs)
 
         val spList = JSplitPane()
-        val (andAlsoPanel, andAlsoModelLocal) = createMatchListWidget("All of these apply: [AND]", mm.andAlsoList)
-        val ( orElsePanel,  orElseModelLocal) = createMatchListWidget("Any of these apply: [OR]",  mm.orElseList)
         spList.leftComponent = andAlsoPanel
         spList.rightComponent = orElsePanel
-        andAlsoModel = andAlsoModelLocal
-        orElseModel = orElseModelLocal
 
         addFullWidthComponent(spList, panel, cs)
 
@@ -868,70 +913,24 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
 
         if (cciw.cmd != Piper.CommandInvocation.getDefaultInstance()) builder.cmd = cciw.cmd
 
-        builder.addAllAndAlso(andAlsoModel.toIterable())
-        builder.addAllOrElse (orElseModel .toIterable())
+        builder.addAllAndAlso(andAlsoPanel.items)
+        builder.addAllOrElse ( orElsePanel.items)
 
         return builder.build()
     }
 
-    private fun createMatchListWidget(caption: String, source: List<Piper.MessageMatch>): Pair<Component, DefaultListModel<Piper.MessageMatch>> {
-        val model = fillDefaultModel(source)
+    inner class MatchListEditor(caption: String, source: List<Piper.MessageMatch>) : ListEditor<Piper.MessageMatch>(fillDefaultModel(source), this, caption) {
+        override fun addDialog(): Piper.MessageMatch? = MessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
+                showHeaderMatch = showHeaderMatch, parent = this).showGUI()
 
-        val list = JList<Piper.MessageMatch>(model)
-        val toolbar = JPanel()
+        override fun editDialog(value: Piper.MessageMatch): Piper.MessageMatch? =
+                MessageMatchDialog(value, showHeaderMatch = showHeaderMatch, parent = this).showGUI()
 
-        val btnAdd = JButton("+")
-        val btnEdit = JButton("Edit")
+        override fun toHumanReadable(value: Piper.MessageMatch): String =
+                value.toHumanReadable(negation = false, hideParentheses = true)
 
-        list.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
-        val cr = DefaultListCellRenderer()
-        list.setCellRenderer { list, value, index, isSelected, cellHasFocus ->
-            val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-            cr.text = value.toHumanReadable(negation = false, hideParentheses = true)
-            c
-        }
-
-        btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
-        list.addListSelectionListener {
-            btnEdit.isEnabled = list.selectedIndices.isNotEmpty()
-        }
-
-        btnAdd.addActionListener {
-            model.addElement(
-                    MessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
-                            showHeaderMatch = showHeaderMatch, parent = this).showGUI() ?: return@addActionListener)
-        }
-
-        btnEdit.addActionListener {
-            val edited = MessageMatchDialog(list.selectedValue ?: return@addActionListener,
-                    showHeaderMatch = showHeaderMatch, parent = this).showGUI()
-            if (edited != null) model.set(list.selectedIndex, edited)
-        }
-
-        with (toolbar) {
-            layout = BoxLayout(toolbar, BoxLayout.LINE_AXIS)
-            add(btnAdd)
-            add(Box.createRigidArea(Dimension(4, 0)))
-            add(createRemoveButton("--", list, model))
-            add(Box.createRigidArea(Dimension(4, 0)))
-            add(btnEdit)
-        }
-
-        val panel = JPanel()
-
-        with (panel) {
-            layout = BorderLayout()
-            border = BorderFactory.createEmptyBorder(4, 4, 4, 4)
-            add(JLabel(caption), BorderLayout.NORTH)
-            add(JScrollPane(list), BorderLayout.CENTER)
-            add(toolbar, BorderLayout.SOUTH)
-        }
-
-        list.addDoubleClickListener {
-            btnEdit.doClick()
-        }
-
-        return panel to model
+        val items: Iterable<Piper.MessageMatch>
+            get() = model.toIterable()
     }
 }
 
