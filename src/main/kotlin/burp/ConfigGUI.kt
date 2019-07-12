@@ -605,7 +605,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
             ccmwStdout.buildGUI(panel, cs)
             ccmwStderr.buildGUI(panel, cs)
-            cs.gridy = 10;
+            cs.gridy = 10
             val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
 
             tfExitCode.inputVerifier = object : InputVerifier() {
