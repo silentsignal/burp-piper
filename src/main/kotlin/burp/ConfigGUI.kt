@@ -798,22 +798,27 @@ class EnumSetWidget<E : Enum<E>>(set: Set<E>, panel: Container, cs: GridBagConst
     }
 }
 
+class CollapsedHeaderMatchWidget(hm: Piper.HeaderMatch?) :
+        CollapsedWidget<Piper.HeaderMatch>(hm, "Header: ", removable = true) {
+
+    override fun editDialog(value: Piper.HeaderMatch, parent: Component): Piper.HeaderMatch? =
+            HeaderMatchDialog(value, parent = parent).showGUI()
+
+    override fun toHumanReadable(): String = value?.toHumanReadable(negation = false) ?: "(no header match)"
+
+    override val default: Piper.HeaderMatch
+        get() = Piper.HeaderMatch.getDefaultInstance()
+}
+
 class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent) {
     private val prefixField  = HexASCIITextField("prefix",  mm.prefix,  this)
     private val postfixField = HexASCIITextField("postfix", mm.postfix, this)
     private val cciw = CollapsedCommandInvocationWidget(mm.cmd, match = true)
+    private val chmw = CollapsedHeaderMatchWidget(mm.header)
     private val cbNegation = JComboBox(MatchNegation.values())
     private val regExpWidget: RegExpWidget
-    private var header: Piper.HeaderMatch? = if (mm.hasHeader()) mm.header else null
-    private val lbHeader = JLabel()
-    private val btnHeaderRemove = JButton("Remove")
     private val andAlsoPanel = MatchListEditor("All of these apply: [AND]", mm.andAlsoList)
     private val  orElsePanel = MatchListEditor("Any of these apply: [OR]",  mm.orElseList)
-
-    private fun updateHeaderGUI() {
-        btnHeaderRemove.isEnabled = header != null
-        lbHeader.text = header?.toHumanReadable(false) ?: "(no header match)"
-    }
 
     init {
         cs.gridwidth = 4
@@ -828,28 +833,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         cs.gridy = 3
         regExpWidget = RegExpWidget(mm.regex, panel, cs)
 
-        if (showHeaderMatch) {
-            val btnHeaderEdit = JButton("Edit...")
-            updateHeaderGUI()
-
-            cs.gridy++
-            cs.gridx = 0 ; panel.add(JLabel("Header: "), cs)
-            cs.gridx = 1 ; panel.add(lbHeader, cs)
-            cs.gridx = 2 ; panel.add(btnHeaderEdit, cs)
-            cs.gridx = 3 ; panel.add(btnHeaderRemove, cs)
-
-            btnHeaderEdit.addActionListener {
-                val current = header ?: Piper.HeaderMatch.getDefaultInstance()
-                val header = HeaderMatchDialog(current, this).showGUI() ?: return@addActionListener
-                this.header = header
-                updateHeaderGUI()
-            }
-
-            btnHeaderRemove.addActionListener {
-                header = null
-                updateHeaderGUI()
-            }
-        }
+        if (showHeaderMatch) chmw.buildGUI(panel, cs)
 
         cciw.buildGUI(panel, cs)
 
@@ -875,9 +859,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
 
         if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
 
-        if (header != null) builder.header = header
-
-        if (cciw.value != null) builder.cmd = cciw.value
+        if (chmw.value != null) builder.header = chmw.value
+        if (cciw.value != null) builder.cmd    = cciw.value
 
         builder.addAllAndAlso(andAlsoPanel.items)
         builder.addAllOrElse ( orElsePanel.items)
