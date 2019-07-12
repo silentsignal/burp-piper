@@ -228,7 +228,7 @@ class CollapsedCommandInvocationWidget(w: Window, cmd: Piper.CommandInvocation, 
         get() = Piper.CommandInvocation.getDefaultInstance()
 }
 
-abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
+abstract class ConfigDialog<E>(private val parent: Component?, private val caption: String) : JDialog() {
     protected val panel = JPanel(GridBagLayout())
     protected val cs = GridBagConstraints().apply {
         fill = GridBagConstraints.HORIZONTAL
@@ -239,6 +239,7 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
 
     fun showGUI(): E? {
         addFullWidthComponent(createOkCancelButtonsPanel(), panel, cs)
+        title = caption
         defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
         add(panel)
         rootPane.border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
@@ -278,20 +279,22 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
     abstract fun processGUI(): E
 }
 
-abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?) : ConfigDialog<E>(parent) {
+abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?, noun: String) :
+        ConfigDialog<E>(parent, if (common.name.isEmpty()) "Add $noun" else "Edit $noun \"${common.name}\"") {
     private val mtw = MinimalToolWidget(common, panel, cs, this)
 
     override fun processGUI(): E = processGUI(mtw.toMinimalTool())
 
     fun isToolEnabled() : Boolean = common.enabled
     fun toHumanReadable(): String = minimalToolHumanReadableName(common)
-    protected fun generateCaption(noun: String): String = if (name.isEmpty()) "Add $noun" else "Edit $noun \"${common.name}\""
 
     abstract fun buildEnabled(value: Boolean) : E
     abstract fun processGUI(mt: Piper.MinimalTool): E
 }
 
-class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent: Component?) : MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent) {
+class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent: Component?) :
+        MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent, "message viewer") {
+
     private val cbUsesColors = createFullWidthCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.MessageViewer {
@@ -303,13 +306,11 @@ class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent
 
     override fun buildEnabled(value: Boolean): Piper.MessageViewer =
             messageViewer.toBuilder().setCommon(messageViewer.common.buildEnabled(value)).build()
-
-    init {
-        title = generateCaption("message editor")
-    }
 }
 
-class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: Component?) : MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent) {
+class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: Component?) :
+        MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent, "HTTP listener") {
+
     private val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
@@ -324,13 +325,11 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
 
     override fun buildEnabled(value: Boolean): Piper.HttpListener =
             httpListener.toBuilder().setCommon(httpListener.common.buildEnabled(value)).build()
-
-    init {
-        title = generateCaption("HTTP listener")
-    }
 }
 
-class CommentatorDialog(private val commentator: Piper.Commentator, parent: Component?) : MinimalToolDialog<Piper.Commentator>(commentator.common, parent) {
+class CommentatorDialog(private val commentator: Piper.Commentator, parent: Component?) :
+        MinimalToolDialog<Piper.Commentator>(commentator.common, parent, "commentator") {
+
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
     private val lsSource: JComboBox<ConfigRequestResponse> = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
 
@@ -344,10 +343,6 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
 
     override fun buildEnabled(value: Boolean): Piper.Commentator =
             commentator.toBuilder().setCommon(commentator.common.buildEnabled(value)).build()
-
-    init {
-        title = generateCaption("commentator")
-    }
 }
 
 private fun createFullWidthCheckBox(caption: String, initialValue: Boolean, panel: Container, cs: GridBagConstraints): JCheckBox {
@@ -364,7 +359,9 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
     return cb
 }
 
-class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Component?) : MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent) {
+class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Component?) :
+        MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent, "menu item") {
+
     private val cbHasGUI: JCheckBox = createFullWidthCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
     private val smMinInputs: SpinnerNumberModel = createSpinner("Minimum required number of selected items: ",
             max(menuItem.minInputs, 1), 1, panel, cs)
@@ -388,10 +385,6 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
 
     override fun buildEnabled(value: Boolean): Piper.UserActionTool =
             menuItem.toBuilder().setCommon(menuItem.common.buildEnabled(value)).build()
-
-    init {
-        title = generateCaption("menu item")
-    }
 }
 
 private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Container, cs: GridBagConstraints): SpinnerNumberModel {
@@ -404,13 +397,11 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
     return model
 }
 
-class MacroDialog(private val macro: Piper.MinimalTool, parent: Component?) : MinimalToolDialog<Piper.MinimalTool>(macro, parent) {
+class MacroDialog(private val macro: Piper.MinimalTool, parent: Component?) :
+        MinimalToolDialog<Piper.MinimalTool>(macro, parent, "macro") {
+
     override fun processGUI(mt: Piper.MinimalTool): Piper.MinimalTool = mt
     override fun buildEnabled(value: Boolean): Piper.MinimalTool = macro.buildEnabled(value)
-
-    init {
-        title = generateCaption("macro")
-    }
 }
 
 fun createLabeledTextField(caption: String, initialValue: String, panel: Container, cs: GridBagConstraints): JTextField {
@@ -431,15 +422,11 @@ fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Conta
     return widget
 }
 
-class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog<Piper.HeaderMatch>(parent) {
+class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog<Piper.HeaderMatch>(parent, "Header filter editor") {
     private val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
             "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
     private val cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
     private val regExpWidget: RegExpWidget = RegExpWidget(hm.regex, panel, cs)
-
-    init {
-        title = "Header filter editor"
-    }
 
     override fun processGUI(): Piper.HeaderMatch {
         val text = cbHeader.selectedItem?.toString()
@@ -459,7 +446,7 @@ data class CommandLineParameter(val value: String?) { // null = input file name
     override fun toString(): String = if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
 }
 
-class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilters: Boolean, parent: Component) : ConfigDialog<Piper.CommandInvocation>(parent) {
+class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilters: Boolean, parent: Component) : ConfigDialog<Piper.CommandInvocation>(parent, "Command invocation editor") {
     private val ccmwStdout = CollapsedMessageMatchWidget(this, mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
     private val ccmwStderr = CollapsedMessageMatchWidget(this, mm = ci.stderr, showHeaderMatch = false, caption = "Match on stderr: ")
     private val monospaced12 = Font("monospaced", Font.PLAIN, 12)
@@ -612,8 +599,6 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
             this.tfExitCode = tfExitCode
         }
-
-        title = "Command invocation editor"
     }
 
     override fun processGUI(): Piper.CommandInvocation = Piper.CommandInvocation.newBuilder().apply {
@@ -803,7 +788,7 @@ class CollapsedHeaderMatchWidget(w: Window, hm: Piper.HeaderMatch?) :
         get() = Piper.HeaderMatch.getDefaultInstance()
 }
 
-class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent) {
+class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent, "Filter editor") {
     private val prefixField  = HexASCIITextField("prefix",  mm.prefix,  this)
     private val postfixField = HexASCIITextField("postfix", mm.postfix, this)
     private val cciw = CollapsedCommandInvocationWidget(this, mm.cmd, match = true)
@@ -835,8 +820,6 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         addFullWidthComponent(spList, panel, cs)
 
         cs.gridy++
-
-        title = "Filter editor"
     }
 
     override fun processGUI(): Piper.MessageMatch {
