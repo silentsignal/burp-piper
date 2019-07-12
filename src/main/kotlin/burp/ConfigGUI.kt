@@ -256,6 +256,7 @@ abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, paren
 
     fun isToolEnabled() : Boolean = common.enabled
     fun toHumanReadable(): String = minimalToolHumanReadableName(common)
+    protected fun generateCaption(noun: String): String = if (name.isEmpty()) "Add $noun" else "Edit $noun \"${common.name}\""
 
     abstract fun buildEnabled(value: Boolean) : E
     abstract fun processGUI(mt: Piper.MinimalTool): E
@@ -276,7 +277,7 @@ class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent
 
     init {
         setSize(800, 600)
-        title = generateCaption("message editor", messageViewer.common.name)
+        title = generateCaption("message editor")
     }
 }
 
@@ -298,7 +299,7 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
 
     init {
         setSize(800, 600)
-        title = generateCaption("HTTP listener", httpListener.common.name)
+        title = generateCaption("HTTP listener")
     }
 }
 
@@ -325,7 +326,7 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
         lsSource = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
 
         setSize(800, 600)
-        title = generateCaption("commentator", commentator.common.name)
+        title = generateCaption("commentator")
     }
 }
 
@@ -368,7 +369,7 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
         smMaxInputs = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
                 menuItem.maxInputs, 0, panel, cs)
         setSize(800, 600)
-        title = generateCaption("menu item", menuItem.common.name)
+        title = generateCaption("menu item")
     }
 }
 
@@ -388,7 +389,7 @@ class MacroDialog(private val macro: Piper.MinimalTool, parent: Component?) : Mi
 
     init {
         setSize(800, 600)
-        title = generateCaption("macro", macro.name)
+        title = generateCaption("macro")
     }
 }
 
@@ -953,8 +954,6 @@ fun <E> fillDefaultModel(source: Sequence<E>, model: DefaultListModel<E> = Defau
     source.forEach(model::addElement)
     return model
 }
-
-fun generateCaption(noun: String, name: String): String = if (name.isEmpty()) "Add $noun" else "Edit $noun \"$name\""
 
 fun showModalDialog(width: Int, height: Int, widget: Component, caption: String, dialog: JDialog, parent: Component?) {
     with(dialog) {
