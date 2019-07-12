@@ -3,6 +3,7 @@ package burp
 import com.google.protobuf.ByteString
 import java.io.File
 import java.io.InputStream
+import java.lang.RuntimeException
 import java.util.*
 import java.util.regex.Pattern
 import javax.swing.DefaultListModel
@@ -180,3 +181,21 @@ fun <E : Enum<E>> calcEnumSet(enumClass: Class<E>, getter: (E) -> Int, value: In
 
 fun <S, T> DefaultListModel<S>.map(transform: (S) -> T): Iterable<T> = toIterable().map(transform)
 fun <E> DefaultListModel<E>.toIterable(): Iterable<E> = (0 until size).map(this::elementAt)
+
+class DependencyException(val dependency: String) : RuntimeException("Dependent executable `$dependency` cannot be found in \$PATH")
+
+fun Piper.CommandInvocation.checkDependencies() {
+    if (prefixCount == 0) return
+    val cmd = getPrefix(0)!!
+    if (!findExecutable(cmd)) throw DependencyException(cmd)
+}
+
+private fun findExecutable(name: String): Boolean {
+    val endings = if ("Windows" in System.getProperty("os.name")) listOf("", ".cmd", ".exe", ".com", ".bat") else listOf("")
+    return sequence {
+        yield(null) // current directory
+        yieldAll(System.getenv().filterKeys { it.equals("PATH", ignoreCase = true) }.values.map { it.split(File.pathSeparator) }.flatten())
+    }.any { parent -> endings.any { ending -> canExecute(File(parent, name + ending)) } }
+}
+
+private fun canExecute(f: File): Boolean = f.exists() && !f.isDirectory && f.canExecute()

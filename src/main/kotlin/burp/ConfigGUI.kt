@@ -126,6 +126,8 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     })
 }
 
+class CancelClosingWindow() : RuntimeException()
+
 class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagConstraints) {
     private val tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
     private val cbEnabled: JCheckBox
@@ -135,6 +137,14 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
     fun toMinimalTool(): Piper.MinimalTool {
         if (tfName.text.isEmpty()) throw RuntimeException("Name cannot be empty.")
         val command = cciw.value ?: throw RuntimeException("Command must be specified")
+        try {
+            if (cbEnabled.isSelected) command.checkDependencies()
+        } catch (c: DependencyException) {
+            when (JOptionPane.showConfirmDialog(panel, "${c.message}\n\nAre you sure you want this enabled?")) {
+                JOptionPane.NO_OPTION -> cbEnabled.isSelected = false
+                JOptionPane.CANCEL_OPTION -> throw CancelClosingWindow()
+            }
+        }
 
         return Piper.MinimalTool.newBuilder().apply {
             name = tfName.text
@@ -247,6 +257,8 @@ abstract class ConfigDialog<E>(private val parent: Component?) : JDialog() {
             try {
                 state = processGUI()
                 isVisible = false
+            } catch (e: CancelClosingWindow) {
+                /* do nothing, just skip closing the window */
             } catch (e: Exception) {
                 JOptionPane.showMessageDialog(this, e.message)
             }
@@ -860,7 +872,17 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
 
         if (chmw.value != null) builder.header = chmw.value
-        if (cciw.value != null) builder.cmd    = cciw.value
+
+        val cmd = cciw.value
+        if (cmd != null) {
+            try {
+                cmd.checkDependencies()
+            } catch (c: DependencyException) {
+                if (JOptionPane.showConfirmDialog(panel, "${c.message}\n\nAre you sure you want to save this?",
+                                "Confirmation", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) throw CancelClosingWindow()
+            }
+            builder.cmd = cmd
+        }
 
         builder.addAllAndAlso(andAlsoPanel.items)
         builder.addAllOrElse ( orElsePanel.items)
