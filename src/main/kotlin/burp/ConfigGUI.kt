@@ -332,7 +332,7 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
 
 class CommentatorDialog(private val commentator: Piper.Commentator, parent: Component?) : MinimalToolDialog<Piper.Commentator>(commentator.common, parent) {
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
-    private val lsSource: JComboBox<ConfigRequestResponse>
+    private val lsSource: JComboBox<ConfigRequestResponse> = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator {
         return Piper.Commentator.newBuilder().apply {
@@ -346,9 +346,6 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
             commentator.toBuilder().setCommon(commentator.common.buildEnabled(value)).build()
 
     init {
-        cs.gridy++
-        lsSource = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
-
         setSize(800, 600)
         title = generateCaption("commentator")
     }
@@ -370,8 +367,10 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
 
 class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Component?) : MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent) {
     private val cbHasGUI: JCheckBox = createFullWidthCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
-    private val smMinInputs: SpinnerNumberModel
-    private val smMaxInputs: SpinnerNumberModel
+    private val smMinInputs: SpinnerNumberModel = createSpinner("Minimum required number of selected items: ",
+            max(menuItem.minInputs, 1), 1, panel, cs)
+    private val smMaxInputs: SpinnerNumberModel = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
+            menuItem.maxInputs, 0, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.UserActionTool {
         val minInputsValue = smMinInputs.number.toInt()
@@ -392,10 +391,6 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
             menuItem.toBuilder().setCommon(menuItem.common.buildEnabled(value)).build()
 
     init {
-        smMinInputs = createSpinner("Minimum required number of selected items: ",
-                max(menuItem.minInputs, 1), 1, panel, cs)
-        smMaxInputs = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
-                menuItem.maxInputs, 0, panel, cs)
         setSize(800, 600)
         title = generateCaption("menu item")
     }
@@ -433,6 +428,7 @@ fun <E> createLabeledComboBox(caption: String, initialValue: String, panel: Cont
 }
 
 fun <T : Component> createLabeledWidget(caption: String, widget: T, panel: Container, cs: GridBagConstraints): T {
+    cs.gridy++
     cs.gridwidth = 1 ; cs.gridx = 0 ; panel.add(JLabel(caption), cs)
     cs.gridwidth = 3 ; cs.gridx = 1 ; panel.add(widget, cs)
     return widget
@@ -442,11 +438,9 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
     private val commonHeaders = arrayOf("Content-Disposition", "Content-Type", "Cookie",
             "Host", "Origin", "Referer", "Server", "User-Agent", "X-Requested-With")
     private val cbHeader = createLabeledComboBox("Header name: (case insensitive) ", hm.header, panel, cs, commonHeaders)
-    private val regExpWidget: RegExpWidget
+    private val regExpWidget: RegExpWidget = RegExpWidget(hm.regex, panel, cs)
 
     init {
-        cs.gridy = 1 ; regExpWidget = RegExpWidget(hm.regex, panel, cs)
-
         setSize(480, 320)
         title = "Header filter editor"
     }
@@ -606,10 +600,6 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
         InputMethodWidget.create(panel, cs, hasFileName, paramsModel)
 
-        cs.gridy = 7
-        cs.gridx = 0
-        cs.gridwidth = 4
-
         cbPassHeaders = createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
 
         if (showFilters) {
@@ -617,7 +607,6 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
             ccmwStdout.buildGUI(panel, cs)
             ccmwStderr.buildGUI(panel, cs)
-            cs.gridy = 10
             val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
 
             tfExitCode.inputVerifier = object : InputVerifier() {
@@ -841,8 +830,6 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
 
         prefixField .addWidgets("Starts with: ", cs, panel)
         postfixField.addWidgets(  "Ends with: ", cs, panel)
-
-        cs.gridy = 3
         regExpWidget = RegExpWidget(mm.regex, panel, cs)
 
         if (showHeaderMatch) chmw.buildGUI(panel, cs)
