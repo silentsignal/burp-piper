@@ -157,8 +157,7 @@ class MinimalToolWidget(tool: Piper.MinimalTool, panel: Container, cs: GridBagCo
     init {
         ccmw.buildGUI(panel, cs)
         cciw.buildGUI(panel, cs)
-        cs.gridy = 3 ; cs.gridx = 0 ; cbEnabled = createCheckBox("Enabled", tool.enabled, panel, cs)
-        cs.gridy = 4
+        cbEnabled = createFullWidthCheckBox("Enabled", tool.enabled, panel, cs)
     }
 }
 
@@ -291,7 +290,7 @@ abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, paren
 }
 
 class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent: Component?) : MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent) {
-    private val cbUsesColors = createCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
+    private val cbUsesColors = createFullWidthCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.MessageViewer {
         return Piper.MessageViewer.newBuilder().apply {
@@ -332,7 +331,7 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
 }
 
 class CommentatorDialog(private val commentator: Piper.Commentator, parent: Component?) : MinimalToolDialog<Piper.Commentator>(commentator.common, parent) {
-    private val cbOverwrite: JCheckBox
+    private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
     private val lsSource: JComboBox<ConfigRequestResponse>
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator {
@@ -347,15 +346,19 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
             commentator.toBuilder().setCommon(commentator.common.buildEnabled(value)).build()
 
     init {
-        cs.gridwidth = 4
-        cbOverwrite = createCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
-
         cs.gridy++
         lsSource = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
 
         setSize(800, 600)
         title = generateCaption("commentator")
     }
+}
+
+private fun createFullWidthCheckBox(caption: String, initialValue: Boolean, panel: Container, cs: GridBagConstraints): JCheckBox {
+    cs.gridwidth = 4
+    cs.gridx = 0
+    cs.gridy++
+    return createCheckBox(caption, initialValue, panel, cs)
 }
 
 private fun createCheckBox(caption: String, initialValue: Boolean, panel: Container, cs: GridBagConstraints): JCheckBox {
@@ -366,7 +369,7 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
 }
 
 class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Component?) : MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent) {
-    private val cbHasGUI: JCheckBox
+    private val cbHasGUI: JCheckBox = createFullWidthCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
     private val smMinInputs: SpinnerNumberModel
     private val smMaxInputs: SpinnerNumberModel
 
@@ -389,9 +392,6 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
             menuItem.toBuilder().setCommon(menuItem.common.buildEnabled(value)).build()
 
     init {
-        cs.gridwidth = 4
-        cbHasGUI = createCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
-
         smMinInputs = createSpinner("Minimum required number of selected items: ",
                 max(menuItem.minInputs, 1), 1, panel, cs)
         smMaxInputs = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
@@ -610,7 +610,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
         cs.gridx = 0
         cs.gridwidth = 4
 
-        cbPassHeaders = createCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
+        cbPassHeaders = createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
 
         if (showFilters) {
             val exitValues = ci.exitCodeList.joinToString(", ")
