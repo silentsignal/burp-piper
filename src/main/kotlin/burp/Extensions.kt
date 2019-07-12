@@ -1,6 +1,7 @@
 package burp
 
 import com.google.protobuf.ByteString
+import java.awt.Window
 import java.io.File
 import java.io.InputStream
 import java.lang.RuntimeException
@@ -199,3 +200,10 @@ private fun findExecutable(name: String): Boolean {
 }
 
 private fun canExecute(f: File): Boolean = f.exists() && !f.isDirectory && f.canExecute()
+
+fun Window.repack() {
+    val oldWidth = width
+    pack()
+    val loc = location
+    setLocation(loc.x + ((oldWidth - width) / 2), loc.y)
+}
