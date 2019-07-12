@@ -507,12 +507,14 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
                             ?: return@addDoubleClickListener)
         }
 
-        cs.gridwidth = 3
+        cs.gridwidth = 4
 
         panel.add(JLabel("Command line parameters: (one per line)"), cs)
 
         cs.gridy = 1
+        cs.gridwidth = 3
         cs.gridheight = 3
+        cs.fill = GridBagConstraints.BOTH
 
         panel.add(JScrollPane(lsParams), cs)
 
@@ -538,6 +540,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
         cs.gridx = 3
         cs.gridwidth = 1
         cs.gridheight = 1
+        cs.fill = GridBagConstraints.HORIZONTAL
 
         panel.add(createRemoveButton(lsParams, paramsModel), cs)
 
