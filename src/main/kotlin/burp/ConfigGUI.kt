@@ -297,12 +297,10 @@ class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent
 
     private val cbUsesColors = createFullWidthCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
-    override fun processGUI(mt: Piper.MinimalTool): Piper.MessageViewer {
-        return Piper.MessageViewer.newBuilder().apply {
-            common = mt
-            if (cbUsesColors.isSelected) usesColors = true
-        }.build()
-    }
+    override fun processGUI(mt: Piper.MinimalTool): Piper.MessageViewer = Piper.MessageViewer.newBuilder().apply {
+        common = mt
+        if (cbUsesColors.isSelected) usesColors = true
+    }.build()
 
     override fun buildEnabled(value: Boolean): Piper.MessageViewer =
             messageViewer.toBuilder().setCommon(messageViewer.common.buildEnabled(value)).build()
@@ -333,13 +331,11 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
     private val lsSource: JComboBox<ConfigRequestResponse> = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
 
-    override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator {
-        return Piper.Commentator.newBuilder().apply {
-            common = mt
-            source = (lsSource.selectedItem as ConfigRequestResponse).rr
-            if (cbOverwrite.isSelected) overwrite = true
-        }.build()
-    }
+    override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator = Piper.Commentator.newBuilder().apply {
+        common = mt
+        source = (lsSource.selectedItem as ConfigRequestResponse).rr
+        if (cbOverwrite.isSelected) overwrite = true
+    }.build()
 
     override fun buildEnabled(value: Boolean): Piper.Commentator =
             commentator.toBuilder().setCommon(commentator.common.buildEnabled(value)).build()
