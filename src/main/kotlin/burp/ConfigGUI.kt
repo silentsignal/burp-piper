@@ -31,7 +31,6 @@ abstract class ListEditor<E>(protected val model: DefaultListModel<E>, protected
         btnAdd.addActionListener {
             model.addElement(addDialog() ?: return@addActionListener)
         }
-        btnClone.isEnabled = false
         btnClone.addActionListener {
             (listWidget.selectedValuesList.reversed().asSequence() zip listWidget.selectedIndices.reversed().asSequence()).forEach {(value, index) ->
                 model.insertElementAt(value, index)
