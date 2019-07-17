@@ -69,3 +69,7 @@ menuItems:
   name: radiff2 (two column hexdump diffing)
   minInputs: 2
   maxInputs: 2
+commentators:
+- prefix: [sha256sum]
+  inputMethod: stdin
+  name: SHA-256
