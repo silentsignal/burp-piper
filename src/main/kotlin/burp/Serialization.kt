@@ -24,8 +24,6 @@ fun configFromYaml(value: String): Piper.Config {
 
 fun commentatorFromMap(source: Map<String, Any>): Piper.Commentator {
     val b = Piper.Commentator.newBuilder()!!
-            .setSource(enumFromString(source.stringOrDie("source"),
-                    Piper.RequestResponse::class.java))
     source.copyBooleanFlag("overwrite", b::setOverwrite)
     return b.setCommon(minimalToolFromMap(source)).build()
 }
@@ -250,7 +248,6 @@ fun Piper.HttpListener.toMap(): Map<String, Any> {
 fun Piper.Commentator.toMap(): Map<String, Any> {
     val m = this.common.toMap()
     if (this.overwrite) m["overwrite"] = true
-    m["source"] = this.source.name.toLowerCase()
     return m
 }
 

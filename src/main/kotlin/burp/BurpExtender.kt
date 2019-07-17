@@ -221,9 +221,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         var separatorAdded = false
         for (cfgItem in configModel.enabledCommentators) {
             for ((msrc, md) in messageDetails) {
-                if (cfgItem.common.cmd.passHeaders == msrc.includeHeaders && msrc.direction.name == cfgItem.source.name
-                        && cfgItem.common.canProcess(md, helpers)) {
-                    val outItem = JMenuItem(cfgItem.common.name)
+                if (cfgItem.common.cmd.passHeaders == msrc.includeHeaders && cfgItem.common.canProcess(md, helpers)) {
+                    val noun = msrc.direction.name.toLowerCase()
+                    val outItem = JMenuItem("${cfgItem.common.name} ($noun$plural)")
                     outItem.addActionListener { performCommentator(cfgItem, md zip messages) }
                     if (!separatorAdded) {
                         separatorAdded = true

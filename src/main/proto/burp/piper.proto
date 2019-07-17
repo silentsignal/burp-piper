@@ -88,7 +88,7 @@ message HttpListener {
 
 message Commentator {
     MinimalTool common = 1;
-    RequestResponse source = 2;
+    // 2 was RequestResponse
     bool overwrite = 3;
 }
 

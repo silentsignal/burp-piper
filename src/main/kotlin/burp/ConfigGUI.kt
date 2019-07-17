@@ -330,12 +330,9 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
         MinimalToolDialog<Piper.Commentator>(commentator.common, parent, "commentator") {
 
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
-    private val lsSource: JComboBox<ConfigRequestResponse> = createLabeledWidget("Data source: ",
-            JComboBox(ConfigRequestResponse.values()).apply { selectedItem = ConfigRequestResponse.fromRequestResponse(commentator.source) }, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator = Piper.Commentator.newBuilder().apply {
         common = mt
-        source = (lsSource.selectedItem as ConfigRequestResponse).rr
         if (cbOverwrite.isSelected) overwrite = true
     }.build()
 
