@@ -174,6 +174,42 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         val msize = messages.size
         val plural = if (msize == 1) "" else "s"
 
+        val messageDetails = messagesToMap(messages)
+
+        for (cfgItem in configModel.enabledMenuItems) {
+            // TODO check dependencies
+            if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize) || cfgItem.minInputs > msize) continue
+            for ((msrc, md) in messageDetails) {
+                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, plural) { performMenuAction(cfgItem, md) }
+                if (menuItem != null) topLevel.add(menuItem)
+                if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
+                    configModel.enabledMessageViewers.forEach { mv ->
+                        topLevel.add(createMenuItem(mv.common, cfgItem.common, msrc, md, plural) {
+                            performMenuAction(cfgItem, md, mv)
+                        } ?: return@forEach)
+                    }
+                }
+            }
+        }
+
+        var separatorAdded = false
+        for (cfgItem in configModel.enabledCommentators) {
+            for ((msrc, md) in messageDetails) {
+                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, plural) {
+                    performCommentator(cfgItem, md zip messages)
+                } ?: continue
+                if (!separatorAdded) {
+                    separatorAdded = true
+                    topLevel.addSeparator()
+                }
+                topLevel.add(menuItem)
+            }
+        }
+
+        return topLevel
+    }
+
+    private fun messagesToMap(messages: Array<IHttpRequestResponse>): Map<MessageSource, List<MessageInfo>> {
         val messageDetails = HashMap<MessageSource, List<MessageInfo>>()
         for (rr in RequestResponse.values()) {
             val miWithHeaders = ArrayList<MessageInfo>(messages.size)
@@ -194,47 +230,16 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 messageDetails[MessageSource(rr, false)] = miWithoutHeaders
             }
         }
+        return messageDetails
+    }
 
-        for (cfgItem in configModel.enabledMenuItems) {
-            // TODO check dependencies
-            if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize) || cfgItem.minInputs > msize) continue
-            for ((msrc, md) in messageDetails) {
-                if (cfgItem.common.cmd.passHeaders == msrc.includeHeaders && cfgItem.common.canProcess(md, helpers)) {
-                    val noun = msrc.direction.name.toLowerCase()
-                    val outItem = JMenuItem("${cfgItem.common.name} ($noun$plural)")
-                    outItem.addActionListener { performMenuAction(cfgItem, md) }
-                    topLevel.add(outItem)
-                }
-                if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
-                    configModel.enabledMessageViewers.forEach { mv ->
-                        if (mv.common.cmd.passHeaders == msrc.includeHeaders && mv.common.canProcess(md, helpers)) {
-                            val noun = msrc.direction.name.toLowerCase()
-                            val outItem = JMenuItem("${mv.common.name} | ${cfgItem.common.name} ($noun$plural)")
-                            outItem.addActionListener { performMenuAction(cfgItem, md, mv) }
-                            topLevel.add(outItem)
-                        }
-                    }
-                }
+    private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource, md: List<MessageInfo>, plural: String, action: () -> Unit): JMenuItem? {
+        if (tool.cmd.passHeaders == msrc.includeHeaders && tool.canProcess(md, helpers)) {
+            val noun = msrc.direction.name.toLowerCase()
+            return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}") + " ($noun$plural)").apply {
+                addActionListener { action() }
             }
-        }
-
-        var separatorAdded = false
-        for (cfgItem in configModel.enabledCommentators) {
-            for ((msrc, md) in messageDetails) {
-                if (cfgItem.common.cmd.passHeaders == msrc.includeHeaders && cfgItem.common.canProcess(md, helpers)) {
-                    val noun = msrc.direction.name.toLowerCase()
-                    val outItem = JMenuItem("${cfgItem.common.name} ($noun$plural)")
-                    outItem.addActionListener { performCommentator(cfgItem, md zip messages) }
-                    if (!separatorAdded) {
-                        separatorAdded = true
-                        topLevel.addSeparator()
-                    }
-                    topLevel.add(outItem)
-                }
-            }
-        }
-
-        return topLevel
+        } else return null
     }
 
     private fun loadConfig(): Piper.Config {
