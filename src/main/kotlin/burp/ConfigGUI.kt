@@ -309,7 +309,8 @@ class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent
 class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: Component?) :
         MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent, "HTTP listener") {
 
-    private val lsScope = createLabeledWidget("Listen to ", JComboBox(ConfigRequestResponse.values()), panel, cs)
+    private val lsScope = createLabeledWidget("Listen to ",
+            JComboBox(ConfigRequestResponse.values()).apply { selectedItem = ConfigRequestResponse.fromRequestResponse(httpListener.scope) }, panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.HttpListener {
@@ -329,7 +330,8 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
         MinimalToolDialog<Piper.Commentator>(commentator.common, parent, "commentator") {
 
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
-    private val lsSource: JComboBox<ConfigRequestResponse> = createLabeledWidget("Data source: ", JComboBox(ConfigRequestResponse.values()), panel, cs)
+    private val lsSource: JComboBox<ConfigRequestResponse> = createLabeledWidget("Data source: ",
+            JComboBox(ConfigRequestResponse.values()).apply { selectedItem = ConfigRequestResponse.fromRequestResponse(commentator.source) }, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator = Piper.Commentator.newBuilder().apply {
         common = mt

@@ -76,6 +76,10 @@ enum class ConfigRequestResponse(val rr: Piper.RequestResponse) {
     RESPONSE(Piper.RequestResponse.RESPONSE);
 
     override fun toString(): String = "HTTP ${rr.toString().toLowerCase()}s"
+
+    companion object {
+        fun fromRequestResponse(rr: Piper.RequestResponse): ConfigRequestResponse = values().first { it.rr == rr }
+    }
 }
 
 enum class ConfigFormat {
