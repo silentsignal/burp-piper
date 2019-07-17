@@ -274,7 +274,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private fun performCommentator(cfgItem: Piper.Commentator, messages: List<Pair<MessageInfo, IHttpRequestResponse>>) {
         messages.forEach { (mi, hrr) ->
-            if (hrr.comment.isEmpty() || cfgItem.overwrite) {
+            if (hrr.comment.isNullOrEmpty() || cfgItem.overwrite) {
                 val stdout = cfgItem.common.cmd.execute(mi.content).processOutput { process ->
                     process.inputStream.readBytes()
                 }
