@@ -861,7 +861,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
     }
 }
 
-private fun <E> createRemoveButton(listWidget: JList<E>, listModel: DefaultListModel<E>): JButton {
+fun <E> createRemoveButton(listWidget: JList<E>, listModel: DefaultListModel<E>): JButton {
     val btn = JButton("Remove")
     btn.isEnabled = listWidget.selectedIndices.isNotEmpty()
     listWidget.addListSelectionListener {

@@ -39,6 +39,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     private lateinit var callbacks: IBurpExtenderCallbacks
     private lateinit var helpers: IExtensionHelpers
     private lateinit var configModel: ConfigModel
+    private val queue = Queue()
     private val tabs = JTabbedPane()
 
     override fun contentsChanged(p0: ListDataEvent?) = saveConfig()
@@ -161,6 +162,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance))
         tabs.addTab("Commentators", MinimalToolListEditor(cfg.commentatorsModel, parent,
                 ::CommentatorDialog, Piper.Commentator::getDefaultInstance))
+        tabs.addTab("Queue", queue)
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
     }
 
@@ -205,6 +207,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             commentatorMenuItems.map(add)
         }
 
+        addSeparator()
+        add(JMenuItem("Add to queue").apply { addActionListener { queue.add(messages) } })
     }
 
     private fun messagesToMap(messages: Collection<IHttpRequestResponse>): Map<MessageSource, List<MessageInfo>> {
@@ -238,6 +242,61 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 addActionListener { action() }
             }
         } else return null
+    }
+
+    inner class Queue : JPanel(BorderLayout()), ListDataListener, ListCellRenderer<IHttpRequestResponse>, ListSelectionListener {
+        private val model = DefaultListModel<IHttpRequestResponse>()
+        private val pnToolbar = JPanel()
+        private val listWidget = JList(model)
+        private val btnProcess = JButton("Process")
+        private val cr = DefaultListCellRenderer()
+
+        fun add(values: Iterable<IHttpRequestResponse>) = values.forEach(model::addElement)
+
+        private fun toHumanReadable(value: IHttpRequestResponse): String {
+            val req = helpers.analyzeRequest(value)
+            val resp = helpers.analyzeResponse(value.response)
+            return "${resp.statusCode} ${req.url} (response size = ${value.response.size - resp.bodyOffset} byte(s))"
+        }
+
+        private fun addButtons() {
+            btnProcess.addActionListener {
+                val pm = JPopupMenu()
+                generateContextMenu(listWidget.selectedValuesList, pm::add, pm::addSeparator)
+                val b = it.source as Component
+                val loc = b.locationOnScreen
+                pm.show(this, 0, 0)
+                pm.setLocation(loc.x, loc.y + b.height)
+            }
+
+            listOf(createRemoveButton(listWidget, model), btnProcess).map(pnToolbar::add)
+        }
+
+        override fun getListCellRendererComponent(list: JList<out IHttpRequestResponse>?, value: IHttpRequestResponse, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
+            val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+            cr.text = toHumanReadable(value)
+            return c
+        }
+
+        override fun valueChanged(p0: ListSelectionEvent?) { updateBtnEnableDisableState() }
+        override fun contentsChanged(p0: ListDataEvent?)   { updateBtnEnableDisableState() }
+        override fun intervalAdded  (p0: ListDataEvent?)   { updateBtnEnableDisableState() }
+        override fun intervalRemoved(p0: ListDataEvent?)   { updateBtnEnableDisableState() }
+
+        private fun updateBtnEnableDisableState() {
+            btnProcess.isEnabled = !listWidget.isSelectionEmpty
+        }
+
+        init {
+            listWidget.cellRenderer = this
+            listWidget.addListSelectionListener(this)
+            model.addListDataListener(this)
+
+            addButtons()
+            updateBtnEnableDisableState()
+            add(pnToolbar, BorderLayout.NORTH)
+            add(JScrollPane(listWidget), BorderLayout.CENTER)
+        }
     }
 
     private fun loadConfig(): Piper.Config {
