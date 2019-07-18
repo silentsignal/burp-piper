@@ -85,9 +85,10 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         callbacks.registerContextMenuFactory {
             val messages = it.selectedMessages
             if (messages.isNullOrEmpty()) return@registerContextMenuFactory emptyList()
-            val topLevel = generateContextMenu(messages)
+            val topLevel = JMenu(NAME)
+            generateContextMenu(messages.asList(), topLevel::add, topLevel::addSeparator)
             if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory emptyList()
-            return@registerContextMenuFactory Collections.singletonList(topLevel)
+            return@registerContextMenuFactory Collections.singletonList(topLevel as JMenuItem)
         }
 
         registerMessageViewers()
@@ -169,8 +170,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private data class MessageSource(val direction: RequestResponse, val includeHeaders: Boolean)
 
-    private fun generateContextMenu(messages: Array<IHttpRequestResponse>): JMenuItem {
-        val topLevel = JMenu(NAME)
+    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (JMenuItem) -> JMenuItem, addSeparator: () -> Unit) {
         val msize = messages.size
         val plural = if (msize == 1) "" else "s"
 
@@ -181,10 +181,10 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize) || cfgItem.minInputs > msize) continue
             for ((msrc, md) in messageDetails) {
                 val menuItem = createMenuItem(cfgItem.common, null, msrc, md, plural) { performMenuAction(cfgItem, md) }
-                if (menuItem != null) topLevel.add(menuItem)
+                if (menuItem != null) add(menuItem)
                 if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
                     configModel.enabledMessageViewers.forEach { mv ->
-                        topLevel.add(createMenuItem(mv.common, cfgItem.common, msrc, md, plural) {
+                        add(createMenuItem(mv.common, cfgItem.common, msrc, md, plural) {
                             performMenuAction(cfgItem, md, mv)
                         } ?: return@forEach)
                     }
@@ -192,24 +192,22 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             }
         }
 
-        var separatorAdded = false
-        for (cfgItem in configModel.enabledCommentators) {
-            for ((msrc, md) in messageDetails) {
-                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, plural) {
+        val commentatorMenuItems = configModel.enabledCommentators.flatMap { cfgItem ->
+            messageDetails.map { (msrc, md) ->
+                createMenuItem(cfgItem.common, null, msrc, md, plural) {
                     performCommentator(cfgItem, md zip messages)
-                } ?: continue
-                if (!separatorAdded) {
-                    separatorAdded = true
-                    topLevel.addSeparator()
                 }
-                topLevel.add(menuItem)
             }
+        }.filterNotNull()
+
+        if (commentatorMenuItems.isNotEmpty()) {
+            addSeparator()
+            commentatorMenuItems.map(add)
         }
 
-        return topLevel
     }
 
-    private fun messagesToMap(messages: Array<IHttpRequestResponse>): Map<MessageSource, List<MessageInfo>> {
+    private fun messagesToMap(messages: Collection<IHttpRequestResponse>): Map<MessageSource, List<MessageInfo>> {
         val messageDetails = HashMap<MessageSource, List<MessageInfo>>()
         for (rr in RequestResponse.values()) {
             val miWithHeaders = ArrayList<MessageInfo>(messages.size)
