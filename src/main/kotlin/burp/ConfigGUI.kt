@@ -386,8 +386,9 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
     val model = SpinnerNumberModel(initial, minimum, Integer.MAX_VALUE, 1)
 
     cs.gridy++
-    cs.gridx = 0 ; cs.gridwidth = 2 ; panel.add(JLabel(caption), cs)
-    cs.gridx = 2 ; cs.gridwidth = 2 ; panel.add(JSpinner(model), cs)
+    cs.gridwidth = 2
+    cs.gridx = 0 ; panel.add(JLabel(caption), cs)
+    cs.gridx = 2 ; panel.add(JSpinner(model), cs)
 
     return model
 }
