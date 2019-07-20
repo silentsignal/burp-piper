@@ -434,19 +434,11 @@ private fun loadDefaultConfig(): Piper.Config {
     val cfg = configFromYaml(BurpExtender::class.java.classLoader
             .getResourceAsStream("defaults.yaml").reader().readText())
     return Piper.Config.newBuilder()
-            .addAllMacro(cfg.macroList.map { it.buildEnabled() })
-            .addAllMenuItem(cfg.menuItemList.map {
-                it.toBuilder().setCommon(it.common.buildEnabled()).build()
-            })
-            .addAllMessageViewer(cfg.messageViewerList.map {
-                it.toBuilder().setCommon(it.common.buildEnabled()).build()
-            })
-            .addAllHttpListener(cfg.httpListenerList.map {
-                it.toBuilder().setCommon(it.common.buildEnabled()).build()
-            })
-            .addAllCommentator(cfg.commentatorList.map {
-                it.toBuilder().setCommon(it.common.buildEnabled()).build()
-            })
+            .addAllMacro        (cfg.macroList        .map { it.buildEnabled() })
+            .addAllMenuItem     (cfg.menuItemList     .map { it.buildEnabled() })
+            .addAllMessageViewer(cfg.messageViewerList.map { it.buildEnabled() })
+            .addAllHttpListener (cfg.httpListenerList .map { it.buildEnabled() })
+            .addAllCommentator  (cfg.commentatorList  .map { it.buildEnabled() })
             .build()
 }
 

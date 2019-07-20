@@ -94,6 +94,11 @@ fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensio
 
 fun Piper.MinimalTool.buildEnabled(value: Boolean = true): Piper.MinimalTool = toBuilder().setEnabled(value).build()
 
+fun Piper.UserActionTool.buildEnabled(value: Boolean = true): Piper.UserActionTool = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.HttpListener  .buildEnabled(value: Boolean = true): Piper.HttpListener   = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.MessageViewer .buildEnabled(value: Boolean = true): Piper.MessageViewer  = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.Commentator   .buildEnabled(value: Boolean = true): Piper.Commentator    = toBuilder().setCommon(common.buildEnabled(value)).build()
+
 fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers): Boolean = (
         (this.prefix == null  || this.prefix.size() == 0  || message.content.startsWith(this.prefix)) &&
                 (this.postfix == null || this.postfix.size() == 0 || message.content.endsWith(this.postfix)) &&

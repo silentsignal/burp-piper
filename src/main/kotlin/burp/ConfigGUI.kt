@@ -302,8 +302,7 @@ class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent
         if (cbUsesColors.isSelected) usesColors = true
     }.build()
 
-    override fun buildEnabled(value: Boolean): Piper.MessageViewer =
-            messageViewer.toBuilder().setCommon(messageViewer.common.buildEnabled(value)).build()
+    override fun buildEnabled(value: Boolean): Piper.MessageViewer = messageViewer.buildEnabled(value)
 }
 
 class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: Component?) :
@@ -322,8 +321,7 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
         }.build()
     }
 
-    override fun buildEnabled(value: Boolean): Piper.HttpListener =
-            httpListener.toBuilder().setCommon(httpListener.common.buildEnabled(value)).build()
+    override fun buildEnabled(value: Boolean): Piper.HttpListener = httpListener.buildEnabled(value)
 }
 
 class CommentatorDialog(private val commentator: Piper.Commentator, parent: Component?) :
@@ -336,8 +334,7 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
         if (cbOverwrite.isSelected) overwrite = true
     }.build()
 
-    override fun buildEnabled(value: Boolean): Piper.Commentator =
-            commentator.toBuilder().setCommon(commentator.common.buildEnabled(value)).build()
+    override fun buildEnabled(value: Boolean): Piper.Commentator = commentator.buildEnabled(value)
 }
 
 private fun createFullWidthCheckBox(caption: String, initialValue: Boolean, panel: Container, cs: GridBagConstraints): JCheckBox {
@@ -378,8 +375,7 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
         }.build()
     }
 
-    override fun buildEnabled(value: Boolean): Piper.UserActionTool =
-            menuItem.toBuilder().setCommon(menuItem.common.buildEnabled(value)).build()
+    override fun buildEnabled(value: Boolean): Piper.UserActionTool = menuItem.buildEnabled(value)
 }
 
 private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Container, cs: GridBagConstraints): SpinnerNumberModel {
