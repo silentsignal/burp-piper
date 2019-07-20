@@ -421,7 +421,11 @@ private fun importConfig(fmt: ConfigFormat, cfg: ConfigModel, parent: Component?
     val fc = JFileChooser()
     fc.fileFilter = FileNameExtensionFilter(fmt.name, fmt.fileExtension)
     if (fc.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) {
-        cfg.fillModels(fmt.parse(fc.selectedFile.readBytes()))
+        try {
+            cfg.fillModels(fmt.parse(fc.selectedFile.readBytes()))
+        } catch (e: Exception) {
+            JOptionPane.showMessageDialog(parent, e.message, "Error while importing ${fc.selectedFile}", JOptionPane.ERROR_MESSAGE)
+        }
     }
 }
 
