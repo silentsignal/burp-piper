@@ -8,8 +8,8 @@ messageViewers:
         MII=
     - prefix: !!binary |-
         MIA=
-- prefix: [dumpasn1, '-']
-  inputMethod: stdin
+- prefix: [dumpasn1]
+  inputMethod: filename
   name: DumpASN1
   filter:
     orElse:
