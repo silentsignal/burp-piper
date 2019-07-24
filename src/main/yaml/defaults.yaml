@@ -8,6 +8,15 @@ messageViewers:
         MII=
     - prefix: !!binary |-
         MIA=
+- prefix: [dumpasn1, '-']
+  inputMethod: stdin
+  name: DumpASN1
+  filter:
+    orElse:
+    - prefix: !!binary |-
+        MII=
+    - prefix: !!binary |-
+        MIA=
 - prefix: [python, -m, json.tool]
   inputMethod: stdin
   name: Python JSON formatter
