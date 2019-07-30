@@ -98,4 +98,5 @@ message Config {
     repeated UserActionTool menuItem = 3;
     repeated HttpListener httpListener = 4;
     repeated Commentator commentator = 5;
+    bool developer = 6;
 }

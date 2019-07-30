@@ -21,6 +21,10 @@ package burp
 import com.redpois0n.terminal.JTerminal
 import org.zeromq.codec.Z85
 import java.awt.*
+import java.beans.PropertyChangeListener
+import java.beans.PropertyChangeSupport
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 import javax.swing.*
 import javax.swing.event.ListDataEvent
@@ -84,6 +88,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         configModel.httpListenersModel.addListDataListener(ReloaderConfigChangeListener(
                 callbacks::getHttpListeners,             callbacks::removeHttpListener,            ::registerHttpListeners))
 
+        configModel.addPropertyChangeListener(PropertyChangeListener { saveConfig() })
+
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
             val messages = it.selectedMessages
@@ -144,6 +150,22 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }
         if (this.hasFilter() && !this.filter.matches(MessageInfo(body, helpers.bytesToString(body), headers), helpers)) return
         val replacement = this.cmd.execute(body).processOutput { process ->
+            if (configModel.developer) {
+                val stderr = process.errorStream.readBytes()
+                if (stderr.isNotEmpty()) {
+                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                    val ts = LocalDateTime.now().format(formatter)
+                    callbacks.stderr.buffered().use {
+                        it.bufferedWriter().use { w ->
+                            w.newLine()
+                            w.write("$name called ${cmd.commandLine} at $ts and stderr was not empty:")
+                            w.newLine()
+                            w.newLine()
+                        }
+                        it.write(stderr)
+                    }
+                }
+            }
             process.inputStream.readBytes()
         }
         if (this.cmd.passHeaders) {
@@ -166,7 +188,15 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 ::CommentatorDialog, Piper.Commentator::getDefaultInstance))
         tabs.addTab("Queue", queue)
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
+        tabs.addTab("Developer", createDeveloperUI(cfg))
     }
+
+    private fun createDeveloperUI(cfg: ConfigModel): Component =
+            JCheckBox("show user interface elements suited for developers").apply {
+                isSelected = cfg.developer
+                cfg.addPropertyChangeListener(PropertyChangeListener { isSelected = cfg.developer })
+                addChangeListener { cfg.developer = isSelected }
+            }
 
     // ITab members
     override fun getTabCaption(): String = NAME
@@ -360,6 +390,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 }
 
 class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
+    private val pcs = PropertyChangeSupport(this)
+
     val enabledMacros get() = macrosModel.toIterable().filter(Piper.MinimalTool::getEnabled)
     val enabledMessageViewers get() = messageViewersModel.toIterable().filter { it.common.enabled }
     val enabledMenuItems get() = menuItemsModel.toIterable().filter { it.common.enabled }
@@ -372,7 +404,20 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val httpListenersModel = DefaultListModel<Piper.HttpListener>()
     val commentatorsModel = DefaultListModel<Piper.Commentator>()
 
+    private var _developer = config.developer
+    var developer: Boolean
+        get() = _developer
+        set(value) {
+            val old = _developer
+            _developer = value
+            pcs.firePropertyChange("developer", old, value)
+        }
+
     init { fillModels(config) }
+
+    fun addPropertyChangeListener(listener: PropertyChangeListener) {
+        pcs.addPropertyChangeListener(listener)
+    }
 
     fun fillModels(config: Piper.Config) {
         fillDefaultModel(config.macroList,                  macrosModel)
@@ -388,6 +433,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
             .addAllMenuItem(menuItemsModel.toIterable())
             .addAllHttpListener(httpListenersModel.toIterable())
             .addAllCommentator(commentatorsModel.toIterable())
+            .setDeveloper(developer)
             .build()
 }
 
