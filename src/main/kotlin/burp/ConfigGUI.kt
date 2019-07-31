@@ -795,6 +795,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         cs.gridwidth = 4
 
         panel.add(cbNegation, cs)
+        cbNegation.selectedItem = if (mm.negation) MatchNegation.NEGATED else MatchNegation.NORMAL
 
         cs.gridwidth = 1
 
