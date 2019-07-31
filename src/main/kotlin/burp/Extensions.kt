@@ -41,7 +41,7 @@ fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boole
                     transform = { it.toHumanReadable(negated) } ))
         }
     }.toList()
-    val result = items.joinToString(separator = (if (negated) " or " else " and "))
+    val result = items.joinToString(separator = (if (negated) " or " else " and ")).truncateTo(64)
     return if (items.size == 1 || hideParentheses) result else "($result)"
 }
 
@@ -71,10 +71,12 @@ val Piper.CommandInvocation.commandLine: String
         yieldAll(this@commandLine.prefixList.map(::shellQuote))
         if (this@commandLine.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) yield(CMDLINE_INPUT_FILENAME_PLACEHOLDER)
         yieldAll(this@commandLine.postfixList.map(::shellQuote))
-    }.joinToString(separator = " ")
+    }.joinToString(separator = " ").truncateTo(64)
 
 fun shellQuote(s: String): String = if (!s.contains(Regex("[\"\\s\\\\]"))) s
         else '"' + s.replace(Regex("[\"\\\\]"), "\\$0") + '"'
+
+fun String.truncateTo(charLimit: Int): String = if (length < charLimit) this else this.substring(0, charLimit) + "..."
 
 fun Piper.RegularExpression.toHumanReadable(negation: Boolean): String =
         (if (negation) "doesn't match" else "matches") +
