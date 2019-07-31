@@ -96,12 +96,20 @@ fun ByteArray.toHexPairs(): String = this.joinToString(separator = ":",
 fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean =
         !this.hasFilter() || messages.all { this.filter.matches(it, helpers, callbacks) }
 
-fun Piper.MinimalTool.buildEnabled(value: Boolean = true): Piper.MinimalTool = toBuilder().setEnabled(value).build()
+fun Piper.MinimalTool.buildEnabled(value: Boolean? = null): Piper.MinimalTool {
+    val enabled = value ?: try {
+        this.cmd.checkDependencies()
+        true
+    } catch (_: DependencyException) {
+        false
+    }
+    return toBuilder().setEnabled(enabled).build()
+}
 
-fun Piper.UserActionTool.buildEnabled(value: Boolean = true): Piper.UserActionTool = toBuilder().setCommon(common.buildEnabled(value)).build()
-fun Piper.HttpListener  .buildEnabled(value: Boolean = true): Piper.HttpListener   = toBuilder().setCommon(common.buildEnabled(value)).build()
-fun Piper.MessageViewer .buildEnabled(value: Boolean = true): Piper.MessageViewer  = toBuilder().setCommon(common.buildEnabled(value)).build()
-fun Piper.Commentator   .buildEnabled(value: Boolean = true): Piper.Commentator    = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.UserActionTool.buildEnabled(value: Boolean? = null): Piper.UserActionTool = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.HttpListener  .buildEnabled(value: Boolean? = null): Piper.HttpListener   = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.MessageViewer .buildEnabled(value: Boolean? = null): Piper.MessageViewer  = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.Commentator   .buildEnabled(value: Boolean? = null): Piper.Commentator    = toBuilder().setCommon(common.buildEnabled(value)).build()
 
 fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean = (
         (this.prefix == null  || this.prefix.size() == 0  || message.content.startsWith(this.prefix)) &&
