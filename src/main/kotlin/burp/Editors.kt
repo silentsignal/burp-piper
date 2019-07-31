@@ -7,7 +7,8 @@ import javax.swing.SwingUtilities
 import kotlin.concurrent.thread
 
 abstract class Editor(private val tool: Piper.MessageViewer,
-                      protected val helpers: IExtensionHelpers) : IMessageEditorTab {
+                      protected val helpers: IExtensionHelpers,
+                      protected val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
     private var msg: ByteArray? = null
 
     override fun getMessage(): ByteArray? = msg
@@ -23,8 +24,8 @@ abstract class Editor(private val tool: Piper.MessageViewer,
 
         if (payload.isEmpty()) return false
 
-        val mi = MessageInfo(payload, helpers.bytesToString(payload), rr.getHeaders(content, helpers))
-        return tool.common.filter.matches(mi, helpers)
+        val mi = MessageInfo(payload, helpers.bytesToString(payload), rr.getHeaders(content, helpers), url = null)
+        return tool.common.filter.matches(mi, helpers, callbacks)
     }
 
     override fun setMessage(content: ByteArray?, isRequest: Boolean) {
@@ -46,7 +47,7 @@ abstract class Editor(private val tool: Piper.MessageViewer,
     abstract override fun getUiComponent(): Component
 }
 
-class TerminalEditor(tool: Piper.MessageViewer, helpers: IExtensionHelpers) : Editor(tool, helpers) {
+class TerminalEditor(tool: Piper.MessageViewer, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks) : Editor(tool, helpers, callbacks) {
     private val terminal = JTerminal()
     private val scrollPane = JScrollPane()
 
@@ -72,7 +73,7 @@ class TerminalEditor(tool: Piper.MessageViewer, helpers: IExtensionHelpers) : Ed
 }
 
 class TextEditor(tool: Piper.MessageViewer, helpers: IExtensionHelpers,
-                 callbacks: IBurpExtenderCallbacks) : Editor(tool, helpers) {
+                 callbacks: IBurpExtenderCallbacks) : Editor(tool, helpers, callbacks) {
     private val editor = callbacks.createTextEditor()
 
     init {

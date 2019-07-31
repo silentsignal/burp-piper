@@ -54,6 +54,7 @@ message MessageMatch {
     bool negation = 6;
     repeated MessageMatch andAlso = 7;
     repeated MessageMatch orElse = 8;
+    bool inScope = 9;
 }
 
 message MinimalTool {

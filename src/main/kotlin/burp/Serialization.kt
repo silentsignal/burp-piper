@@ -74,6 +74,7 @@ fun messageMatchFromMap(source: Map<String, Any>): Piper.MessageMatch {
         copyBytes("prefix", b::setPrefix)
         copyBytes("postfix", b::setPostfix)
         copyBooleanFlag("negation", b::setNegation)
+        copyBooleanFlag("inScope", b::setInScope)
         copyStructured("regex", b::setRegex, RegExpFromMap)
         copyStructured("header", b::setHeader, HeaderMatchFromMap)
         copyStructured("cmd", b::setCmd, ::commandInvocationFromMap)
@@ -266,6 +267,7 @@ fun Piper.MessageMatch.toMap(): Map<String, Any> {
     if (this.hasHeader()) m["header"] = this.header.toMap()
     if (this.hasCmd()) m["cmd"] = this.cmd.toMap()
     if (this.negation) m["negation"] = true
+    if (this.inScope) m["inScope"] = true
     if (this.orElseCount > 0) m["orElse"] = this.orElseList.map(Piper.MessageMatch::toMap)
     if (this.andAlsoCount > 0) m["andAlso"] = this.andAlsoList.map(Piper.MessageMatch::toMap)
     return m

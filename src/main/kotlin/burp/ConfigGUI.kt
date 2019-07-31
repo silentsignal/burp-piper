@@ -787,6 +787,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
     private val chmw = CollapsedHeaderMatchWidget(this, mm.header)
     private val cbNegation = JComboBox(MatchNegation.values())
     private val regExpWidget: RegExpWidget
+    private val cbInScope: JCheckBox?
     private val andAlsoPanel = MatchListEditor("All of these apply: [AND]", mm.andAlsoList)
     private val  orElsePanel = MatchListEditor("Any of these apply: [OR]",  mm.orElseList)
 
@@ -804,6 +805,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         if (showHeaderMatch) chmw.buildGUI(panel, cs)
 
         cciw.buildGUI(panel, cs)
+
+        cbInScope = if (showHeaderMatch) createFullWidthCheckBox("request is in Burp Suite scope", mm.inScope, panel, cs) else null
 
         val spList = JSplitPane()
         spList.leftComponent = andAlsoPanel
@@ -825,6 +828,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         if (regExpWidget.hasPattern()) builder.regex = regExpWidget.toRegularExpression()
 
         if (chmw.value != null) builder.header = chmw.value
+
+        if (cbInScope != null && cbInScope.isSelected) builder.inScope = true
 
         val cmd = cciw.value
         if (cmd != null) {

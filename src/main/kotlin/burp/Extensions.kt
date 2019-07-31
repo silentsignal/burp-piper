@@ -29,6 +29,8 @@ fun Piper.MessageMatch.toHumanReadable(negation: Boolean, hideParentheses: Boole
 
         if (match.hasCmd()) yield(match.cmd.toHumanReadable(negated))
 
+        if (match.inScope) yield("request is" + (if (negated) "n't" else "") + " in scope")
+
         if (match.andAlsoCount > 0) {
             yield(match.andAlsoList.joinToString(separator = (if (negated) " or " else " and "),
                     transform = { it.toHumanReadable(negated) } ))
@@ -89,8 +91,8 @@ fun ByteArray.toHexPairs(): String = this.joinToString(separator = ":",
 
 ////////////////////////////////////// MATCHING //////////////////////////////////////
 
-fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers): Boolean =
-        !this.hasFilter() || messages.all { this.filter.matches(it, helpers) }
+fun Piper.MinimalTool.canProcess(messages: List<MessageInfo>, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean =
+        !this.hasFilter() || messages.all { this.filter.matches(it, helpers, callbacks) }
 
 fun Piper.MinimalTool.buildEnabled(value: Boolean = true): Piper.MinimalTool = toBuilder().setEnabled(value).build()
 
@@ -99,16 +101,17 @@ fun Piper.HttpListener  .buildEnabled(value: Boolean = true): Piper.HttpListener
 fun Piper.MessageViewer .buildEnabled(value: Boolean = true): Piper.MessageViewer  = toBuilder().setCommon(common.buildEnabled(value)).build()
 fun Piper.Commentator   .buildEnabled(value: Boolean = true): Piper.Commentator    = toBuilder().setCommon(common.buildEnabled(value)).build()
 
-fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers): Boolean = (
+fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean = (
         (this.prefix == null  || this.prefix.size() == 0  || message.content.startsWith(this.prefix)) &&
                 (this.postfix == null || this.postfix.size() == 0 || message.content.endsWith(this.postfix)) &&
                 (!this.hasRegex() || this.regex.matches(message.text)) &&
-                (!this.hasCmd()   || this.cmd.matches(message.content, helpers)) &&
+                (!this.hasCmd()   || this.cmd.matches(message.content, helpers, callbacks)) &&
 
                 (message.headers == null || !this.hasHeader() || this.header.matches(message.headers)) &&
+                (message.url == null || !this.inScope || callbacks.isInScope(message.url)) &&
 
-                (this.andAlsoCount == 0 || this.andAlsoList.all { it.matches(message, helpers) }) &&
-                (this.orElseCount  == 0 || this.orElseList.any  { it.matches(message, helpers) })
+                (this.andAlsoCount == 0 || this.andAlsoList.all { it.matches(message, helpers, callbacks) }) &&
+                (this.orElseCount  == 0 || this.orElseList.any  { it.matches(message, helpers, callbacks) })
         ) xor this.negation
 
 fun ByteArray.startsWith(value: ByteString): Boolean {
@@ -138,20 +141,20 @@ fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, Lis
     return p to tempFiles
 }
 
-fun Piper.CommandInvocation.matches(subject: ByteArray, helpers: IExtensionHelpers): Boolean {
+fun Piper.CommandInvocation.matches(subject: ByteArray, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean {
     val (process, tempFiles) = this.execute(subject)
-    if ((this.hasStderr() && !this.stderr.matches(process.errorStream, helpers)) ||
-            (this.hasStdout() && !this.stdout.matches(process.inputStream, helpers))) return false
+    if ((this.hasStderr() && !this.stderr.matches(process.errorStream, helpers, callbacks)) ||
+            (this.hasStdout() && !this.stdout.matches(process.inputStream, helpers, callbacks))) return false
     val exitCode = process.waitFor()
     tempFiles.forEach { it.delete() }
     return (this.exitCodeCount == 0) || exitCode in this.exitCodeList
 }
 
-fun Piper.MessageMatch.matches(stream: InputStream, helpers: IExtensionHelpers): Boolean =
-        this.matches(stream.readBytes(), helpers)
+fun Piper.MessageMatch.matches(stream: InputStream, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean =
+        this.matches(stream.readBytes(), helpers, callbacks)
 
-fun Piper.MessageMatch.matches(data: ByteArray, helpers: IExtensionHelpers): Boolean =
-        this.matches(MessageInfo(data, helpers.bytesToString(data), null), helpers)
+fun Piper.MessageMatch.matches(data: ByteArray, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean =
+        this.matches(MessageInfo(data, helpers.bytesToString(data), headers = null, url = null), helpers, callbacks)
 
 fun Piper.HeaderMatch.matches(headers: List<String>): Boolean = headers.any {
     it.startsWith("${this.header}: ", true) &&
