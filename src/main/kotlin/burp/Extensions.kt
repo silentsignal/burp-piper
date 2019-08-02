@@ -74,7 +74,7 @@ val Piper.CommandInvocation.commandLine: String
     }.joinToString(separator = " ").truncateTo(64)
 
 fun shellQuote(s: String): String = if (!s.contains(Regex("[\"\\s\\\\]"))) s
-        else '"' + s.replace(Regex("[\"\\\\]"), "\\$0") + '"'
+        else '"' + s.replace(Regex("[\"\\\\]")) { "\\" + it.groups[0]!!.value }  + '"'
 
 fun String.truncateTo(charLimit: Int): String = if (length < charLimit) this else this.substring(0, charLimit) + "..."
 
