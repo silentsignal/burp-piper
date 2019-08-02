@@ -150,7 +150,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             } else return // if the request has no body, passHeaders=false tools have no use for it
         }
         if (this.hasFilter() && !this.filter.matches(MessageInfo(body, helpers.bytesToString(body),
-                        headers, helpers.analyzeRequest(messageInfo).url), helpers, callbacks)) return
+                        headers, try { helpers.analyzeRequest(messageInfo).url } catch (_: Exception) { null }),
+						helpers, callbacks)) return
         val replacement = this.cmd.execute(body).processOutput { process ->
             if (configModel.developer) {
                 val stderr = process.errorStream.readBytes()
@@ -253,7 +254,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             messages.forEach {
                 val bytes = rr.getMessage(it) ?: return@forEach
                 val headers = rr.getHeaders(bytes, helpers)
-                val url = helpers.analyzeRequest(it).url
+                val url = try { helpers.analyzeRequest(it).url } catch (_: Exception) { null }
                 miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers, url))
                 val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
