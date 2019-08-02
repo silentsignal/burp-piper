@@ -78,6 +78,11 @@ menuItems:
   name: radiff2 (two column hexdump diffing)
   minInputs: 2
   maxInputs: 2
+- prefix: [sh, -c, dos2unix | xclip]
+  inputMethod: stdin
+  passHeaders: true
+  name: Copy to clipboard with headers without \r
+  hasGUI: true
 commentators:
 - prefix: [sha256sum]
   inputMethod: stdin
