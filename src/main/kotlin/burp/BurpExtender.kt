@@ -205,7 +205,10 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     override fun getTabCaption(): String = NAME
     override fun getUiComponent(): Component = tabs
 
-    private data class MessageSource(val direction: RequestResponse, val includeHeaders: Boolean)
+    private data class MessageSource(val direction: RequestResponse, val includeHeaders: Boolean) : Comparable<MessageSource> {
+        override fun compareTo(other: MessageSource): Int =
+                compareValuesBy(this, other, MessageSource::direction, MessageSource::includeHeaders)
+    }
 
     private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (JMenuItem) -> JMenuItem, addSeparator: () -> Unit) {
         val msize = messages.size
@@ -247,7 +250,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     }
 
     private fun messagesToMap(messages: Collection<IHttpRequestResponse>): Map<MessageSource, List<MessageInfo>> {
-        val messageDetails = HashMap<MessageSource, List<MessageInfo>>()
+        val messageDetails = TreeMap<MessageSource, List<MessageInfo>>()
         for (rr in RequestResponse.values()) {
             val miWithHeaders = ArrayList<MessageInfo>(messages.size)
             val miWithoutHeaders = ArrayList<MessageInfo>(messages.size)
