@@ -444,6 +444,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
     private val monospaced12 = Font("monospaced", Font.PLAIN, 12)
     private var tfExitCode: JTextField? = null
     private val cbPassHeaders: JCheckBox
+    private val tfDependencies = JTextField()
 
     private val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
     private val paramsModel = fillDefaultModel(sequence {
@@ -573,6 +574,10 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
         cbPassHeaders = createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
 
+        addFullWidthComponent(JLabel("Binaries required in PATH: (comma separated)"), panel, cs)
+        addFullWidthComponent(tfDependencies, panel, cs)
+        tfDependencies.text = ci.requiredInPathList.joinToString(separator = System.lineSeparator())
+
         if (showFilters) {
             val exitValues = ci.exitCodeList.joinToString(", ")
 
@@ -606,6 +611,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
                 throw RuntimeException("No filters are defined for stdio or exit code.")
             }
         }
+        addAllRequiredInPath(tfDependencies.text.split(','))
         if (paramsModel.isEmpty) throw RuntimeException("The command must contain at least one argument.")
         val params = paramsModel.map(CommandLineParameter::value)
         addAllPrefix(params.takeWhile(Objects::nonNull))

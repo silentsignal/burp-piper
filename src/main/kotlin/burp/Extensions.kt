@@ -204,9 +204,11 @@ fun <E> DefaultListModel<E>.toIterable(): Iterable<E> = (0 until size).map(this:
 class DependencyException(val dependency: String) : RuntimeException("Dependent executable `$dependency` cannot be found in \$PATH")
 
 fun Piper.CommandInvocation.checkDependencies() {
-    if (prefixCount == 0) return
-    val cmd = getPrefix(0)!!
-    if (!findExecutable(cmd)) throw DependencyException(cmd)
+    val s = sequence {
+        if (prefixCount != 0) yield(getPrefix(0)!!)
+        yieldAll(requiredInPathList)
+    }
+    throw DependencyException(s.firstOrNull { !findExecutable(it) } ?: return)
 }
 
 private fun findExecutable(name: String): Boolean {

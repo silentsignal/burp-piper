@@ -81,6 +81,7 @@ menuItems:
 - prefix: [sh, -c, dos2unix | xclip]
   inputMethod: stdin
   passHeaders: true
+  requiredInPath: [dos2unix, xclip]
   name: Copy to clipboard with headers without \r
   hasGUI: true
 commentators:
