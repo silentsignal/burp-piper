@@ -576,7 +576,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
         addFullWidthComponent(JLabel("Binaries required in PATH: (comma separated)"), panel, cs)
         addFullWidthComponent(tfDependencies, panel, cs)
-        tfDependencies.text = ci.requiredInPathList.joinToString(separator = System.lineSeparator())
+        tfDependencies.text = ci.requiredInPathList.joinToString(separator = ", ")
 
         if (showFilters) {
             val exitValues = ci.exitCodeList.joinToString(", ")
