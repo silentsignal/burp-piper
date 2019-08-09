@@ -611,7 +611,8 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
                 throw RuntimeException("No filters are defined for stdio or exit code.")
             }
         }
-        addAllRequiredInPath(tfDependencies.text.split(','))
+        val d = tfDependencies.text.replace("\\s".toRegex(), "")
+        if (d.isNotEmpty()) addAllRequiredInPath(d.split(','))
         if (paramsModel.isEmpty) throw RuntimeException("The command must contain at least one argument.")
         val params = paramsModel.map(CommandLineParameter::value)
         addAllPrefix(params.takeWhile(Objects::nonNull))
