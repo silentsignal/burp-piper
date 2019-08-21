@@ -669,12 +669,13 @@ private class InputMethodWidget(private val w: Window, private val label: JLabel
     }
 }
 
-private fun addFullWidthComponent(c: Component, panel: Container, cs: GridBagConstraints) {
+private fun <E : Component> addFullWidthComponent(c: E, panel: Container, cs: GridBagConstraints): E {
     cs.gridx = 0
     cs.gridy++
     cs.gridwidth = 4
 
     panel.add(c, cs)
+    return c
 }
 
 class HexASCIITextField(private val tf: JTextField = JTextField(),
