@@ -154,6 +154,10 @@ class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, c
         }.build()
     }
 
+    fun addFilterChangeListener(listener: ChangeListener<Piper.MessageMatch>) {
+        ccmw.addChangeListener(listener)
+    }
+
     init {
         ccmw.buildGUI(panel, cs)
         cciw.buildGUI(panel, cs)
@@ -164,6 +168,7 @@ class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, c
 abstract class CollapsedWidget<E>(private val w: Window, var value: E?, private val caption: String, val removable: Boolean) {
     private val label: JLabel = JLabel()
     private val btnRemove = JButton("Remove")
+    private val changeListeners = mutableListOf<ChangeListener<E>>()
 
     abstract fun editDialog(value: E, parent: Component): E?
     abstract fun toHumanReadable(): String
@@ -173,6 +178,12 @@ abstract class CollapsedWidget<E>(private val w: Window, var value: E?, private 
         label.text = toHumanReadable() + " "
         btnRemove.isEnabled = value != null
         w.repack()
+        changeListeners.forEach { it.valueChanged(value) }
+    }
+
+    fun addChangeListener(listener: ChangeListener<E>) {
+        changeListeners.add(listener)
+        listener.valueChanged(value)
     }
 
     fun buildGUI(panel: Container, cs: GridBagConstraints) {
@@ -202,6 +213,10 @@ abstract class CollapsedWidget<E>(private val w: Window, var value: E?, private 
     init {
         if (value == default) value = null
     }
+}
+
+interface ChangeListener<E> {
+    fun valueChanged(value: E?)
 }
 
 class CollapsedMessageMatchWidget(w: Window, mm: Piper.MessageMatch?, val showHeaderMatch: Boolean, caption: String) :
@@ -290,6 +305,10 @@ abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, paren
 
     abstract fun buildEnabled(value: Boolean) : E
     abstract fun processGUI(mt: Piper.MinimalTool): E
+
+    protected fun addFilterChangeListener(listener: ChangeListener<Piper.MessageMatch>) {
+        mtw.addFilterChangeListener(listener)
+    }
 }
 
 class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent: Component?) :
@@ -305,12 +324,24 @@ class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent
     override fun buildEnabled(value: Boolean): Piper.MessageViewer = messageViewer.buildEnabled(value)
 }
 
+const val HTTP_LISTENER_NOTE = "<html>Note: Piper settings are global and thus <font color='red'>apply to all your Burp projects</font>.<br>HTTP listeners <font color='red'>without filters</font> might have <font color='red'>hard-to-debug side effects</font>, you've been warned.</html>"
+
 class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: Component?) :
         MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent, "HTTP listener") {
 
     private val lsScope = createLabeledWidget("Listen to ",
             JComboBox(ConfigRequestResponse.values()).apply { selectedItem = ConfigRequestResponse.fromRequestResponse(httpListener.scope) }, panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
+    private val lbNote = addFullWidthComponent(JLabel(HTTP_LISTENER_NOTE), panel, cs)
+
+    init {
+        addFilterChangeListener(object : ChangeListener<Piper.MessageMatch> {
+            override fun valueChanged(value: Piper.MessageMatch?) {
+                lbNote.isVisible = value == null
+                repack()
+            }
+        })
+    }
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.HttpListener {
         val bt = btw.toSet()
