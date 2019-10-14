@@ -330,8 +330,9 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
         MinimalToolDialog<Piper.HttpListener>(httpListener.common, parent, "HTTP listener") {
 
     private val lsScope = createLabeledWidget("Listen to ",
-            JComboBox(ConfigRequestResponse.values()).apply { selectedItem = ConfigRequestResponse.fromRequestResponse(httpListener.scope) }, panel, cs)
+            JComboBox(ConfigHttpListenerScope.values()).apply { selectedItem = ConfigHttpListenerScope.fromHttpListenerScope(httpListener.scope) }, panel, cs)
     private val btw = EnumSetWidget(httpListener.toolSet, panel, cs, "sent/received by", BurpTool::class.java)
+    private val cbIgnore = createFullWidthCheckBox("Ignore output (if you only need side effects)", httpListener.ignoreOutput, panel, cs)
     private val lbNote = addFullWidthComponent(JLabel(HTTP_LISTENER_NOTE), panel, cs)
 
     init {
@@ -347,7 +348,8 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
         val bt = btw.toSet()
         return Piper.HttpListener.newBuilder().apply {
             common = mt
-            scope = (lsScope.selectedItem as ConfigRequestResponse).rr
+            scope = (lsScope.selectedItem as ConfigHttpListenerScope).hls
+            if (cbIgnore.isSelected) ignoreOutput = true
             if (bt.size < BurpTool.values().size) setToolSet(bt)
         }.build()
     }

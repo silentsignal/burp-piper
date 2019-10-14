@@ -76,15 +76,17 @@ message MessageViewer {
     bool usesColors = 2;
 }
 
-enum RequestResponse {
+enum HttpListenerScope {
     REQUEST = 0;
     RESPONSE = 1;
+    RESPONSE_WITH_REQUEST = 2;
 }
 
 message HttpListener {
     MinimalTool common = 1;
     int32 tool = 2;
-    RequestResponse scope = 3;
+    HttpListenerScope scope = 3;
+    bool ignoreOutput = 4;
 }
 
 message Commentator {

@@ -2,6 +2,7 @@ package burp
 
 import org.snakeyaml.engine.v1.api.Dump
 import org.snakeyaml.engine.v1.api.DumpSettingsBuilder
+import java.util.*
 import java.util.regex.Pattern
 
 enum class RegExpFlag {
@@ -71,14 +72,18 @@ enum class MatchNegation(val negation: Boolean, private val description: String)
     override fun toString(): String = description
 }
 
-enum class ConfigRequestResponse(val rr: Piper.RequestResponse) {
-    REQUEST (Piper.RequestResponse.REQUEST),
-    RESPONSE(Piper.RequestResponse.RESPONSE);
+enum class ConfigHttpListenerScope(val hls: Piper.HttpListenerScope, val inputList: List<RequestResponse>) {
+    REQUEST (Piper.HttpListenerScope.REQUEST,  Collections.singletonList(RequestResponse.REQUEST)),
+    RESPONSE(Piper.HttpListenerScope.RESPONSE, Collections.singletonList(RequestResponse.RESPONSE)),
+    RESPONSE_WITH_REQUEST(Piper.HttpListenerScope.RESPONSE_WITH_REQUEST,
+            listOf(RequestResponse.REQUEST, RequestResponse.RESPONSE)) {
+        override fun toString(): String = "HTTP responses with request prepended"
+    };
 
-    override fun toString(): String = "HTTP ${rr.toString().toLowerCase()}s"
+    override fun toString(): String = "HTTP ${hls.toString().toLowerCase()}s"
 
     companion object {
-        fun fromRequestResponse(rr: Piper.RequestResponse): ConfigRequestResponse = values().first { it.rr == rr }
+        fun fromHttpListenerScope(hls: Piper.HttpListenerScope): ConfigHttpListenerScope = values().first { it.hls == hls }
     }
 }
 

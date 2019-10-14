@@ -112,9 +112,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     private fun registerHttpListeners() {
         configModel.enabledHttpListeners.forEach {
             callbacks.registerHttpListener { toolFlag, messageIsRequest, messageInfo ->
-                if ((messageIsRequest xor (it.scope == Piper.RequestResponse.REQUEST))
+                if ((messageIsRequest xor (it.scope == Piper.HttpListenerScope.REQUEST))
                         || (it.tool != 0 && (it.tool and toolFlag == 0))) return@registerHttpListener
-                it.common.pipeMessage(RequestResponse.fromBoolean(messageIsRequest), messageInfo)
+                it.common.pipeMessage(ConfigHttpListenerScope.fromHttpListenerScope(it.scope).inputList, messageInfo, it.ignoreOutput)
             }
         }
     }
@@ -123,7 +123,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         configModel.enabledMacros.forEach {
             callbacks.registerSessionHandlingAction(object : ISessionHandlingAction {
                 override fun performAction(currentRequest: IHttpRequestResponse?, macroItems: Array<out IHttpRequestResponse>?) {
-                    it.pipeMessage(RequestResponse.REQUEST, currentRequest ?: return)
+                    it.pipeMessage(Collections.singletonList(RequestResponse.REQUEST), currentRequest ?: return)
                 }
 
                 override fun getActionName(): String = it.name
@@ -140,19 +140,26 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }
     }
 
-    private fun Piper.MinimalTool.pipeMessage(rr: RequestResponse, messageInfo: IHttpRequestResponse) {
-        val bytes = rr.getMessage(messageInfo)!!
-        val headers = rr.getHeaders(bytes, helpers)
-        val bo = if (this.cmd.passHeaders) 0 else rr.getBodyOffset(bytes, helpers)
-        val body = if (this.cmd.passHeaders) bytes else {
-            if (bo < bytes.size - 1) {
-                bytes.copyOfRange(bo, bytes.size)
-            } else return // if the request has no body, passHeaders=false tools have no use for it
+    private fun Piper.MinimalTool.pipeMessage(rrList: List<RequestResponse>, messageInfo: IHttpRequestResponse, ignoreOutput: Boolean = false) {
+        require(rrList.isNotEmpty())
+        val body = rrList.map { rr ->
+            val bytes = rr.getMessage(messageInfo)!!
+            val headers = rr.getHeaders(bytes, helpers)
+            val bo = if (this.cmd.passHeaders) 0 else rr.getBodyOffset(bytes, helpers)
+            val body = if (this.cmd.passHeaders) bytes else {
+                if (bo < bytes.size - 1) {
+                    bytes.copyOfRange(bo, bytes.size)
+                } else null // if the request has no body, passHeaders=false tools have no use for it
+            }
+            body to headers
         }
-        if (this.hasFilter() && !this.filter.matches(MessageInfo(body, helpers.bytesToString(body),
+        val (lastBody, headers) = body.last()
+        if (lastBody == null) return
+        if (this.hasFilter() && !this.filter.matches(MessageInfo(lastBody, helpers.bytesToString(lastBody),
                         headers, try { helpers.analyzeRequest(messageInfo).url } catch (_: Exception) { null }),
 						helpers, callbacks)) return
-        val replacement = this.cmd.execute(body).processOutput { process ->
+        val input = body.mapNotNull(Pair<ByteArray?, List<String>>::first).toTypedArray()
+        val replacement = this.cmd.execute(*input).processOutput { process ->
             if (configModel.developer) {
                 val stderr = process.errorStream.readBytes()
                 if (stderr.isNotEmpty()) {
@@ -171,10 +178,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             }
             process.inputStream.readBytes()
         }
-        if (this.cmd.passHeaders) {
-            rr.setMessage(messageInfo, replacement)
-        } else {
-            rr.setMessage(messageInfo, helpers.buildHttpMessage(headers, replacement))
+        if (!ignoreOutput) {
+            rrList.last().setMessage(messageInfo,
+                    if (this.cmd.passHeaders) replacement else helpers.buildHttpMessage(headers, replacement))
         }
     }
 
