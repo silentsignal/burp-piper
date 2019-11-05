@@ -301,7 +301,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         private fun toHumanReadable(value: IHttpRequestResponse): String {
             val req = helpers.analyzeRequest(value)
             val resp = helpers.analyzeResponse(value.response)
-            return "${resp.statusCode} ${req.url} (response size = ${value.response.size - resp.bodyOffset} byte(s))"
+            return "${resp.statusCode} ${req.method} ${req.url} (response size = ${value.response.size - resp.bodyOffset} byte(s))"
         }
 
         private fun addButtons() {
