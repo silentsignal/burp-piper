@@ -128,10 +128,10 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
 
 class CancelClosingWindow() : RuntimeException()
 
-class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window) {
+class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window, showPassHeaders: Boolean) {
     private val tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
     private val cbEnabled: JCheckBox
-    private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(w, cmd = tool.cmd, match = false)
+    private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(w, cmd = tool.cmd, match = false, showPassHeaders = showPassHeaders)
     private val ccmw: CollapsedMessageMatchWidget = CollapsedMessageMatchWidget(w, mm = tool.filter, showHeaderMatch = true, caption = "Filter: ")
 
     fun toMinimalTool(): Piper.MinimalTool {
@@ -232,12 +232,12 @@ class CollapsedMessageMatchWidget(w: Window, mm: Piper.MessageMatch?, val showHe
         get() = Piper.MessageMatch.getDefaultInstance()
 }
 
-class CollapsedCommandInvocationWidget(w: Window, cmd: Piper.CommandInvocation, private val match: Boolean) :
+class CollapsedCommandInvocationWidget(w: Window, cmd: Piper.CommandInvocation, private val match: Boolean, private val showPassHeaders: Boolean = true) :
         CollapsedWidget<Piper.CommandInvocation>(w, cmd, "Command: ", removable = match) {
 
     override fun toHumanReadable(): String = (if (match) value?.toHumanReadable(negation = false) else value?.commandLine) ?: "(no command)"
     override fun editDialog(value: Piper.CommandInvocation, parent: Component): Piper.CommandInvocation? =
-            CommandInvocationDialog(value, showFilters = match, parent = parent).showGUI()
+            CommandInvocationDialog(value, showFilters = match, parent = parent, showPassHeaders = showPassHeaders).showGUI()
 
     override val default: Piper.CommandInvocation
         get() = Piper.CommandInvocation.getDefaultInstance()
@@ -294,9 +294,9 @@ abstract class ConfigDialog<E>(private val parent: Component?, private val capti
     abstract fun processGUI(): E
 }
 
-abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?, noun: String) :
+abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?, noun: String, showPassHeaders: Boolean = true) :
         ConfigDialog<E>(parent, if (common.name.isEmpty()) "Add $noun" else "Edit $noun \"${common.name}\"") {
-    private val mtw = MinimalToolWidget(common, panel, cs, this)
+    private val mtw = MinimalToolWidget(common, panel, cs, this, showPassHeaders = showPassHeaders)
 
     override fun processGUI(): E = processGUI(mtw.toMinimalTool())
 
@@ -471,12 +471,13 @@ data class CommandLineParameter(val value: String?) { // null = input file name
     override fun toString(): String = if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
 }
 
-class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilters: Boolean, parent: Component) : ConfigDialog<Piper.CommandInvocation>(parent, "Command invocation editor") {
+class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilters: Boolean, parent: Component,
+                              showPassHeaders: Boolean) : ConfigDialog<Piper.CommandInvocation>(parent, "Command invocation editor") {
     private val ccmwStdout = CollapsedMessageMatchWidget(this, mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
     private val ccmwStderr = CollapsedMessageMatchWidget(this, mm = ci.stderr, showHeaderMatch = false, caption = "Match on stderr: ")
     private val monospaced12 = Font("monospaced", Font.PLAIN, 12)
     private var tfExitCode: JTextField? = null
-    private val cbPassHeaders: JCheckBox
+    private val cbPassHeaders: JCheckBox?
     private val tfDependencies = JTextField()
 
     private val hasFileName = ci.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME
@@ -605,7 +606,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
 
         InputMethodWidget.create(this, panel, cs, hasFileName, paramsModel)
 
-        cbPassHeaders = createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
+        cbPassHeaders = if (showPassHeaders) createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs) else null
 
         addFullWidthComponent(JLabel("Binaries required in PATH: (comma separated)"), panel, cs)
         addFullWidthComponent(tfDependencies, panel, cs)
@@ -653,7 +654,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
             inputMethod = Piper.CommandInvocation.InputMethod.FILENAME
             addAllPostfix(params.drop(prefixCount + 1))
         }
-        if (cbPassHeaders.isSelected) passHeaders = true
+        if (cbPassHeaders?.isSelected == true) passHeaders = true
     }.build()
 }
 
