@@ -157,7 +157,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         if (lastBody == null) return
         if (this.hasFilter() && !this.filter.matches(MessageInfo(lastBody, helpers.bytesToString(lastBody),
                         headers, try { helpers.analyzeRequest(messageInfo).url } catch (_: Exception) { null }),
-						helpers, callbacks)) return
+                        helpers, callbacks)) return
         val input = body.mapNotNull(Pair<ByteArray?, List<String>>::first).toTypedArray()
         val replacement = this.cmd.execute(*input).processOutput { process ->
             if (configModel.developer) {
