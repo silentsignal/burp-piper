@@ -23,6 +23,7 @@ import org.zeromq.codec.Z85
 import java.awt.*
 import java.beans.PropertyChangeListener
 import java.beans.PropertyChangeSupport
+import java.io.File
 import java.net.URL
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -159,7 +160,15 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                         headers, try { helpers.analyzeRequest(messageInfo).url } catch (_: Exception) { null }),
                         helpers, callbacks)) return
         val input = body.mapNotNull(Pair<ByteArray?, List<String>>::first).toTypedArray()
-        val replacement = this.cmd.execute(*input).processOutput { process ->
+        val replacement = getStdoutWithErrorHandling(this.cmd.execute(*input), this)
+        if (!ignoreOutput) {
+            rrList.last().setMessage(messageInfo,
+                    if (this.cmd.passHeaders) replacement else helpers.buildHttpMessage(headers, replacement))
+        }
+    }
+
+    private fun getStdoutWithErrorHandling(executionResult: Pair<Process, List<File>>, tool: Piper.MinimalTool): ByteArray =
+        executionResult.processOutput { process ->
             if (configModel.developer) {
                 val stderr = process.errorStream.readBytes()
                 if (stderr.isNotEmpty()) {
@@ -168,7 +177,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                     callbacks.stderr.buffered().use {
                         it.bufferedWriter().use { w ->
                             w.newLine()
-                            w.write("$name called ${cmd.commandLine} at $ts and stderr was not empty:")
+                            w.write("${tool.name} called ${tool.cmd.commandLine} at $ts and stderr was not empty:")
                             w.newLine()
                             w.newLine()
                         }
@@ -178,11 +187,6 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             }
             process.inputStream.readBytes()
         }
-        if (!ignoreOutput) {
-            rrList.last().setMessage(messageInfo,
-                    if (this.cmd.passHeaders) replacement else helpers.buildHttpMessage(headers, replacement))
-        }
-    }
 
     private fun populateTabs(cfg: ConfigModel, parent: Component?) {
         tabs.addTab("Message viewers", MinimalToolListEditor(cfg.messageViewersModel, parent,
