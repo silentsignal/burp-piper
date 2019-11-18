@@ -40,7 +40,7 @@ import kotlin.concurrent.thread
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
 
-data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?, val url: URL?)
+data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?, val url: URL?, val hrr: IHttpRequestResponse? = null)
 
 class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
@@ -263,7 +263,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         val commentatorMenuItems = configModel.enabledCommentators.flatMap { cfgItem ->
             messageDetails.map { (msrc, md) ->
                 createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY, plural) {
-                    performCommentator(cfgItem, md zip messages)
+                    performCommentator(cfgItem, md)
                 }
             }
         }.filterNotNull()
@@ -286,12 +286,12 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 val bytes = rr.getMessage(it) ?: return@forEach
                 val headers = rr.getHeaders(bytes, helpers)
                 val url = try { helpers.analyzeRequest(it).url } catch (_: Exception) { null }
-                miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers, url))
+                miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers, url, it))
                 val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
                     // if the request has no body, passHeaders=false actions have no use for it
                     val body = bytes.copyOfRange(bo, bytes.size)
-                    miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers, url))
+                    miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
                 }
             }
             messageDetails[MessageSource(rr, true)] = miWithHeaders
@@ -402,8 +402,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }.start()
     }
 
-    private fun performCommentator(cfgItem: Piper.Commentator, messages: List<Pair<MessageInfo, IHttpRequestResponse>>) {
-        messages.forEach { (mi, hrr) ->
+    private fun performCommentator(cfgItem: Piper.Commentator, messages: List<MessageInfo>) {
+        messages.forEach { mi ->
+            val hrr = mi.hrr ?: return@forEach
             if ((hrr.comment.isNullOrEmpty() || cfgItem.overwrite) &&
                     (!cfgItem.common.hasFilter() || cfgItem.common.filter.matches(mi, helpers, callbacks))) {
                 val stdout = cfgItem.common.cmd.execute(mi.content).processOutput { process ->
