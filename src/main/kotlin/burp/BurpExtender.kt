@@ -248,11 +248,11 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             // TODO check dependencies
             if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize) || cfgItem.minInputs > msize) continue
             for ((msrc, md) in messageDetails) {
-                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, plural) { performMenuAction(cfgItem, md) }
+                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ALL, plural) { performMenuAction(cfgItem, md) }
                 if (menuItem != null) add(menuItem)
                 if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
                     configModel.enabledMessageViewers.forEach { mv ->
-                        add(createMenuItem(mv.common, cfgItem.common, msrc, md, plural) {
+                        add(createMenuItem(mv.common, cfgItem.common, msrc, md, MessageInfoMatchStrategy.ALL, plural) {
                             performMenuAction(cfgItem, md, mv)
                         } ?: return@forEach)
                     }
@@ -262,7 +262,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
         val commentatorMenuItems = configModel.enabledCommentators.flatMap { cfgItem ->
             messageDetails.map { (msrc, md) ->
-                createMenuItem(cfgItem.common, null, msrc, md, plural) {
+                createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY, plural) {
                     performCommentator(cfgItem, md zip messages)
                 }
             }
@@ -302,8 +302,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         return messageDetails
     }
 
-    private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource, md: List<MessageInfo>, plural: String, action: () -> Unit): JMenuItem? {
-        if (tool.cmd.passHeaders == msrc.includeHeaders && tool.canProcess(md, helpers, callbacks)) {
+    private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource,
+                               md: List<MessageInfo>, mims: MessageInfoMatchStrategy, plural: String, action: () -> Unit): JMenuItem? {
+        if (tool.cmd.passHeaders == msrc.includeHeaders && tool.canProcess(md, mims, helpers, callbacks)) {
             val noun = msrc.direction.name.toLowerCase()
             return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}") + " ($noun$plural)").apply {
                 addActionListener { action() }
@@ -403,7 +404,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private fun performCommentator(cfgItem: Piper.Commentator, messages: List<Pair<MessageInfo, IHttpRequestResponse>>) {
         messages.forEach { (mi, hrr) ->
-            if (hrr.comment.isNullOrEmpty() || cfgItem.overwrite) {
+            if ((hrr.comment.isNullOrEmpty() || cfgItem.overwrite) &&
+                    (!cfgItem.common.hasFilter() || cfgItem.common.filter.matches(mi, helpers, callbacks))) {
                 val stdout = cfgItem.common.cmd.execute(mi.content).processOutput { process ->
                     process.inputStream.readBytes()
                 }

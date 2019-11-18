@@ -108,3 +108,10 @@ enum class ConfigFormat {
     abstract fun parse(blob: ByteArray): Piper.Config
     abstract val fileExtension: String
 }
+
+enum class MessageInfoMatchStrategy {
+    ANY { override fun predicate(objects: List<MessageInfo>, check: (MessageInfo) -> Boolean): Boolean = objects.any(check) },
+    ALL { override fun predicate(objects: List<MessageInfo>, check: (MessageInfo) -> Boolean): Boolean = objects.all(check) };
+
+    abstract fun predicate(objects: List<MessageInfo>, check: (MessageInfo) -> Boolean): Boolean
+}
