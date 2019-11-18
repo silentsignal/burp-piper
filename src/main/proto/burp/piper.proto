@@ -102,4 +102,5 @@ message Config {
     repeated HttpListener httpListener = 4;
     repeated Commentator commentator = 5;
     bool developer = 6;
+    repeated MinimalTool intruderPayloadProcessor = 7;
 }

@@ -422,6 +422,13 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
     return model
 }
 
+class IntruderPayloadProcessorDialog(private val ipp: Piper.MinimalTool, parent: Component?) :
+        MinimalToolDialog<Piper.MinimalTool>(ipp, parent, "Intruder payload processor", showPassHeaders = false) {
+
+    override fun processGUI(mt: Piper.MinimalTool): Piper.MinimalTool = mt
+    override fun buildEnabled(value: Boolean): Piper.MinimalTool = ipp.buildEnabled(value)
+}
+
 class MacroDialog(private val macro: Piper.MinimalTool, parent: Component?) :
         MinimalToolDialog<Piper.MinimalTool>(macro, parent, "macro") {
 

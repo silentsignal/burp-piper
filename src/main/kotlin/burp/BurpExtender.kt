@@ -84,11 +84,13 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         configModel.menuItemsModel.addListDataListener(ccl)  // Menu items are loaded on-demand, thus saving the config is enough
         configModel.commentatorsModel.addListDataListener(ccl)  // Commentators are menu items as well, see above
         configModel.messageViewersModel.addListDataListener(ReloaderConfigChangeListener(
-                callbacks::getMessageEditorTabFactories, callbacks::removeMessageEditorTabFactory, ::registerMessageViewers))
+                callbacks::getMessageEditorTabFactories, callbacks::removeMessageEditorTabFactory,  ::registerMessageViewers))
         configModel.macrosModel.addListDataListener(ReloaderConfigChangeListener(
-                callbacks::getSessionHandlingActions,    callbacks::removeSessionHandlingAction,   ::registerMacros))
+                callbacks::getSessionHandlingActions,    callbacks::removeSessionHandlingAction,    ::registerMacros))
         configModel.httpListenersModel.addListDataListener(ReloaderConfigChangeListener(
-                callbacks::getHttpListeners,             callbacks::removeHttpListener,            ::registerHttpListeners))
+                callbacks::getHttpListeners,             callbacks::removeHttpListener,             ::registerHttpListeners))
+        configModel.intruderPayloadProcessorsModel.addListDataListener(ReloaderConfigChangeListener(
+                callbacks::getIntruderPayloadProcessors, callbacks::removeIntruderPayloadProcessor, ::registerIntruderPayloadProcessors))
 
         configModel.addPropertyChangeListener(PropertyChangeListener { saveConfig() })
 
@@ -105,6 +107,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         registerMessageViewers()
         registerHttpListeners()
         registerMacros()
+        registerIntruderPayloadProcessors()
 
         populateTabs(configModel, null)
         callbacks.addSuiteTab(this)
@@ -117,6 +120,19 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                         || (it.tool != 0 && (it.tool and toolFlag == 0))) return@registerHttpListener
                 it.common.pipeMessage(ConfigHttpListenerScope.fromHttpListenerScope(it.scope).inputList, messageInfo, it.ignoreOutput)
             }
+        }
+    }
+
+    private fun registerIntruderPayloadProcessors() {
+        configModel.enabledIntruderPayloadProcessors.forEach { ipp ->
+            callbacks.registerIntruderPayloadProcessor(object : IIntruderPayloadProcessor {
+                override fun processPayload(currentPayload: ByteArray, originalPayload: ByteArray, baseValue: ByteArray): ByteArray? =
+                        if (ipp.hasFilter() && !ipp.filter.matches(MessageInfo(currentPayload, helpers.bytesToString(currentPayload),
+                                                    headers = null, url = null), helpers, callbacks)) null
+                                    else getStdoutWithErrorHandling(ipp.cmd.execute(currentPayload), ipp)
+
+                override fun getProcessorName(): String = ipp.name
+            })
         }
     }
 
@@ -199,6 +215,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance))
         tabs.addTab("Commentators", MinimalToolListEditor(cfg.commentatorsModel, parent,
                 ::CommentatorDialog, Piper.Commentator::getDefaultInstance))
+        tabs.addTab("Intruder payload processors", MinimalToolListEditor(cfg.intruderPayloadProcessorsModel, parent,
+                ::IntruderPayloadProcessorDialog, Piper.MinimalTool::getDefaultInstance))
         tabs.addTab("Queue", queue)
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
         tabs.addTab("Developer", createDeveloperUI(cfg))
@@ -414,12 +432,14 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val enabledMenuItems get() = menuItemsModel.toIterable().filter { it.common.enabled }
     val enabledHttpListeners get() = httpListenersModel.toIterable().filter { it.common.enabled }
     val enabledCommentators get() = commentatorsModel.toIterable().filter { it.common.enabled }
+    val enabledIntruderPayloadProcessors get() = intruderPayloadProcessorsModel.toIterable().filter(Piper.MinimalTool::getEnabled)
 
     val macrosModel = DefaultListModel<Piper.MinimalTool>()
     val messageViewersModel = DefaultListModel<Piper.MessageViewer>()
     val menuItemsModel = DefaultListModel<Piper.UserActionTool>()
     val httpListenersModel = DefaultListModel<Piper.HttpListener>()
     val commentatorsModel = DefaultListModel<Piper.Commentator>()
+    val intruderPayloadProcessorsModel = DefaultListModel<Piper.MinimalTool>()
 
     private var _developer = config.developer
     var developer: Boolean
@@ -437,11 +457,12 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     }
 
     fun fillModels(config: Piper.Config) {
-        fillDefaultModel(config.macroList,                  macrosModel)
-        fillDefaultModel(config.messageViewerList,  messageViewersModel)
-        fillDefaultModel(config.menuItemList,            menuItemsModel)
-        fillDefaultModel(config.httpListenerList,    httpListenersModel)
-        fillDefaultModel(config.commentatorList,      commentatorsModel)
+        fillDefaultModel(config.macroList,                                       macrosModel)
+        fillDefaultModel(config.messageViewerList,                       messageViewersModel)
+        fillDefaultModel(config.menuItemList,                                 menuItemsModel)
+        fillDefaultModel(config.httpListenerList,                         httpListenersModel)
+        fillDefaultModel(config.commentatorList,                           commentatorsModel)
+        fillDefaultModel(config.intruderPayloadProcessorList, intruderPayloadProcessorsModel)
     }
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
@@ -450,6 +471,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
             .addAllMenuItem(menuItemsModel.toIterable())
             .addAllHttpListener(httpListenersModel.toIterable())
             .addAllCommentator(commentatorsModel.toIterable())
+            .addAllIntruderPayloadProcessor(intruderPayloadProcessorsModel.toIterable())
             .setDeveloper(developer)
             .build()
 }
@@ -497,11 +519,12 @@ private fun loadDefaultConfig(): Piper.Config {
     val cfg = configFromYaml(BurpExtender::class.java.classLoader
             .getResourceAsStream("defaults.yaml").reader().readText())
     return Piper.Config.newBuilder()
-            .addAllMacro        (cfg.macroList        .map { it.buildEnabled() })
-            .addAllMenuItem     (cfg.menuItemList     .map { it.buildEnabled() })
-            .addAllMessageViewer(cfg.messageViewerList.map { it.buildEnabled() })
-            .addAllHttpListener (cfg.httpListenerList .map { it.buildEnabled() })
-            .addAllCommentator  (cfg.commentatorList  .map { it.buildEnabled() })
+            .addAllMacro                   (cfg.macroList                   .map { it.buildEnabled() })
+            .addAllMenuItem                (cfg.menuItemList                .map { it.buildEnabled() })
+            .addAllMessageViewer           (cfg.messageViewerList           .map { it.buildEnabled() })
+            .addAllHttpListener            (cfg.httpListenerList            .map { it.buildEnabled() })
+            .addAllCommentator             (cfg.commentatorList             .map { it.buildEnabled() })
+            .addAllIntruderPayloadProcessor(cfg.intruderPayloadProcessorList.map { it.buildEnabled() })
             .build()
 }
 
