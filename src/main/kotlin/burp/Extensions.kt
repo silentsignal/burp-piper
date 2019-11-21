@@ -3,6 +3,7 @@ package burp
 import com.google.protobuf.ByteString
 import java.awt.Window
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.lang.RuntimeException
 import java.util.*
@@ -145,8 +146,12 @@ fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, Lis
     val args = this.prefixList + tempFiles.map(File::getAbsolutePath) + this.postfixList
     val p = Runtime.getRuntime().exec(args.toTypedArray())
     if (this.inputMethod == Piper.CommandInvocation.InputMethod.STDIN) {
-        p.outputStream.use {
-            inputs.forEach(p.outputStream::write)
+        try {
+            p.outputStream.use {
+                inputs.forEach(p.outputStream::write)
+            }
+        } catch (_: IOException) {
+            // ignore, see https://github.com/silentsignal/burp-piper/issues/6
         }
     }
     return p to tempFiles
