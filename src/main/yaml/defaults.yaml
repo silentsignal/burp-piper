@@ -27,6 +27,10 @@ messageViewers:
 - prefix: [hd]
   inputMethod: stdin
   name: hd
+- prefix: [protoc, --decode_raw]
+  inputMethod: stdin
+  exitCode: [0]
+  name: ProtoBuf
 menuItems:
 - prefix: [okular]
   inputMethod: filename

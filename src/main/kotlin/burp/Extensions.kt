@@ -157,6 +157,9 @@ fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, Lis
     return p to tempFiles
 }
 
+val Piper.CommandInvocationOrBuilder.hasFilter: Boolean
+    get() = hasStderr() || hasStdout() || exitCodeCount > 0
+
 fun Piper.CommandInvocation.matches(subject: ByteArray, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean {
     val (process, tempFiles) = this.execute(subject)
     if ((this.hasStderr() && !this.stderr.matches(process.errorStream, helpers, callbacks)) ||

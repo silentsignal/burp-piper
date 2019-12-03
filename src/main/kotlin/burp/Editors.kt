@@ -17,12 +17,16 @@ abstract class Editor(private val tool: Piper.MessageViewer,
 
     override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
         if (content == null) return false
-        if (!tool.common.hasFilter()) return true
 
         val rr = RequestResponse.fromBoolean(isRequest)
         val payload = getPayload(content, rr)
 
         if (payload.isEmpty()) return false
+
+        if (!tool.common.hasFilter()) {
+            val cmd = tool.common.cmd
+            return !cmd.hasFilter || cmd.matches(payload, helpers, callbacks) // TODO cache output
+        }
 
         val mi = MessageInfo(payload, helpers.bytesToString(payload), rr.getHeaders(content, helpers), url = null)
         return tool.common.filter.matches(mi, helpers, callbacks)

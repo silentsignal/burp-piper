@@ -128,10 +128,11 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
 
 class CancelClosingWindow() : RuntimeException()
 
-class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window, showPassHeaders: Boolean) {
+class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window,
+                        showPassHeaders: Boolean, purpose: CommandInvocationPurpose) {
     private val tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
     private val cbEnabled: JCheckBox
-    private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(w, cmd = tool.cmd, match = false, showPassHeaders = showPassHeaders)
+    private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(w, cmd = tool.cmd, purpose = purpose, showPassHeaders = showPassHeaders)
     private val ccmw: CollapsedMessageMatchWidget = CollapsedMessageMatchWidget(w, mm = tool.filter, showHeaderMatch = true, caption = "Filter: ")
 
     fun toMinimalTool(): Piper.MinimalTool {
@@ -232,12 +233,12 @@ class CollapsedMessageMatchWidget(w: Window, mm: Piper.MessageMatch?, val showHe
         get() = Piper.MessageMatch.getDefaultInstance()
 }
 
-class CollapsedCommandInvocationWidget(w: Window, cmd: Piper.CommandInvocation, private val match: Boolean, private val showPassHeaders: Boolean = true) :
-        CollapsedWidget<Piper.CommandInvocation>(w, cmd, "Command: ", removable = match) {
+class CollapsedCommandInvocationWidget(w: Window, cmd: Piper.CommandInvocation, private val purpose: CommandInvocationPurpose, private val showPassHeaders: Boolean = true) :
+        CollapsedWidget<Piper.CommandInvocation>(w, cmd, "Command: ", removable = (purpose == CommandInvocationPurpose.MATCH_FILTER)) {
 
-    override fun toHumanReadable(): String = (if (match) value?.toHumanReadable(negation = false) else value?.commandLine) ?: "(no command)"
+    override fun toHumanReadable(): String = (if (purpose == CommandInvocationPurpose.MATCH_FILTER) value?.toHumanReadable(negation = false) else value?.commandLine) ?: "(no command)"
     override fun editDialog(value: Piper.CommandInvocation, parent: Component): Piper.CommandInvocation? =
-            CommandInvocationDialog(value, showFilters = match, parent = parent, showPassHeaders = showPassHeaders).showGUI()
+            CommandInvocationDialog(value, purpose = purpose, parent = parent, showPassHeaders = showPassHeaders).showGUI()
 
     override val default: Piper.CommandInvocation
         get() = Piper.CommandInvocation.getDefaultInstance()
@@ -294,9 +295,10 @@ abstract class ConfigDialog<E>(private val parent: Component?, private val capti
     abstract fun processGUI(): E
 }
 
-abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?, noun: String, showPassHeaders: Boolean = true) :
+abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?, noun: String,
+                                    showPassHeaders: Boolean = true, purpose: CommandInvocationPurpose = CommandInvocationPurpose.SELF_FILTER) :
         ConfigDialog<E>(parent, if (common.name.isEmpty()) "Add $noun" else "Edit $noun \"${common.name}\"") {
-    private val mtw = MinimalToolWidget(common, panel, cs, this, showPassHeaders = showPassHeaders)
+    private val mtw = MinimalToolWidget(common, panel, cs, this, showPassHeaders = showPassHeaders, purpose = purpose)
 
     override fun processGUI(): E = processGUI(mtw.toMinimalTool())
 
@@ -385,7 +387,8 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
 }
 
 class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Component?) :
-        MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent, "menu item") {
+        MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent, "menu item",
+                purpose = CommandInvocationPurpose.EXECUTE_ONLY) {
 
     private val cbHasGUI: JCheckBox = createFullWidthCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
     private val smMinInputs: SpinnerNumberModel = createSpinner("Minimum required number of selected items: ",
@@ -478,7 +481,7 @@ data class CommandLineParameter(val value: String?) { // null = input file name
     override fun toString(): String = if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
 }
 
-class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilters: Boolean, parent: Component,
+class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: CommandInvocationPurpose, parent: Component,
                               showPassHeaders: Boolean) : ConfigDialog<Piper.CommandInvocation>(parent, "Command invocation editor") {
     private val ccmwStdout = CollapsedMessageMatchWidget(this, mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
     private val ccmwStderr = CollapsedMessageMatchWidget(this, mm = ci.stderr, showHeaderMatch = false, caption = "Match on stderr: ")
@@ -619,9 +622,12 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
         addFullWidthComponent(tfDependencies, panel, cs)
         tfDependencies.text = ci.requiredInPathList.joinToString(separator = ", ")
 
-        if (showFilters) {
+        if (purpose != CommandInvocationPurpose.EXECUTE_ONLY) {
             val exitValues = ci.exitCodeList.joinToString(", ")
 
+            if (purpose == CommandInvocationPurpose.SELF_FILTER) {
+                addFullWidthComponent(JLabel("If any filters are set below, they are treated the same way as a pre-exec filter."), panel, cs)
+            }
             ccmwStdout.buildGUI(panel, cs)
             ccmwStderr.buildGUI(panel, cs)
             val tfExitCode = createLabeledTextField("Match on exit code: (comma separated) ", exitValues, panel, cs)
@@ -640,7 +646,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
     }
 
     override fun processGUI(): Piper.CommandInvocation = Piper.CommandInvocation.newBuilder().apply {
-        if (showFilters) {
+        if (purpose != CommandInvocationPurpose.EXECUTE_ONLY) {
             if (ccmwStdout.value != null) stdout = ccmwStdout.value
             if (ccmwStderr.value != null) stderr = ccmwStderr.value
             try {
@@ -648,7 +654,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val showFilte
             } catch (e: NumberFormatException) {
                 throw RuntimeException("Exit codes should contain numbers separated by commas only. (Whitespace is ignored.)")
             }
-            if (ccmwStdout.value == null && ccmwStderr.value == null && exitCodeCount == 0) {
+            if (purpose == CommandInvocationPurpose.MATCH_FILTER && !hasFilter) {
                 throw RuntimeException("No filters are defined for stdio or exit code.")
             }
         }
@@ -832,7 +838,7 @@ class CollapsedHeaderMatchWidget(w: Window, hm: Piper.HeaderMatch?) :
 class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Boolean, parent: Component) : ConfigDialog<Piper.MessageMatch>(parent, "Filter editor") {
     private val prefixField  = HexASCIITextField("prefix",  mm.prefix,  this)
     private val postfixField = HexASCIITextField("postfix", mm.postfix, this)
-    private val cciw = CollapsedCommandInvocationWidget(this, mm.cmd, match = true)
+    private val cciw = CollapsedCommandInvocationWidget(this, mm.cmd, CommandInvocationPurpose.MATCH_FILTER)
     private val chmw = CollapsedHeaderMatchWidget(this, mm.header)
     private val cbNegation = JComboBox(MatchNegation.values())
     private val regExpWidget: RegExpWidget

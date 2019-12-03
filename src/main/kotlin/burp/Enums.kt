@@ -115,3 +115,9 @@ enum class MessageInfoMatchStrategy {
 
     abstract fun predicate(objects: List<MessageInfo>, check: (MessageInfo) -> Boolean): Boolean
 }
+
+enum class CommandInvocationPurpose {
+    EXECUTE_ONLY,
+    SELF_FILTER,
+    MATCH_FILTER;
+}
