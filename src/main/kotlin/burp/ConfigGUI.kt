@@ -129,8 +129,10 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
 class CancelClosingWindow() : RuntimeException()
 
 class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window,
-                        showPassHeaders: Boolean, purpose: CommandInvocationPurpose) {
+                        showPassHeaders: Boolean, purpose: CommandInvocationPurpose, showScope: Boolean) {
     private val tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
+    private val lsScope: JComboBox<ConfigMinimalToolScope>? = if (showScope) createLabeledWidget("Can handle... ",
+            JComboBox(ConfigMinimalToolScope.values()).apply { selectedItem = ConfigMinimalToolScope.fromScope(tool.scope) }, panel, cs) else null
     private val cbEnabled: JCheckBox
     private val cciw: CollapsedCommandInvocationWidget = CollapsedCommandInvocationWidget(w, cmd = tool.cmd, purpose = purpose, showPassHeaders = showPassHeaders)
     private val ccmw: CollapsedMessageMatchWidget = CollapsedMessageMatchWidget(w, mm = tool.filter, showHeaderMatch = true, caption = "Filter: ")
@@ -151,6 +153,7 @@ class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, c
             name = tfName.text
             if (cbEnabled.isSelected) enabled = true
             if (ccmw.value != null) filter = ccmw.value
+            if (lsScope != null) scope = (lsScope.selectedItem as ConfigMinimalToolScope).scope
             cmd = command
         }.build()
     }
@@ -296,9 +299,11 @@ abstract class ConfigDialog<E>(private val parent: Component?, private val capti
 }
 
 abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?, noun: String,
-                                    showPassHeaders: Boolean = true, purpose: CommandInvocationPurpose = CommandInvocationPurpose.SELF_FILTER) :
+                                    showPassHeaders: Boolean = true, showScope: Boolean = false,
+                                    purpose: CommandInvocationPurpose = CommandInvocationPurpose.SELF_FILTER) :
         ConfigDialog<E>(parent, if (common.name.isEmpty()) "Add $noun" else "Edit $noun \"${common.name}\"") {
-    private val mtw = MinimalToolWidget(common, panel, cs, this, showPassHeaders = showPassHeaders, purpose = purpose)
+    private val mtw = MinimalToolWidget(common, panel, cs, this, showPassHeaders = showPassHeaders,
+            purpose = purpose, showScope = showScope)
 
     override fun processGUI(): E = processGUI(mtw.toMinimalTool())
 
@@ -314,7 +319,7 @@ abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, paren
 }
 
 class MessageViewerDialog(private val messageViewer: Piper.MessageViewer, parent: Component?) :
-        MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent, "message viewer") {
+        MinimalToolDialog<Piper.MessageViewer>(messageViewer.common, parent, "message viewer", showScope = true) {
 
     private val cbUsesColors = createFullWidthCheckBox("Uses ANSI (color) escape sequences", messageViewer.usesColors, panel, cs)
 
@@ -360,7 +365,7 @@ class HttpListenerDialog(private val httpListener: Piper.HttpListener, parent: C
 }
 
 class CommentatorDialog(private val commentator: Piper.Commentator, parent: Component?) :
-        MinimalToolDialog<Piper.Commentator>(commentator.common, parent, "commentator") {
+        MinimalToolDialog<Piper.Commentator>(commentator.common, parent, "commentator", showScope = true) {
 
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
 
@@ -388,7 +393,7 @@ private fun createCheckBox(caption: String, initialValue: Boolean, panel: Contai
 
 class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Component?) :
         MinimalToolDialog<Piper.UserActionTool>(menuItem.common, parent, "menu item",
-                purpose = CommandInvocationPurpose.EXECUTE_ONLY) {
+                purpose = CommandInvocationPurpose.EXECUTE_ONLY, showScope = true) {
 
     private val cbHasGUI: JCheckBox = createFullWidthCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
     private val smMinInputs: SpinnerNumberModel = createSpinner("Minimum required number of selected items: ",

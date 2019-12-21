@@ -304,7 +304,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource,
                                md: List<MessageInfo>, mims: MessageInfoMatchStrategy, plural: String, action: () -> Unit): JMenuItem? {
-        if (tool.cmd.passHeaders == msrc.includeHeaders && tool.canProcess(md, mims, helpers, callbacks)) {
+        if (tool.cmd.passHeaders == msrc.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)) {
             val noun = msrc.direction.name.toLowerCase()
             return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}") + " ($noun$plural)").apply {
                 addActionListener { action() }

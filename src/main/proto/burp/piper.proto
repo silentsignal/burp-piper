@@ -62,6 +62,12 @@ message MinimalTool {
     CommandInvocation cmd = 2;
     MessageMatch filter = 3;
     bool enabled = 4;
+    enum Scope {
+        REQUEST_RESPONSE = 0;
+        REQUEST_ONLY = 1;
+        RESPONSE_ONLY = 2;
+    }
+    Scope scope = 5;
 }
 
 message UserActionTool {

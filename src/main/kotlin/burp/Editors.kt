@@ -16,7 +16,7 @@ abstract class Editor(private val tool: Piper.MessageViewer,
     override fun getTabCaption(): String = tool.common.name
 
     override fun isEnabled(content: ByteArray?, isRequest: Boolean): Boolean {
-        if (content == null) return false
+        if (content == null || !tool.common.isInToolScope(isRequest)) return false
 
         val rr = RequestResponse.fromBoolean(isRequest)
         val payload = getPayload(content, rr)

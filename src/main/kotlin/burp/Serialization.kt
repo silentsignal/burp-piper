@@ -39,6 +39,10 @@ fun minimalToolFromMap(source: Map<String, Any>): Piper.MinimalTool {
     val b = Piper.MinimalTool.newBuilder()!!
             .setName(source.stringOrDie("name"))
             .setCmd(commandInvocationFromMap(source))
+    val scope = source["scope"]
+    if (scope != null && scope is String) {
+        b.scope = enumFromString(scope, Piper.MinimalTool.Scope::class.java)
+    }
     source.copyStructured("filter", b::setFilter, ::messageMatchFromMap)
     return b.build()
 }
@@ -260,6 +264,7 @@ fun Piper.MinimalTool.toMap(): MutableMap<String, Any> {
     val m = this.cmd.toMap()
     m["name"] = this.name!!
     if (this.hasFilter()) m["filter"] = this.filter.toMap()
+    if (this.scope != Piper.MinimalTool.Scope.REQUEST_RESPONSE) m["scope"] = this.scope.name.toLowerCase()
     return m
 }
 

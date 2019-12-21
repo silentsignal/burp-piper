@@ -16,8 +16,8 @@ enum class RegExpFlag {
     }
 }
 
-enum class RequestResponse {
-    REQUEST {
+enum class RequestResponse(val isRequest: Boolean) {
+    REQUEST(isRequest = true) {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.request
 
         override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
@@ -31,7 +31,7 @@ enum class RequestResponse {
                 helpers.analyzeRequest(data).headers
     },
 
-    RESPONSE {
+    RESPONSE(isRequest = false) {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.response
 
         override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
@@ -84,6 +84,22 @@ enum class ConfigHttpListenerScope(val hls: Piper.HttpListenerScope, val inputLi
 
     companion object {
         fun fromHttpListenerScope(hls: Piper.HttpListenerScope): ConfigHttpListenerScope = values().first { it.hls == hls }
+    }
+}
+
+enum class ConfigMinimalToolScope(val scope: Piper.MinimalTool.Scope) {
+    REQUEST_RESPONSE(Piper.MinimalTool.Scope.REQUEST_RESPONSE) {
+        override fun toString(): String = "HTTP requests and responses"
+    },
+    REQUEST_ONLY(Piper.MinimalTool.Scope.REQUEST_ONLY) {
+        override fun toString(): String = "HTTP requests only"
+    },
+    RESPONSE_ONLY(Piper.MinimalTool.Scope.RESPONSE_ONLY) {
+        override fun toString(): String = "HTTP responses only"
+    };
+
+    companion object {
+        fun fromScope(scope: Piper.MinimalTool.Scope): ConfigMinimalToolScope = values().first { it.scope == scope }
     }
 }
 

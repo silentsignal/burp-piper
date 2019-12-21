@@ -94,6 +94,13 @@ fun ByteArray.toHexPairs(): String = this.joinToString(separator = ":",
 
 ////////////////////////////////////// MATCHING //////////////////////////////////////
 
+fun Piper.MinimalTool.isInToolScope(isRequest: Boolean): Boolean =
+    when (scope) {
+        Piper.MinimalTool.Scope.REQUEST_ONLY -> isRequest
+        Piper.MinimalTool.Scope.RESPONSE_ONLY -> !isRequest
+        else -> true
+    }
+
 fun Piper.MinimalTool.canProcess(md: List<MessageInfo>, mims: MessageInfoMatchStrategy, helpers: IExtensionHelpers,
                                  callbacks: IBurpExtenderCallbacks): Boolean =
         !this.hasFilter() || mims.predicate(md) { this.filter.matches(it, helpers, callbacks) }
