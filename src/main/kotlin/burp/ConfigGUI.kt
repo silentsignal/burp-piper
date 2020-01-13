@@ -1,7 +1,12 @@
 package burp
 
 import com.google.protobuf.ByteString
+import org.snakeyaml.engine.v1.api.Dump
+import org.snakeyaml.engine.v1.api.DumpSettingsBuilder
+import org.snakeyaml.engine.v1.api.Load
+import org.snakeyaml.engine.v1.api.LoadSettingsBuilder
 import java.awt.*
+import java.awt.datatransfer.*
 import java.awt.event.*
 import java.util.*
 import javax.swing.*
@@ -169,18 +174,25 @@ class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, c
     }
 }
 
-abstract class CollapsedWidget<E>(private val w: Window, var value: E?, private val caption: String, val removable: Boolean) {
-    private val label: JLabel = JLabel()
+abstract class CollapsedWidget<E>(private val w: Window, var value: E?, private val caption: String, val removable: Boolean) : ClipboardOwner {
+    private val label = JLabel()
+    private val pnToolbar = JPanel(FlowLayout(FlowLayout.LEFT))
     private val btnRemove = JButton("Remove")
+    private val btnCopy = JButton("Copy")
+    private val btnPaste = JButton("Paste")
     private val changeListeners = mutableListOf<ChangeListener<E>>()
 
     abstract fun editDialog(value: E, parent: Component): E?
     abstract fun toHumanReadable(): String
+    abstract val asMap: Map<String, Any>?
     abstract val default: E
+
+    abstract fun parseMap(map: Map<String, Any>): E
 
     private fun update() {
         label.text = toHumanReadable() + " "
         btnRemove.isEnabled = value != null
+        btnCopy.isEnabled = value != null
         w.repack()
         changeListeners.forEach { it.valueChanged(value) }
     }
@@ -203,10 +215,13 @@ abstract class CollapsedWidget<E>(private val w: Window, var value: E?, private 
 
         cs.gridx = 0 ; panel.add(JLabel(caption), cs)
         cs.gridx = 1 ; panel.add(label, cs)
-        cs.gridx = 2 ; panel.add(btnEditFilter, cs)
+        cs.gridwidth = 2
+        cs.gridx = 2 ; panel.add(pnToolbar, cs)
+
+        listOf(btnEditFilter, btnCopy, btnPaste).map(pnToolbar::add)
 
         if (removable) {
-            cs.gridx = 3; panel.add(btnRemove, cs)
+            pnToolbar.add(btnRemove)
             btnRemove.addActionListener {
                 value = null
                 update()
@@ -216,7 +231,23 @@ abstract class CollapsedWidget<E>(private val w: Window, var value: E?, private 
 
     init {
         if (value == default) value = null
+        btnCopy.addActionListener {
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(
+                    Dump(DumpSettingsBuilder().build()).dumpToString(asMap ?: return@addActionListener)), this)
+        }
+        btnPaste.addActionListener {
+            val s = Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as? String ?: return@addActionListener
+            val ls = Load(LoadSettingsBuilder().build())
+            try {
+                value = parseMap(ls.loadFromString(s) as Map<String, Any>)
+                update()
+            } catch (e: Exception) {
+                JOptionPane.showMessageDialog(w, e.message)
+            }
+        }
     }
+
+    override fun lostOwnership(p0: Clipboard?, p1: Transferable?) {} /* ClipboardOwner */
 }
 
 interface ChangeListener<E> {
@@ -232,6 +263,11 @@ class CollapsedMessageMatchWidget(w: Window, mm: Piper.MessageMatch?, val showHe
     override fun toHumanReadable(): String =
             value?.toHumanReadable(negation = false, hideParentheses = true) ?: "(no filter)"
 
+    override val asMap: Map<String, Any>?
+        get() = value?.toMap()
+
+    override fun parseMap(map: Map<String, Any>): Piper.MessageMatch = messageMatchFromMap(map)
+
     override val default: Piper.MessageMatch
         get() = Piper.MessageMatch.getDefaultInstance()
 }
@@ -242,6 +278,11 @@ class CollapsedCommandInvocationWidget(w: Window, cmd: Piper.CommandInvocation, 
     override fun toHumanReadable(): String = (if (purpose == CommandInvocationPurpose.MATCH_FILTER) value?.toHumanReadable(negation = false) else value?.commandLine) ?: "(no command)"
     override fun editDialog(value: Piper.CommandInvocation, parent: Component): Piper.CommandInvocation? =
             CommandInvocationDialog(value, purpose = purpose, parent = parent, showPassHeaders = showPassHeaders).showGUI()
+
+    override val asMap: Map<String, Any>?
+        get() = value?.toMap()
+
+    override fun parseMap(map: Map<String, Any>): Piper.CommandInvocation = commandInvocationFromMap(map)
 
     override val default: Piper.CommandInvocation
         get() = Piper.CommandInvocation.getDefaultInstance()
@@ -836,6 +877,11 @@ class CollapsedHeaderMatchWidget(w: Window, hm: Piper.HeaderMatch?) :
 
     override fun toHumanReadable(): String = value?.toHumanReadable(negation = false) ?: "(no header match)"
 
+    override val asMap: Map<String, Any>?
+        get() = value?.toMap()
+
+    override fun parseMap(map: Map<String, Any>): Piper.HeaderMatch = HeaderMatchFromMap.invoke(map)
+
     override val default: Piper.HeaderMatch
         get() = Piper.HeaderMatch.getDefaultInstance()
 }
@@ -909,7 +955,8 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         return builder.build()
     }
 
-    inner class MatchListEditor(caption: String, source: List<Piper.MessageMatch>) : ListEditor<Piper.MessageMatch>(fillDefaultModel(source), this, caption) {
+    inner class MatchListEditor(caption: String, source: List<Piper.MessageMatch>) : ClipboardOwner,
+            ListEditor<Piper.MessageMatch>(fillDefaultModel(source), this, caption) {
         override fun addDialog(): Piper.MessageMatch? = MessageMatchDialog(Piper.MessageMatch.getDefaultInstance(),
                 showHeaderMatch = showHeaderMatch, parent = this).showGUI()
 
@@ -921,6 +968,40 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
 
         val items: Iterable<Piper.MessageMatch>
             get() = model.toIterable()
+
+        private val btnCopy = JButton("Copy")
+        private val btnPaste = JButton("Paste")
+
+        override fun updateBtnEnableDisableState() {
+            super.updateBtnEnableDisableState()
+            updateEnableDisableBtnState()
+        }
+
+        private fun updateEnableDisableBtnState() {
+            val selection = listWidget.selectedValuesList
+            btnCopy.isEnabled = selection.isNotEmpty()
+        }
+
+        init {
+            btnCopy.addActionListener {
+                Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(
+                        Dump(DumpSettingsBuilder().build()).dumpToString(listWidget.selectedValue.toMap())), this)
+            }
+            btnPaste.addActionListener {
+                val s = Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as? String ?: return@addActionListener
+                val ls = Load(LoadSettingsBuilder().build())
+                try {
+                    model.addElement(messageMatchFromMap(ls.loadFromString(s) as Map<String, Any>))
+                } catch (e: Exception) {
+                    JOptionPane.showMessageDialog(this, e.message)
+                }
+            }
+            pnToolbar.add(btnCopy)
+            pnToolbar.add(btnPaste)
+            updateEnableDisableBtnState()
+        }
+
+        override fun lostOwnership(p0: Clipboard?, p1: Transferable?) {} /* ClipboardOwner */
     }
 }
 
