@@ -523,8 +523,9 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
 const val CMDLINE_INPUT_FILENAME_PLACEHOLDER = "<INPUT>"
 
 data class CommandLineParameter(val value: String?) { // null = input file name
-    fun isInputFileName(): Boolean = value == null
-    override fun toString(): String = if (isInputFileName()) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
+    val isInputFileName: Boolean
+        get() = value == null
+    override fun toString(): String = if (isInputFileName) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
 }
 
 class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: CommandInvocationPurpose, parent: Component,
@@ -558,7 +559,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
             override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
                 val c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
                 val v = value as CommandLineParameter
-                if (v.isInputFileName()) {
+                if (v.isInputFileName) {
                     c.background = Color.RED
                     c.foreground = if (isSelected) Color.YELLOW else Color.WHITE
                 }
@@ -567,7 +568,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
         }
 
         lsParams.addDoubleClickListener {
-            if (paramsModel[it].isInputFileName()) {
+            if (paramsModel[it].isInputFileName) {
                 JOptionPane.showMessageDialog(this, CMDLINE_INPUT_FILENAME_PLACEHOLDER +
                         " is a special placeholder for the names of the input file(s), and thus cannot be edited.")
                 return@addDoubleClickListener
