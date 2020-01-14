@@ -205,8 +205,11 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }
 
     private fun populateTabs(cfg: ConfigModel, parent: Component?) {
-        tabs.addTab("Message viewers", MinimalToolListEditor(cfg.messageViewersModel, parent,
-                ::MessageViewerDialog, Piper.MessageViewer::getDefaultInstance))
+        val switchToCommentator = { tabs.selectedIndex = 4 }
+
+        tabs.addTab("Message viewers", MessageViewerListEditor(cfg.messageViewersModel, parent,
+                ::MessageViewerDialog, Piper.MessageViewer::getDefaultInstance,
+                cfg.commentatorsModel, switchToCommentator))
         tabs.addTab("Context menu items", MinimalToolListEditor(cfg.menuItemsModel, parent,
                 ::MenuItemDialog, Piper.UserActionTool::getDefaultInstance))
         tabs.addTab("Macros", MinimalToolListEditor(cfg.macrosModel, parent,

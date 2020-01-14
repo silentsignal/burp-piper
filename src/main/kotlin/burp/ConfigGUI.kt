@@ -85,7 +85,7 @@ abstract class ListEditor<E>(protected val model: DefaultListModel<E>, protected
     }
 }
 
-class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Component?, private val dialog: (E, Component?) -> MinimalToolDialog<E>,
+open class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Component?, private val dialog: (E, Component?) -> MinimalToolDialog<E>,
                                private val default: () -> E) : ListEditor<E>(model, parent, null) {
 
     private val btnEnableDisable = JButton()
@@ -117,6 +117,36 @@ class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Component?, p
             }
         }
         pnToolbar.add(btnEnableDisable)
+        updateEnableDisableBtnState()
+    }
+}
+
+class MessageViewerListEditor(model: DefaultListModel<Piper.MessageViewer>, parent: Component?,
+                              dialog: (Piper.MessageViewer, Component?) -> MinimalToolDialog<Piper.MessageViewer>,
+                              default: () -> Piper.MessageViewer,
+                              private val commentatorModel: DefaultListModel<Piper.Commentator>,
+                              private val switchToCommentator: () -> Unit) :
+        MinimalToolListEditor<Piper.MessageViewer>(model, parent, dialog, default) {
+
+    private val btnConvertToCommentator = JButton("Convert to commentator")
+
+    override fun updateBtnEnableDisableState() {
+        super.updateBtnEnableDisableState()
+        updateEnableDisableBtnState()
+    }
+
+    private fun updateEnableDisableBtnState() {
+        btnConvertToCommentator.isEnabled = !listWidget.isSelectionEmpty
+    }
+
+    init {
+        btnConvertToCommentator.addActionListener {
+            listWidget.selectedValuesList.forEach {
+                commentatorModel.addElement(Piper.Commentator.newBuilder().setCommon(it.common).build())
+            }
+            switchToCommentator()
+        }
+        pnToolbar.add(btnConvertToCommentator)
         updateEnableDisableBtnState()
     }
 }
