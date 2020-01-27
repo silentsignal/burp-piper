@@ -253,7 +253,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             for ((msrc, md) in messageDetails) {
                 val menuItem = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ALL, plural) { performMenuAction(cfgItem, md) }
                 if (menuItem != null) add(menuItem)
-                if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter()) {
+                if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter() && !cfgItem.avoidPipe) {
                     configModel.enabledMessageViewers.forEach { mv ->
                         add(createMenuItem(mv.common, cfgItem.common, msrc, md, MessageInfoMatchStrategy.ALL, plural) {
                             performMenuAction(cfgItem, md, mv)

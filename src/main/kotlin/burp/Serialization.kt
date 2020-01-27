@@ -115,6 +115,7 @@ object UserActionToolFromMap : (Map<String, Any>) -> Piper.UserActionTool {
         val b = Piper.UserActionTool.newBuilder()!!
                 .setCommon(minimalToolFromMap(source))
         source.copyBooleanFlag("hasGUI", b::setHasGUI)
+        source.copyBooleanFlag("avoidPipe", b::setAvoidPipe)
         source.copyInt("minInputs", b::setMinInputs)
         source.copyInt("maxInputs", b::setMaxInputs)
         return b.build()
@@ -241,6 +242,7 @@ fun Piper.MessageViewer.toMap(): Map<String, Any> =
 fun Piper.UserActionTool.toMap(): Map<String, Any> {
     val m = this.common.toMap()
     if (this.hasGUI) m["hasGUI"] = true
+    if (this.avoidPipe) m["avoidPipe"] = true
     if (this.minInputs != 0) m["minInputs"] = this.minInputs
     if (this.maxInputs != 0) m["maxInputs"] = this.maxInputs
     return m

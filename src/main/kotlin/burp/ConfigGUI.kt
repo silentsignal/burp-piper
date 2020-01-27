@@ -467,6 +467,7 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
                 purpose = CommandInvocationPurpose.EXECUTE_ONLY, showScope = true) {
 
     private val cbHasGUI: JCheckBox = createFullWidthCheckBox("Has its own GUI (no need for a console window)", menuItem.hasGUI, panel, cs)
+    private val cbAvoidPipe: JCheckBox = createFullWidthCheckBox("Avoid piping into this tool (reduces clutter in menu if it doesn't make sense)", menuItem.avoidPipe, panel, cs)
     private val smMinInputs: SpinnerNumberModel = createSpinner("Minimum required number of selected items: ",
             max(menuItem.minInputs, 1), 1, panel, cs)
     private val smMaxInputs: SpinnerNumberModel = createSpinner("Maximum allowed number of selected items: (0 = no limit) ",
@@ -482,6 +483,7 @@ class MenuItemDialog(private val menuItem: Piper.UserActionTool, parent: Compone
         return Piper.UserActionTool.newBuilder().apply {
             common = mt
             if (cbHasGUI.isSelected) hasGUI = true
+            if (cbAvoidPipe.isSelected) avoidPipe = true
             if (minInputsValue > 1) minInputs = minInputsValue
             if (maxInputsValue > 0) maxInputs = maxInputsValue
         }.build()

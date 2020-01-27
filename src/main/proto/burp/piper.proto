@@ -75,6 +75,7 @@ message UserActionTool {
     bool hasGUI = 2;
     int32 maxInputs = 3;
     int32 minInputs = 4;
+    bool avoidPipe = 5;
 }
 
 message MessageViewer {
