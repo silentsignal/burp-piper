@@ -99,7 +99,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             val messages = it.selectedMessages
             if (messages.isNullOrEmpty()) return@registerContextMenuFactory emptyList()
             val topLevel = JMenu(NAME)
-            generateContextMenu(messages.asList(), topLevel::add, topLevel::addSeparator)
+            generateContextMenu(messages.asList(), topLevel::add)
             if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory emptyList()
             return@registerContextMenuFactory Collections.singletonList(topLevel as JMenuItem)
         }
@@ -241,42 +241,55 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 compareValuesBy(this, other, MessageSource::direction, MessageSource::includeHeaders)
     }
 
-    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (JMenuItem) -> JMenuItem, addSeparator: () -> Unit) {
+    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (Component) -> Component) {
         val msize = messages.size
         val plural = if (msize == 1) "" else "s"
 
+        fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.toLowerCase()}$plural")
+
+        fun EnumMap<RequestResponse, JMenu>.addMenuItemIfNotNull(msrc: MessageSource, child: JMenuItem?) {
+            if (child != null) {
+                this.getOrPut(msrc.direction) { createSubMenu(msrc) }.add(child)
+            }
+        }
+
         val messageDetails = messagesToMap(messages)
+        val categoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
 
         for (cfgItem in configModel.enabledMenuItems) {
             // TODO check dependencies
             if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize) || cfgItem.minInputs > msize) continue
             for ((msrc, md) in messageDetails) {
-                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ALL, plural) { performMenuAction(cfgItem, md) }
-                if (menuItem != null) add(menuItem)
+                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ALL) { performMenuAction(cfgItem, md) }
+                categoryMenus.addMenuItemIfNotNull(msrc, menuItem)
                 if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter() && !cfgItem.avoidPipe) {
                     configModel.enabledMessageViewers.forEach { mv ->
-                        add(createMenuItem(mv.common, cfgItem.common, msrc, md, MessageInfoMatchStrategy.ALL, plural) {
+                        categoryMenus.addMenuItemIfNotNull(msrc, createMenuItem(mv.common, cfgItem.common, msrc, md, MessageInfoMatchStrategy.ALL) {
                             performMenuAction(cfgItem, md, mv)
-                        } ?: return@forEach)
+                        })
                     }
                 }
             }
         }
 
-        val commentatorMenuItems = configModel.enabledCommentators.flatMap { cfgItem ->
-            messageDetails.map { (msrc, md) ->
-                createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY, plural) {
+        val commentatorCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
+
+        configModel.enabledCommentators.forEach { cfgItem ->
+            messageDetails.forEach { (msrc, md) ->
+                val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
                     performCommentator(cfgItem, md)
                 }
+                if (item != null) {
+                    val commentatorMenu = commentatorCategoryMenus.getOrPut(msrc.direction) {
+                        categoryMenus[msrc.direction]?.apply { addSeparator() }
+                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
+                    }
+                    commentatorMenu.add(item)
+                }
             }
-        }.filterNotNull()
-
-        if (commentatorMenuItems.isNotEmpty()) {
-            addSeparator()
-            commentatorMenuItems.map(add)
         }
 
-        addSeparator()
+        categoryMenus.values.map(add)
         add(JMenuItem("Add to queue").apply { addActionListener { queue.add(messages) } })
     }
 
@@ -306,10 +319,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     }
 
     private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource,
-                               md: List<MessageInfo>, mims: MessageInfoMatchStrategy, plural: String, action: () -> Unit): JMenuItem? {
+                               md: List<MessageInfo>, mims: MessageInfoMatchStrategy, action: () -> Unit): JMenuItem? {
         if (tool.cmd.passHeaders == msrc.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)) {
-            val noun = msrc.direction.name.toLowerCase()
-            return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}") + " ($noun$plural)").apply {
+            return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}")).apply {
                 addActionListener { action() }
             }
         } else return null
@@ -333,7 +345,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         private fun addButtons() {
             btnProcess.addActionListener {
                 val pm = JPopupMenu()
-                generateContextMenu(listWidget.selectedValuesList, pm::add, pm::addSeparator)
+                generateContextMenu(listWidget.selectedValuesList, pm::add)
                 val b = it.source as Component
                 val loc = b.locationOnScreen
                 pm.show(this, 0, 0)
