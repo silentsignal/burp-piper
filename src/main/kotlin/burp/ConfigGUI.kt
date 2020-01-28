@@ -107,12 +107,16 @@ open class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Componen
     }
 
     private fun updateEnableDisableBtnState() {
-        val selection = listWidget.selectedValuesList
-        val selectionNotEmpty = selection.isNotEmpty()
+        val si = listWidget.selectedIndices
+        val selectionNotEmpty = si.isNotEmpty()
         btnCopy.isEnabled = selectionNotEmpty
         btnEnableDisable.isEnabled = selectionNotEmpty
-        val states = selection.map { dialog(it, parent).isToolEnabled() }.toSet()
-        btnEnableDisable.text = if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
+        val maxIndex = si.max()
+        btnEnableDisable.text = if (maxIndex == null || maxIndex >= model.size()) TOGGLE_DEFAULT else
+        {
+            val states = listWidget.selectedValuesList.map { dialog(it, parent).isToolEnabled() }.toSet()
+            if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
+        }
     }
 
     init {
