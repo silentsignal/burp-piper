@@ -1030,8 +1030,7 @@ class MessageMatchDialog(mm: Piper.MessageMatch, private val showHeaderMatch: Bo
         }
 
         private fun updateEnableDisableBtnState() {
-            val selection = listWidget.selectedValuesList
-            btnCopy.isEnabled = selection.isNotEmpty()
+            btnCopy.isEnabled = listWidget.selectedIndices.isNotEmpty()
         }
 
         init {
