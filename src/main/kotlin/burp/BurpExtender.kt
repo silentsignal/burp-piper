@@ -208,18 +208,17 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         val switchToCommentator = { tabs.selectedIndex = 4 }
 
         tabs.addTab("Message viewers", MessageViewerListEditor(cfg.messageViewersModel, parent,
-                ::MessageViewerDialog, Piper.MessageViewer::getDefaultInstance,
                 cfg.commentatorsModel, switchToCommentator))
         tabs.addTab("Context menu items", MinimalToolListEditor(cfg.menuItemsModel, parent,
-                ::MenuItemDialog, Piper.UserActionTool::getDefaultInstance))
+                ::MenuItemDialog, Piper.UserActionTool::getDefaultInstance, UserActionToolFromMap, Piper.UserActionTool::toMap))
         tabs.addTab("Macros", MinimalToolListEditor(cfg.macrosModel, parent,
-                ::MacroDialog, Piper.MinimalTool::getDefaultInstance))
+                ::MacroDialog, Piper.MinimalTool::getDefaultInstance, ::minimalToolFromMap, Piper.MinimalTool::toMap))
         tabs.addTab("HTTP listeners", MinimalToolListEditor(cfg.httpListenersModel, parent,
-                ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance))
+                ::HttpListenerDialog, Piper.HttpListener::getDefaultInstance, ::httpListenerFromMap, Piper.HttpListener::toMap))
         tabs.addTab("Commentators", MinimalToolListEditor(cfg.commentatorsModel, parent,
-                ::CommentatorDialog, Piper.Commentator::getDefaultInstance))
+                ::CommentatorDialog, Piper.Commentator::getDefaultInstance, ::commentatorFromMap, Piper.Commentator::toMap))
         tabs.addTab("Intruder payload processors", MinimalToolListEditor(cfg.intruderPayloadProcessorsModel, parent,
-                ::IntruderPayloadProcessorDialog, Piper.MinimalTool::getDefaultInstance))
+                ::IntruderPayloadProcessorDialog, Piper.MinimalTool::getDefaultInstance, ::minimalToolFromMap, Piper.MinimalTool::toMap))
         tabs.addTab("Queue", queue)
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
         tabs.addTab("Developer", createDeveloperUI(cfg))

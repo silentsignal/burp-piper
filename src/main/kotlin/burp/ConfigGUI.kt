@@ -86,9 +86,12 @@ abstract class ListEditor<E>(protected val model: DefaultListModel<E>, protected
 }
 
 open class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Component?, private val dialog: (E, Component?) -> MinimalToolDialog<E>,
-                               private val default: () -> E) : ListEditor<E>(model, parent, null) {
+                               private val default: () -> E, private val fromMap: (Map<String, Any>) -> E,
+                               private val toMap: (E) -> Map<String, Any>) : ListEditor<E>(model, parent, null), ClipboardOwner {
 
     private val btnEnableDisable = JButton()
+    private val btnCopy = JButton("Copy")
+    private val btnPaste = JButton("Paste")
 
     override fun addDialog(): E? {
         val enabledDefault = dialog(default(), parent).buildEnabled(true)
@@ -105,28 +108,44 @@ open class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Componen
 
     private fun updateEnableDisableBtnState() {
         val selection = listWidget.selectedValuesList
-        btnEnableDisable.isEnabled = selection.isNotEmpty()
+        val selectionNotEmpty = selection.isNotEmpty()
+        btnCopy.isEnabled = selectionNotEmpty
+        btnEnableDisable.isEnabled = selectionNotEmpty
         val states = selection.map { dialog(it, parent).isToolEnabled() }.toSet()
         btnEnableDisable.text = if (states.size == 1) (if (states.first()) "Disable" else "Enable") else TOGGLE_DEFAULT
     }
 
     init {
+        btnCopy.addActionListener {
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(
+                    Dump(DumpSettingsBuilder().build()).dumpToString(toMap(listWidget.selectedValue ?: return@addActionListener))), this)
+        }
+        btnPaste.addActionListener {
+            val s = Toolkit.getDefaultToolkit().systemClipboard.getData(DataFlavor.stringFlavor) as? String ?: return@addActionListener
+            val ls = Load(LoadSettingsBuilder().build())
+            try {
+                model.addElement(fromMap(ls.loadFromString(s) as Map<String, Any>))
+            } catch (e: Exception) {
+                JOptionPane.showMessageDialog(listWidget, e.message)
+            }
+        }
         btnEnableDisable.addActionListener {
             (listWidget.selectedValuesList.asSequence() zip listWidget.selectedIndices.asSequence()).forEach { (value, index) ->
                 model[index] = dialog(value, parent).buildEnabled(!dialog(value, parent).isToolEnabled())
             }
         }
-        pnToolbar.add(btnEnableDisable)
+        listOf(btnEnableDisable, btnCopy, btnPaste).map(pnToolbar::add)
         updateEnableDisableBtnState()
     }
+
+    override fun lostOwnership(p0: Clipboard?, p1: Transferable?) {} /* ClipboardOwner */
 }
 
 class MessageViewerListEditor(model: DefaultListModel<Piper.MessageViewer>, parent: Component?,
-                              dialog: (Piper.MessageViewer, Component?) -> MinimalToolDialog<Piper.MessageViewer>,
-                              default: () -> Piper.MessageViewer,
                               private val commentatorModel: DefaultListModel<Piper.Commentator>,
                               private val switchToCommentator: () -> Unit) :
-        MinimalToolListEditor<Piper.MessageViewer>(model, parent, dialog, default) {
+        MinimalToolListEditor<Piper.MessageViewer>(model, parent, ::MessageViewerDialog,
+                Piper.MessageViewer::getDefaultInstance, ::messageViewerFromMap, Piper.MessageViewer::toMap) {
 
     private val btnConvertToCommentator = JButton("Convert to commentator")
 
