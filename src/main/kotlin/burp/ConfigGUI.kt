@@ -1064,7 +1064,7 @@ fun <E> createRemoveButton(listWidget: JList<E>, listModel: DefaultListModel<E>)
         btn.isEnabled = listWidget.selectedIndices.isNotEmpty()
     }
     btn.addActionListener {
-        listWidget.selectedIndices.reversed().forEach(listModel::removeElementAt)
+        listWidget.selectedIndices.reversed().map(listModel::remove)
     }
     return btn
 }
