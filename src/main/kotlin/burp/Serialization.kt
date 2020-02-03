@@ -55,7 +55,9 @@ fun httpListenerFromMap(source: Map<String, Any>): Piper.HttpListener {
             .map { enumFromString(it, BurpTool::class.java) }
     if (ss.isNotEmpty()) b.setToolSet(ss.toSet())
     source.copyBooleanFlag("ignoreOutput", b::setIgnoreOutput)
-    return b.setCommon(minimalToolFromMap(source)).build()
+    val minimalToolMap = source.toMutableMap()
+    minimalToolMap["scope"] = Piper.MinimalTool.Scope.REQUEST_RESPONSE.name
+    return b.setCommon(minimalToolFromMap(minimalToolMap)).build()
 }
 
 fun commandInvocationFromMap(source: Map<String, Any>): Piper.CommandInvocation {
