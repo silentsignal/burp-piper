@@ -401,17 +401,17 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>,
                                   messageViewer: Piper.MessageViewer? = null) {
         thread {
-            val input = if (messageViewer == null) {
-                messages.map(MessageInfo::content)
+            val (input, tools) = if (messageViewer == null) {
+                messages.map(MessageInfo::content) to Collections.singletonList(cfgItem.common)
             } else {
                 messages.map { msg ->
                     messageViewer.common.cmd.execute(msg.content).processOutput { process ->
                         process.inputStream.use { it.readBytes() }
                     }
-                }
-            }.toTypedArray()
-            cfgItem.common.cmd.execute(*input).processOutput { process ->
-                if (!cfgItem.hasGUI) handleGUI(process, cfgItem.common)
+                } to listOf(messageViewer.common, cfgItem.common)
+            }
+            cfgItem.common.cmd.execute(*input.toTypedArray()).processOutput { process ->
+                if (!cfgItem.hasGUI) handleGUI(process, tools)
             }
         }.start()
     }
@@ -545,7 +545,7 @@ private fun loadDefaultConfig(): Piper.Config {
             .build()
 }
 
-private fun handleGUI(process: Process, tool: Piper.MinimalTool) {
+private fun handleGUI(process: Process, tools: List<Piper.MinimalTool>) {
     val terminal = JTerminal()
     val scrollPane = JScrollPane()
     scrollPane.setViewportView(terminal)
@@ -555,7 +555,7 @@ private fun handleGUI(process: Process, tool: Piper.MinimalTool) {
         addKeyListener(terminal.keyListener)
         add(scrollPane)
         setSize(675, 300)
-        title = "$NAME - ${tool.name}"
+        title = tools.joinToString(separator = " | ", prefix = "$NAME - ", transform = Piper.MinimalTool::getName)
         isVisible = true
     }
 
