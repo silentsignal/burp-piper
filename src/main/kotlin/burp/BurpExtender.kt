@@ -54,43 +54,94 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     override fun intervalAdded(p0: ListDataEvent?)   = saveConfig()
     override fun intervalRemoved(p0: ListDataEvent?) = saveConfig()
 
-    private open inner class ConfigChangeListener : ListDataListener {
-        override fun contentsChanged(p0: ListDataEvent?) = handler()
-        override fun intervalAdded(p0: ListDataEvent?)   = handler()
-        override fun intervalRemoved(p0: ListDataEvent?) = handler()
+    private inner class MessageViewerManager : RegisteredToolManager<Piper.MessageViewer, IMessageEditorTabFactory>(
+            configModel.messageViewersModel, callbacks::removeMessageEditorTabFactory, callbacks::registerMessageEditorTabFactory) {
+        override fun isModelItemEnabled(item: Piper.MessageViewer): Boolean = item.common.enabled
 
-        open fun handler() {
-            saveConfig()
+        override fun modelToBurp(modelItem: Piper.MessageViewer): IMessageEditorTabFactory = IMessageEditorTabFactory() { _, _ ->
+            if (modelItem.usesColors) TerminalEditor(modelItem, helpers, callbacks)
+            else TextEditor(modelItem, helpers, callbacks)
         }
     }
 
-    private inner class ReloaderConfigChangeListener<E>(private val enumerator: () -> Iterable<E>,
-                                                        private val eraser: (E) -> Unit,
-                                                        private val reloader: () -> Unit) : ConfigChangeListener() {
-        override fun handler() {
-            super.handler()
-            enumerator().forEach(eraser)
-            reloader()
+    private inner class MacroManager : RegisteredToolManager<Piper.MinimalTool, ISessionHandlingAction>(
+            configModel.macrosModel, callbacks::removeSessionHandlingAction, callbacks::registerSessionHandlingAction) {
+        override fun isModelItemEnabled(item: Piper.MinimalTool): Boolean = item.enabled
+
+        override fun modelToBurp(modelItem: Piper.MinimalTool): ISessionHandlingAction = object : ISessionHandlingAction {
+            override fun performAction(currentRequest: IHttpRequestResponse?, macroItems: Array<out IHttpRequestResponse>?) {
+                modelItem.pipeMessage(Collections.singletonList(RequestResponse.REQUEST), currentRequest ?: return)
+            }
+
+            override fun getActionName(): String = modelItem.name
+        }
+    }
+
+    private inner class HttpListenerManager : RegisteredToolManager<Piper.HttpListener, IHttpListener>(
+            configModel.httpListenersModel, callbacks::removeHttpListener, callbacks::registerHttpListener) {
+        override fun isModelItemEnabled(item: Piper.HttpListener): Boolean = item.common.enabled
+
+        override fun modelToBurp(modelItem: Piper.HttpListener): IHttpListener = IHttpListener { toolFlag, messageIsRequest, messageInfo ->
+            if ((messageIsRequest xor (modelItem.scope == Piper.HttpListenerScope.REQUEST))
+                    || (modelItem.tool != 0 && (modelItem.tool and toolFlag == 0))) return@IHttpListener
+            modelItem.common.pipeMessage(ConfigHttpListenerScope.fromHttpListenerScope(modelItem.scope).inputList, messageInfo, modelItem.ignoreOutput)
+        }
+    }
+
+    private inner class IntruderPayloadProcessorManager : RegisteredToolManager<Piper.MinimalTool, IIntruderPayloadProcessor>(
+            configModel.intruderPayloadProcessorsModel, callbacks::removeIntruderPayloadProcessor, callbacks::registerIntruderPayloadProcessor) {
+        override fun isModelItemEnabled(item: Piper.MinimalTool): Boolean = item.enabled
+
+        override fun modelToBurp(modelItem: Piper.MinimalTool): IIntruderPayloadProcessor = object : IIntruderPayloadProcessor {
+            override fun processPayload(currentPayload: ByteArray, originalPayload: ByteArray, baseValue: ByteArray): ByteArray? =
+                    if (modelItem.hasFilter() && !modelItem.filter.matches(MessageInfo(currentPayload, helpers.bytesToString(currentPayload),
+                                    headers = null, url = null), helpers, callbacks)) null
+                    else getStdoutWithErrorHandling(modelItem.cmd.execute(currentPayload), modelItem)
+
+            override fun getProcessorName(): String = modelItem.name
+        }
+    }
+
+    private abstract inner class RegisteredToolManager<M, B>(private val model: DefaultListModel<M>,
+                                                    private val remove: (B) -> Unit,
+                                                    private val add: (B) -> Unit) : ListDataListener {
+
+        private val registeredInBurp: MutableList<B?> = model.map(this::modelToRegListItem).toMutableList()
+
+        abstract fun isModelItemEnabled(item: M): Boolean
+        abstract fun modelToBurp(modelItem: M): B
+
+        private fun modelToRegListItem(modelItem: M): B? =
+                if (isModelItemEnabled(modelItem)) modelToBurp(modelItem).apply(add) else null
+
+        override fun contentsChanged(e: ListDataEvent) {
+            for (i in e.index0 .. e.index1) {
+                val currentRegistered = registeredInBurp[i]
+                registeredInBurp[i] = modelToRegListItem(model[i])
+                remove(currentRegistered ?: continue)
+            }
+        }
+
+        override fun intervalAdded(e: ListDataEvent) {
+            for (i in e.index0 .. e.index1) registeredInBurp.add(i, modelToRegListItem(model[i]))
+        }
+
+        override fun intervalRemoved(e: ListDataEvent) {
+            for (i in e.index1 downTo e.index0) remove(registeredInBurp.removeAt(i) ?: continue)
         }
     }
 
     override fun registerExtenderCallbacks(callbacks: IBurpExtenderCallbacks) {
         this.callbacks = callbacks
         helpers = callbacks.helpers
-        val cfg = loadConfig()
-        configModel = ConfigModel(cfg)
+        configModel = ConfigModel(loadConfig())
 
-        val ccl = ConfigChangeListener()
-        configModel.menuItemsModel.addListDataListener(ccl)  // Menu items are loaded on-demand, thus saving the config is enough
-        configModel.commentatorsModel.addListDataListener(ccl)  // Commentators are menu items as well, see above
-        configModel.messageViewersModel.addListDataListener(ReloaderConfigChangeListener(
-                callbacks::getMessageEditorTabFactories, callbacks::removeMessageEditorTabFactory,  ::registerMessageViewers))
-        configModel.macrosModel.addListDataListener(ReloaderConfigChangeListener(
-                callbacks::getSessionHandlingActions,    callbacks::removeSessionHandlingAction,    ::registerMacros))
-        configModel.httpListenersModel.addListDataListener(ReloaderConfigChangeListener(
-                callbacks::getHttpListeners,             callbacks::removeHttpListener,             ::registerHttpListeners))
-        configModel.intruderPayloadProcessorsModel.addListDataListener(ReloaderConfigChangeListener(
-                callbacks::getIntruderPayloadProcessors, callbacks::removeIntruderPayloadProcessor, ::registerIntruderPayloadProcessors))
+        configModel.menuItemsModel.addListDataListener(this)  // Menu items are loaded on-demand, thus saving the config is enough
+        configModel.commentatorsModel.addListDataListener(this)  // Commentators are menu items as well, see above
+        configModel.messageViewersModel.addListDataListener(MessageViewerManager())
+        configModel.macrosModel.addListDataListener(MacroManager())
+        configModel.httpListenersModel.addListDataListener(HttpListenerManager())
+        configModel.intruderPayloadProcessorsModel.addListDataListener(IntruderPayloadProcessorManager())
 
         configModel.addPropertyChangeListener(PropertyChangeListener { saveConfig() })
 
@@ -104,57 +155,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             return@registerContextMenuFactory Collections.singletonList(topLevel as JMenuItem)
         }
 
-        registerMessageViewers()
-        registerHttpListeners()
-        registerMacros()
-        registerIntruderPayloadProcessors()
-
         populateTabs(configModel, null)
         callbacks.addSuiteTab(this)
-    }
-
-    private fun registerHttpListeners() {
-        configModel.enabledHttpListeners.forEach {
-            callbacks.registerHttpListener { toolFlag, messageIsRequest, messageInfo ->
-                if ((messageIsRequest xor (it.scope == Piper.HttpListenerScope.REQUEST))
-                        || (it.tool != 0 && (it.tool and toolFlag == 0))) return@registerHttpListener
-                it.common.pipeMessage(ConfigHttpListenerScope.fromHttpListenerScope(it.scope).inputList, messageInfo, it.ignoreOutput)
-            }
-        }
-    }
-
-    private fun registerIntruderPayloadProcessors() {
-        configModel.enabledIntruderPayloadProcessors.forEach { ipp ->
-            callbacks.registerIntruderPayloadProcessor(object : IIntruderPayloadProcessor {
-                override fun processPayload(currentPayload: ByteArray, originalPayload: ByteArray, baseValue: ByteArray): ByteArray? =
-                        if (ipp.hasFilter() && !ipp.filter.matches(MessageInfo(currentPayload, helpers.bytesToString(currentPayload),
-                                                    headers = null, url = null), helpers, callbacks)) null
-                                    else getStdoutWithErrorHandling(ipp.cmd.execute(currentPayload), ipp)
-
-                override fun getProcessorName(): String = ipp.name
-            })
-        }
-    }
-
-    private fun registerMacros() {
-        configModel.enabledMacros.forEach {
-            callbacks.registerSessionHandlingAction(object : ISessionHandlingAction {
-                override fun performAction(currentRequest: IHttpRequestResponse?, macroItems: Array<out IHttpRequestResponse>?) {
-                    it.pipeMessage(Collections.singletonList(RequestResponse.REQUEST), currentRequest ?: return)
-                }
-
-                override fun getActionName(): String = it.name
-            })
-        }
-    }
-
-    private fun registerMessageViewers() {
-        configModel.enabledMessageViewers.forEach {
-            callbacks.registerMessageEditorTabFactory { _, _ ->
-                if (it.usesColors) TerminalEditor(it, helpers, callbacks)
-                else TextEditor(it, helpers, callbacks)
-            }
-        }
     }
 
     private fun Piper.MinimalTool.pipeMessage(rrList: List<RequestResponse>, messageInfo: IHttpRequestResponse, ignoreOutput: Boolean = false) {
@@ -444,12 +446,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     private val pcs = PropertyChangeSupport(this)
 
-    val enabledMacros get() = macrosModel.toIterable().filter(Piper.MinimalTool::getEnabled)
     val enabledMessageViewers get() = messageViewersModel.toIterable().filter { it.common.enabled }
     val enabledMenuItems get() = menuItemsModel.toIterable().filter { it.common.enabled }
-    val enabledHttpListeners get() = httpListenersModel.toIterable().filter { it.common.enabled }
     val enabledCommentators get() = commentatorsModel.toIterable().filter { it.common.enabled }
-    val enabledIntruderPayloadProcessors get() = intruderPayloadProcessorsModel.toIterable().filter(Piper.MinimalTool::getEnabled)
 
     val macrosModel = DefaultListModel<Piper.MinimalTool>()
     val messageViewersModel = DefaultListModel<Piper.MessageViewer>()
