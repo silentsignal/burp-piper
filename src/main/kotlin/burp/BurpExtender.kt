@@ -150,7 +150,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             val messages = it.selectedMessages
             if (messages.isNullOrEmpty()) return@registerContextMenuFactory emptyList()
             val topLevel = JMenu(NAME)
-            generateContextMenu(messages.asList(), topLevel::add)
+            generateContextMenu(messages.asList(), topLevel::add, includeCommentators = true)
             if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory emptyList()
             return@registerContextMenuFactory Collections.singletonList(topLevel as JMenuItem)
         }
@@ -242,7 +242,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 compareValuesBy(this, other, MessageSource::direction, MessageSource::includeHeaders)
     }
 
-    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (Component) -> Component) {
+    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (Component) -> Component, includeCommentators: Boolean) {
         val msize = messages.size
         val plural = if (msize == 1) "" else "s"
 
@@ -275,7 +275,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
         val commentatorCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
 
-        configModel.enabledCommentators.forEach { cfgItem ->
+        if (includeCommentators) configModel.enabledCommentators.forEach { cfgItem ->
             messageDetails.forEach { (msrc, md) ->
                 val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
                     performCommentator(cfgItem, md)
@@ -377,7 +377,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         private fun addButtons() {
             btnProcess.addActionListener {
                 val pm = JPopupMenu()
-                generateContextMenu(listWidget.selectedValuesList, pm::add)
+                generateContextMenu(listWidget.selectedValuesList, pm::add, includeCommentators = false)
                 val b = it.source as Component
                 val loc = b.locationOnScreen
                 pm.show(this, 0, 0)
