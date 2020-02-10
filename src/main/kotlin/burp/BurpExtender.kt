@@ -328,6 +328,37 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         } else return null
     }
 
+    private class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
+
+        private class HttpService(original: IHttpService) : IHttpService {
+            private val host = original.host
+            private val port = original.port
+            private val protocol = original.protocol
+
+            override fun getHost(): String = host
+            override fun getPort(): Int = port
+            override fun getProtocol(): String = protocol
+        }
+
+        private val comment = original.comment
+        private val highlight = original.highlight
+        private val httpService = HttpService(original.httpService)
+        private val request = original.request.clone()
+        private val response = original.response.clone()
+
+        override fun getComment(): String = comment
+        override fun getHighlight(): String = highlight
+        override fun getHttpService(): IHttpService = httpService
+        override fun getRequest(): ByteArray = request
+        override fun getResponse(): ByteArray = response
+
+        override fun setComment(comment: String?) {}
+        override fun setHighlight(color: String?) {}
+        override fun setHttpService(httpService: IHttpService?) {}
+        override fun setRequest(message: ByteArray?) {}
+        override fun setResponse(message: ByteArray?) {}
+    }
+
     inner class Queue : JPanel(BorderLayout()), ListDataListener, ListCellRenderer<IHttpRequestResponse>, ListSelectionListener {
         private val model = DefaultListModel<IHttpRequestResponse>()
         private val pnToolbar = JPanel()
@@ -335,7 +366,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         private val btnProcess = JButton("Process")
         private val cr = DefaultListCellRenderer()
 
-        fun add(values: Iterable<IHttpRequestResponse>) = values.forEach(model::addElement)
+        fun add(values: Iterable<IHttpRequestResponse>) = values.map(::HttpRequestResponse).forEach(model::addElement)
 
         private fun toHumanReadable(value: IHttpRequestResponse): String {
             val req = helpers.analyzeRequest(value)
