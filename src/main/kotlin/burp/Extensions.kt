@@ -144,10 +144,14 @@ fun ByteArray.endsWith(value: ByteString): Boolean {
     return mbs >= mps && this.copyOfRange(mbs - mps, mbs) contentEquals value.toByteArray()
 }
 
-fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, List<File>> {
+private const val DEFAULT_FILE_EXTENSION = ".bin"
+
+fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, List<File>> = execute(*inputs.map { it to null }.toTypedArray())
+
+fun Piper.CommandInvocation.execute(vararg inputs: Pair<ByteArray, String?>): Pair<Process, List<File>> {
     val tempFiles = if (this.inputMethod == Piper.CommandInvocation.InputMethod.FILENAME) {
-        inputs.map {
-            File.createTempFile("piper-", ".bin").apply { writeBytes(it) }
+        inputs.map { (contents, extension) ->
+            File.createTempFile("piper-", extension ?: DEFAULT_FILE_EXTENSION).apply { writeBytes(contents) }
         }
     } else emptyList()
     val args = this.prefixList + tempFiles.map(File::getAbsolutePath) + this.postfixList
@@ -155,7 +159,7 @@ fun Piper.CommandInvocation.execute(vararg inputs: ByteArray): Pair<Process, Lis
     if (this.inputMethod == Piper.CommandInvocation.InputMethod.STDIN) {
         try {
             p.outputStream.use {
-                inputs.forEach(p.outputStream::write)
+                inputs.map(Pair<ByteArray, String?>::first).forEach(p.outputStream::write)
             }
         } catch (_: IOException) {
             // ignore, see https://github.com/silentsignal/burp-piper/issues/6

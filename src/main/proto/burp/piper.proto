@@ -111,3 +111,17 @@ message Config {
     bool developer = 6;
     repeated MinimalTool intruderPayloadProcessor = 7;
 }
+
+message MimeTypes {
+    repeated Type type = 1;
+
+    message Type {
+        string name = 1;
+        repeated Subtype subtype = 2;
+    }
+
+    message Subtype {
+        string name = 1;
+        string extension = 2;
+    }
+}

@@ -57,6 +57,9 @@ jar {
     from('src/main/yaml') {
         include('*.yaml')
     }
+	from('static') {
+		include('mime.pb')
+	}
     from {
         configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }

@@ -40,7 +40,39 @@ import kotlin.concurrent.thread
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
 
-data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?, val url: URL?, val hrr: IHttpRequestResponse? = null)
+data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?, val url: URL?, val hrr: IHttpRequestResponse? = null) {
+    val asContentExtensionPair: Pair<ByteArray, String?> get() {
+        return content to fileExtension
+    }
+
+    val fileExtension: String? get() {
+        if (url != null) {
+            val match = Regex("\\.[a-z0-9]$", RegexOption.IGNORE_CASE).find(url.path)
+            if (match != null) {
+                return match.groups[0]!!.value
+            }
+        }
+        headers?.filter { it.startsWith("content-type: ", ignoreCase = true) }?.forEach {
+            val parts = it.split(' ')[1].trim(';').split('/')
+            val ext = mimeTypes[parts[0]]?.get(parts[1]) ?: return@forEach
+            return ".$ext"
+        }
+        return null
+    }
+
+    companion object {
+        val mimeTypes: Map<String, Map<String, String>>
+
+        init {
+            val db = Piper.MimeTypes.parseFrom(BurpExtender::class.java.classLoader.getResourceAsStream("mime.pb"))
+            mimeTypes = db.typeOrBuilderList.map { type ->
+                type.name to type.subtypeList.map { subtype ->
+                    subtype.name to subtype.extension
+                }.toMap()
+            }.toMap()
+        }
+    }
+}
 
 class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
@@ -437,12 +469,12 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                                   messageViewer: Piper.MessageViewer? = null) {
         thread {
             val (input, tools) = if (messageViewer == null) {
-                messages.map(MessageInfo::content) to Collections.singletonList(cfgItem.common)
+                messages.map(MessageInfo::asContentExtensionPair) to Collections.singletonList(cfgItem.common)
             } else {
                 messages.map { msg ->
-                    messageViewer.common.cmd.execute(msg.content).processOutput { process ->
+                    messageViewer.common.cmd.execute(msg.asContentExtensionPair).processOutput { process ->
                         process.inputStream.use { it.readBytes() }
-                    }
+                    } to null
                 } to listOf(messageViewer.common, cfgItem.common)
             }
             cfgItem.common.cmd.execute(*input.toTypedArray()).processOutput { process ->
@@ -456,7 +488,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             val hrr = mi.hrr ?: return@forEach
             if ((hrr.comment.isNullOrEmpty() || cfgItem.overwrite) &&
                     (!cfgItem.common.hasFilter() || cfgItem.common.filter.matches(mi, helpers, callbacks))) {
-                val stdout = cfgItem.common.cmd.execute(mi.content).processOutput { process ->
+                val stdout = cfgItem.common.cmd.execute(mi.asContentExtensionPair).processOutput { process ->
                     process.inputStream.readBytes()
                 }
                 hrr.comment = String(stdout, Charsets.UTF_8)
@@ -467,6 +499,25 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
+            if (args.size > 2 && args[0] == "build-static") {
+                val map = mutableMapOf<String, MutableList<Piper.MimeTypes.Subtype>>()
+                File(args[1]).bufferedReader().use { input ->
+                    input.forEachLine { line ->
+                        if (line.startsWith('#')) return@forEachLine
+                        val parts = line.split('\t', ' ').filter(String::isNotEmpty)
+                        val type = parts[0].split('/')
+                        val subtypes = map.getOrPut(type[0]) { mutableListOf() }
+                        val ext = parts[1]
+                        subtypes.add(Piper.MimeTypes.Subtype.newBuilder().setName(type[1]).setExtension(ext).build())
+                    }
+                }
+                val mt = Piper.MimeTypes.newBuilder()
+                map.forEach { (typeName, subtypes) ->
+                    mt.addType(Piper.MimeTypes.Type.newBuilder().setName(typeName).addAllSubtype(subtypes))
+                }
+                File(args[2]).writeBytes(mt.build().toByteArray())
+                return
+            }
             val be = BurpExtender()
             val cfg = loadDefaultConfig()
             val dialog = JDialog()
