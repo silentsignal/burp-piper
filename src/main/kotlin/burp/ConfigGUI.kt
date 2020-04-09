@@ -471,6 +471,37 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
     override fun buildEnabled(value: Boolean): Piper.Commentator = commentator.buildEnabled(value)
 }
 
+class HighlighterDialog(private val highlighter: Piper.Highlighter, parent: Component?) :
+        MinimalToolDialog<Piper.Highlighter>(highlighter.common, parent, "highlighter", showScope = true) {
+
+    private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite highlight on items that already have one", highlighter.overwrite, panel, cs)
+    private val cbColor = createLabeledWidget("Set highlight to ", JComboBox(Highlight.values()), panel, cs)
+
+    init {
+        cbColor.renderer = object : DefaultListCellRenderer() {
+            override fun getListCellRendererComponent(list: JList<*>?, value: Any?, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
+                val c = super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
+                val v = value as Highlight
+                if (v.color != null) {
+                    c.background = v.color
+                    c.foreground = v.textColor
+                }
+                return c
+            }
+        }
+        val h = Highlight.fromString(highlighter.color)
+        if (h != null) cbColor.selectedItem = h
+    }
+
+    override fun processGUI(mt: Piper.MinimalTool): Piper.Highlighter = Piper.Highlighter.newBuilder().apply {
+        common = mt
+        color = cbColor.selectedItem.toString()
+        if (cbOverwrite.isSelected) overwrite = true
+    }.build()
+
+    override fun buildEnabled(value: Boolean): Piper.Highlighter = highlighter.buildEnabled(value)
+}
+
 private fun createFullWidthCheckBox(caption: String, initialValue: Boolean, panel: Container, cs: GridBagConstraints): JCheckBox {
     cs.gridwidth = 4
     cs.gridx = 0

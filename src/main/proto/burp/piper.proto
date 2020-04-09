@@ -102,6 +102,12 @@ message Commentator {
     bool overwrite = 3;
 }
 
+message Highlighter {
+    MinimalTool common = 1;
+    string color = 2;
+    bool overwrite = 3;
+}
+
 message Config {
     repeated MinimalTool macro = 1;
     repeated MessageViewer messageViewer = 2;
@@ -110,6 +116,7 @@ message Config {
     repeated Commentator commentator = 5;
     bool developer = 6;
     repeated MinimalTool intruderPayloadProcessor = 7;
+    repeated Highlighter highlighter = 8;
 }
 
 message MimeTypes {

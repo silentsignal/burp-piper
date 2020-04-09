@@ -2,6 +2,7 @@ package burp
 
 import org.snakeyaml.engine.v1.api.Dump
 import org.snakeyaml.engine.v1.api.DumpSettingsBuilder
+import java.awt.Color
 import java.util.*
 import java.util.regex.Pattern
 
@@ -70,6 +71,29 @@ enum class MatchNegation(val negation: Boolean, private val description: String)
     NEGATED(true, "Match when none of the rules below apply");
 
     override fun toString(): String = description
+}
+
+enum class Highlight(val color: Color?, val textColor: Color = Color.BLACK) {
+    CLEAR(null),
+    RED(    Color(0xFF, 0x64, 0x64), Color.WHITE),
+    ORANGE( Color(0xFF, 0xC8, 0x64)             ),
+    YELLOW( Color(0xFF, 0xFF, 0x64)             ),
+    GREEN(  Color(0x64, 0xFF, 0x64)             ),
+    CYAN(   Color(0x64, 0xFF, 0xFF)             ),
+    BLUE(   Color(0x64, 0x64, 0xFF), Color.WHITE),
+    PINK(   Color(0xFF, 0xC8, 0xC8)             ),
+    MAGENTA(Color(0xFF, 0x64, 0xFF)             ),
+    GRAY(   Color(0xB4, 0xB4, 0xB4)             );
+
+    override fun toString(): String = super.toString().toLowerCase()
+
+    val burpValue: String? get() = if (color == null) null else toString()
+
+    companion object {
+        private val lookupTable = Highlight.values().associateBy(Highlight::toString)
+
+        fun fromString(value: String): Highlight? = lookupTable[value]
+    }
 }
 
 enum class ConfigHttpListenerScope(val hls: Piper.HttpListenerScope, val inputList: List<RequestResponse>) {

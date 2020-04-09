@@ -19,8 +19,17 @@ fun configFromYaml(value: String): Piper.Config {
         copyListOfStructured("httpListeners", b::addHttpListener, ::httpListenerFromMap)
         copyListOfStructured("commentators", b::addCommentator, ::commentatorFromMap)
         copyListOfStructured("intruderPayloadProcessors", b::addIntruderPayloadProcessor, ::minimalToolFromMap)
+        copyListOfStructured("highlighters", b::addHighlighter, ::highlighterFromMap)
     }
     return b.build()
+}
+
+fun highlighterFromMap(source: Map<String, Any>): Piper.Highlighter {
+    val b = Piper.Highlighter.newBuilder()!!
+    source.copyBooleanFlag("overwrite", b::setOverwrite)
+    val c = source["color"]
+    if (c != null) b.color = c.toString()
+    return b.setCommon(minimalToolFromMap(source)).build()
 }
 
 fun commentatorFromMap(source: Map<String, Any>): Piper.Commentator {
@@ -261,6 +270,13 @@ fun Piper.HttpListener.toMap(): Map<String, Any> {
 fun Piper.Commentator.toMap(): Map<String, Any> {
     val m = this.common.toMap()
     if (this.overwrite) m["overwrite"] = true
+    return m
+}
+
+fun Piper.Highlighter.toMap(): Map<String, Any> {
+    val m = this.common.toMap()
+    if (this.overwrite) m["overwrite"] = true
+    if (!this.color.isNullOrEmpty()) m["color"] = this.color
     return m
 }
 

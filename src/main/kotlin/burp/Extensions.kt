@@ -119,6 +119,7 @@ fun Piper.UserActionTool.buildEnabled(value: Boolean? = null): Piper.UserActionT
 fun Piper.HttpListener  .buildEnabled(value: Boolean? = null): Piper.HttpListener   = toBuilder().setCommon(common.buildEnabled(value)).build()
 fun Piper.MessageViewer .buildEnabled(value: Boolean? = null): Piper.MessageViewer  = toBuilder().setCommon(common.buildEnabled(value)).build()
 fun Piper.Commentator   .buildEnabled(value: Boolean? = null): Piper.Commentator    = toBuilder().setCommon(common.buildEnabled(value)).build()
+fun Piper.Highlighter   .buildEnabled(value: Boolean? = null): Piper.Highlighter    = toBuilder().setCommon(common.buildEnabled(value)).build()
 
 fun Piper.MessageMatch.matches(message: MessageInfo, helpers: IExtensionHelpers, callbacks: IBurpExtenderCallbacks): Boolean = (
         (this.prefix == null  || this.prefix.size() == 0  || message.content.startsWith(this.prefix)) &&

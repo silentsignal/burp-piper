@@ -170,6 +170,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
         configModel.menuItemsModel.addListDataListener(this)  // Menu items are loaded on-demand, thus saving the config is enough
         configModel.commentatorsModel.addListDataListener(this)  // Commentators are menu items as well, see above
+        configModel.highlightersModel.addListDataListener(this)  // Highlighters are menu items as well, see above
         configModel.messageViewersModel.addListDataListener(MessageViewerManager())
         configModel.macrosModel.addListDataListener(MacroManager())
         configModel.httpListenersModel.addListDataListener(HttpListenerManager())
@@ -253,6 +254,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 ::CommentatorDialog, Piper.Commentator::getDefaultInstance, ::commentatorFromMap, Piper.Commentator::toMap))
         tabs.addTab("Intruder payload processors", MinimalToolListEditor(cfg.intruderPayloadProcessorsModel, parent,
                 ::IntruderPayloadProcessorDialog, Piper.MinimalTool::getDefaultInstance, ::minimalToolFromMap, Piper.MinimalTool::toMap))
+        tabs.addTab("Highlighters", MinimalToolListEditor(cfg.highlightersModel, parent,
+                ::HighlighterDialog, Piper.Highlighter::getDefaultInstance, ::highlighterFromMap, Piper.Highlighter::toMap))
         tabs.addTab("Queue", queue)
         tabs.addTab("Load/Save configuration", createLoadSaveUI(cfg, parent))
         tabs.addTab("Developer", createDeveloperUI(cfg))
@@ -306,18 +309,36 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }
 
         val commentatorCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
+        val highlighterCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
 
-        if (includeCommentators) configModel.enabledCommentators.forEach { cfgItem ->
-            messageDetails.forEach { (msrc, md) ->
-                val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
-                    performCommentator(cfgItem, md)
-                }
-                if (item != null) {
-                    val commentatorMenu = commentatorCategoryMenus.getOrPut(msrc.direction) {
-                        categoryMenus[msrc.direction]?.apply { addSeparator() }
-                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
+        if (includeCommentators) {
+            configModel.enabledCommentators.forEach { cfgItem ->
+                messageDetails.forEach { (msrc, md) ->
+                    val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
+                        performCommentator(cfgItem, md)
                     }
-                    commentatorMenu.add(item)
+                    if (item != null) {
+                        val commentatorMenu = commentatorCategoryMenus.getOrPut(msrc.direction) {
+                            categoryMenus[msrc.direction]?.apply { addSeparator() }
+                                    ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
+                        }
+                        commentatorMenu.add(item)
+                    }
+                }
+            }
+
+            configModel.enabledHighlighters.forEach { cfgItem ->
+                messageDetails.forEach { (msrc, md) ->
+                    val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
+                        performHighlighter(cfgItem, md)
+                    }
+                    if (item != null) {
+                        val highlighterMenu = highlighterCategoryMenus.getOrPut(msrc.direction) {
+                            categoryMenus[msrc.direction]?.apply { addSeparator() }
+                                    ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
+                        }
+                        highlighterMenu.add(item)
+                    }
                 }
             }
         }
@@ -496,6 +517,18 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }
     }
 
+    private fun performHighlighter(cfgItem: Piper.Highlighter, messages: List<MessageInfo>) {
+        messages.forEach { mi ->
+            val hrr = mi.hrr ?: return@forEach
+            if ((hrr.highlight.isNullOrEmpty() || cfgItem.overwrite) &&
+                    (!cfgItem.common.hasFilter() || cfgItem.common.filter.matches(mi, helpers, callbacks)) &&
+                    cfgItem.common.cmd.matches(mi.content, helpers, callbacks)) {
+                val h = Highlight.fromString(cfgItem.color) ?: return@forEach
+                hrr.highlight = h.burpValue
+            }
+        }
+    }
+
     companion object {
         @JvmStatic
         fun main (args: Array<String>) {
@@ -533,6 +566,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val enabledMessageViewers get() = messageViewersModel.toIterable().filter { it.common.enabled }
     val enabledMenuItems get() = menuItemsModel.toIterable().filter { it.common.enabled }
     val enabledCommentators get() = commentatorsModel.toIterable().filter { it.common.enabled }
+    val enabledHighlighters get() = highlightersModel.toIterable().filter { it.common.enabled }
 
     val macrosModel = DefaultListModel<Piper.MinimalTool>()
     val messageViewersModel = DefaultListModel<Piper.MessageViewer>()
@@ -540,6 +574,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val httpListenersModel = DefaultListModel<Piper.HttpListener>()
     val commentatorsModel = DefaultListModel<Piper.Commentator>()
     val intruderPayloadProcessorsModel = DefaultListModel<Piper.MinimalTool>()
+    val highlightersModel = DefaultListModel<Piper.Highlighter>()
 
     private var _developer = config.developer
     var developer: Boolean
@@ -563,6 +598,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
         fillDefaultModel(config.httpListenerList,                         httpListenersModel)
         fillDefaultModel(config.commentatorList,                           commentatorsModel)
         fillDefaultModel(config.intruderPayloadProcessorList, intruderPayloadProcessorsModel)
+        fillDefaultModel(config.highlighterList,                           highlightersModel)
     }
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
@@ -572,6 +608,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
             .addAllHttpListener(httpListenersModel.toIterable())
             .addAllCommentator(commentatorsModel.toIterable())
             .addAllIntruderPayloadProcessor(intruderPayloadProcessorsModel.toIterable())
+            .addAllHighlighter(highlightersModel.toIterable())
             .setDeveloper(developer)
             .build()
 }
