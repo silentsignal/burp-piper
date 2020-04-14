@@ -88,6 +88,12 @@ menuItems:
   requiredInPath: [dos2unix, xclip]
   name: Copy to clipboard with headers without \r
   hasGUI: true
+- prefix: [sh, -c, fromdos | xsel -i -b]
+  inputMethod: stdin
+  passHeaders: true
+  requiredInPath: [fromdos, xsel]
+  name: Copy to clipboard with headers without \r (alt)
+  hasGUI: true
 commentators:
 - prefix: [sha256sum]
   inputMethod: stdin
