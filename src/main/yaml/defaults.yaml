@@ -93,6 +93,14 @@ menuItems:
   requiredInPath: [dos2unix, xclip]
   name: Copy to clipboard with headers without \r
   hasGUI: true
+- prefix: [meld]
+  inputMethod: filename
+  passHeaders: true
+  name: Meld
+  hasGUI: true
+  avoidPipe: true
+  minInputs: 2
+  maxInputs: 3
 - prefix: [sh, -c, fromdos | xsel -i -b]
   inputMethod: stdin
   passHeaders: true
