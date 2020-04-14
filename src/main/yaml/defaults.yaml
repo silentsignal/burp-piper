@@ -35,7 +35,6 @@ messageViewers:
   inputMethod: stdin
   name: gron
   filter: {prefix: '{'}
-  scope: response_only
 menuItems:
 - prefix: [okular]
   inputMethod: filename
