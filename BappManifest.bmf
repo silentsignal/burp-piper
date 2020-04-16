@@ -1,0 +1,12 @@
+Uuid: e4e0f6c4f0274754917dcb5f4937bb9e
+ExtensionType: 1
+Name: Piper
+RepoName: piper
+ScreenVersion: 0.5.1
+SerialVersion: 2
+MinPlatformVersion: 0
+ProOnly: False
+Author: Andras Veres-Szentkiralyi
+ShortDescription: Easily integrate external tools into Burp
+EntryPoint: build/libs/piper.jar
+BuildCommand: ./gradlew build
