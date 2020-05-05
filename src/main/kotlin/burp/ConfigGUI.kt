@@ -614,6 +614,9 @@ data class CommandLineParameter(val value: String?) { // null = input file name
     override fun toString(): String = if (isInputFileName) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
 }
 
+const val PASS_HTTP_HEADERS_NOTE = "<html>Note: if the above checkbox is <font color='red'>unchecked</font>, messages without a body (such as<br>" +
+        "GET/HEAD requests or 204 No Content responses) are <font color='red'>ignored by this tool</font>.</html>"
+
 class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: CommandInvocationPurpose, parent: Component,
                               showPassHeaders: Boolean) : ConfigDialog<Piper.CommandInvocation>(parent, "Command invocation editor") {
     private val ccmwStdout = CollapsedMessageMatchWidget(this, mm = ci.stdout, showHeaderMatch = false, caption = "Match on stdout: ")
@@ -749,7 +752,11 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
 
         InputMethodWidget.create(this, panel, cs, hasFileName, paramsModel)
 
-        cbPassHeaders = if (showPassHeaders) createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs) else null
+        cbPassHeaders = if (showPassHeaders) {
+            val cb = createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
+            addFullWidthComponent(JLabel(PASS_HTTP_HEADERS_NOTE), panel, cs)
+            cb
+        } else null
 
         addFullWidthComponent(JLabel("Binaries required in PATH: (comma separated)"), panel, cs)
         addFullWidthComponent(tfDependencies, panel, cs)
