@@ -152,14 +152,17 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 registeredInBurp[i] = modelToRegListItem(model[i])
                 remove(currentRegistered ?: continue)
             }
+            saveConfig()
         }
 
         override fun intervalAdded(e: ListDataEvent) {
             for (i in e.index0 .. e.index1) registeredInBurp.add(i, modelToRegListItem(model[i]))
+            saveConfig()
         }
 
         override fun intervalRemoved(e: ListDataEvent) {
             for (i in e.index1 downTo e.index0) remove(registeredInBurp.removeAt(i) ?: continue)
+            saveConfig()
         }
     }
 
