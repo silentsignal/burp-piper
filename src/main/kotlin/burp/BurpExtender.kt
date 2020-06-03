@@ -199,17 +199,16 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     override fun processHttpMessage(toolFlag: Int, messageIsRequest: Boolean, messageInfo: IHttpRequestResponse) {
         if (messageIsRequest || toolFlag != IBurpExtenderCallbacks.TOOL_PROXY) return
         val messageDetails = messagesToMap(Collections.singleton(messageInfo))
-        val strategy = MessageInfoMatchStrategy.ANY // doesn't really matter since there's only a single message
 
         configModel.enabledCommentators.filter(Piper.Commentator::getApplyWithListener).forEach { cfgItem ->
-            messageDetails.forEach { (msrc, md) ->
-                if (isToolApplicable(cfgItem.common, msrc, md, strategy)) performCommentator(cfgItem, md)
+            messageDetails.filterApplicable(cfgItem.common).forEach { (_, md) ->
+                performCommentator(cfgItem, md)
             }
         }
 
         configModel.enabledHighlighters.filter(Piper.Highlighter::getApplyWithListener).forEach { cfgItem ->
-            messageDetails.forEach { (msrc, md) ->
-                if (isToolApplicable(cfgItem.common, msrc, md, strategy)) performHighlighter(cfgItem, md)
+            messageDetails.filterApplicable(cfgItem.common).forEach { (_, md) ->
+                performHighlighter(cfgItem, md)
             }
         }
     }
@@ -305,10 +304,13 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
 
         fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.toLowerCase()}$plural")
 
-        fun EnumMap<RequestResponse, JMenu>.addMenuItemIfNotNull(msrc: MessageSource, child: JMenuItem?) {
-            if (child != null) {
-                this.getOrPut(msrc.direction) { createSubMenu(msrc) }.add(child)
-            }
+        fun EnumMap<RequestResponse, JMenu>.addMenuItemIfApplicable(menuItem: Piper.UserActionTool, mv: Piper.MessageViewer?, msrc: MessageSource,
+                                                                    md: List<MessageInfo>) {
+            val (first, second) = if (mv == null) (menuItem.common to null) else (mv.common to menuItem.common)
+            if (!isToolApplicable(first, msrc, md, MessageInfoMatchStrategy.ALL)) return
+            this.getOrPut(msrc.direction) { createSubMenu(msrc) }.add(createMenuItem(first, second)  {
+                performMenuAction(menuItem, md, mv)
+            })
         }
 
         val messageDetails = messagesToMap(messages)
@@ -318,13 +320,10 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
             // TODO check dependencies
             if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize) || cfgItem.minInputs > msize) continue
             for ((msrc, md) in messageDetails) {
-                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ALL) { performMenuAction(cfgItem, md) }
-                categoryMenus.addMenuItemIfNotNull(msrc, menuItem)
+                categoryMenus.addMenuItemIfApplicable(cfgItem, null, msrc, md)
                 if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter() && !cfgItem.avoidPipe) {
                     configModel.enabledMessageViewers.forEach { mv ->
-                        categoryMenus.addMenuItemIfNotNull(msrc, createMenuItem(mv.common, cfgItem.common, msrc, md, MessageInfoMatchStrategy.ALL) {
-                            performMenuAction(cfgItem, md, mv)
-                        })
+                        categoryMenus.addMenuItemIfApplicable(cfgItem, mv, msrc, md)
                     }
                 }
             }
@@ -335,32 +334,22 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
 
         if (includeCommentators) {
             configModel.enabledCommentators.forEach { cfgItem ->
-                messageDetails.forEach { (msrc, md) ->
-                    val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
-                        performCommentator(cfgItem, md)
+                messageDetails.filterApplicable(cfgItem.common).forEach { (msrc, md) ->
+                    val commentatorMenu = commentatorCategoryMenus.getOrPut(msrc.direction) {
+                        categoryMenus[msrc.direction]?.apply { addSeparator() }
+                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
                     }
-                    if (item != null) {
-                        val commentatorMenu = commentatorCategoryMenus.getOrPut(msrc.direction) {
-                            categoryMenus[msrc.direction]?.apply { addSeparator() }
-                                    ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
-                        }
-                        commentatorMenu.add(item)
-                    }
+                    commentatorMenu.add(createMenuItem(cfgItem.common, null) { performCommentator(cfgItem, md) })
                 }
             }
 
             configModel.enabledHighlighters.forEach { cfgItem ->
-                messageDetails.forEach { (msrc, md) ->
-                    val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
-                        performHighlighter(cfgItem, md)
+                messageDetails.filterApplicable(cfgItem.common).forEach { (msrc, md) ->
+                    val highlighterMenu = highlighterCategoryMenus.getOrPut(msrc.direction) {
+                        categoryMenus[msrc.direction]?.apply { addSeparator() }
+                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
                     }
-                    if (item != null) {
-                        val highlighterMenu = highlighterCategoryMenus.getOrPut(msrc.direction) {
-                            categoryMenus[msrc.direction]?.apply { addSeparator() }
-                                    ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
-                        }
-                        highlighterMenu.add(item)
-                    }
+                    highlighterMenu.add(createMenuItem(cfgItem.common, null) { performHighlighter(cfgItem, md) })
                 }
             }
         }
@@ -394,13 +383,11 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         return messageDetails
     }
 
-    private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource,
-                               md: List<MessageInfo>, mims: MessageInfoMatchStrategy, action: () -> Unit): JMenuItem? {
-        if (isToolApplicable(tool, msrc, md, mims)) {
-            return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}")).apply {
-                addActionListener { action() }
-            }
-        } else return null
+    private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, action: () -> Unit) =
+            JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}")).apply { addActionListener { action() } }
+
+    private fun Map<MessageSource, List<MessageInfo>>.filterApplicable(tool: Piper.MinimalTool): Map<MessageSource, List<MessageInfo>> = filter {
+        (msrc, md) -> isToolApplicable(tool, msrc, md, MessageInfoMatchStrategy.ANY)
     }
 
     private fun isToolApplicable(tool: Piper.MinimalTool, msrc: MessageSource, md: List<MessageInfo>, mims: MessageInfoMatchStrategy) =
@@ -512,7 +499,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     }
 
     private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>,
-                                  messageViewer: Piper.MessageViewer? = null) {
+                                  messageViewer: Piper.MessageViewer?) {
         thread {
             val (input, tools) = if (messageViewer == null) {
                 messages.map(MessageInfo::asContentExtensionPair) to Collections.singletonList(cfgItem.common)
