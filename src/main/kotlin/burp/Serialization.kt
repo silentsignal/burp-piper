@@ -219,6 +219,7 @@ fun pad4(value: ByteArray): ByteArray {
     return value + pad.downTo(1).map { pad }.toByteArray()
 }
 
+@Suppress("SpellCheckingInspection")
 fun unpad4(value: ByteArray): ByteArray =
     value.dropLast(value.last().toInt()).toByteArray()
 

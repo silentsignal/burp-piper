@@ -6,6 +6,7 @@ import java.awt.Color
 import java.util.*
 import java.util.regex.Pattern
 
+@Suppress("UNUSED", "SpellCheckingInspection")
 enum class RegExpFlag {
     CASE_INSENSITIVE, MULTILINE, DOTALL, UNICODE_CASE, CANON_EQ,
     UNIX_LINES, LITERAL, UNICODE_CHARACTER_CLASS, COMMENTS;
