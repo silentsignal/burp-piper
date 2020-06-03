@@ -74,7 +74,7 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
     }
 }
 
-class BurpExtender : IBurpExtender, ITab, ListDataListener {
+class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
 
     private lateinit var callbacks: IBurpExtenderCallbacks
     private lateinit var helpers: IExtensionHelpers
@@ -193,6 +193,25 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
         populateTabs(configModel, null)
         callbacks.addSuiteTab(this)
+        callbacks.registerHttpListener(this) // TODO add/remove based on actual demand w.r.t current config
+    }
+
+    override fun processHttpMessage(toolFlag: Int, messageIsRequest: Boolean, messageInfo: IHttpRequestResponse) {
+        if (messageIsRequest || toolFlag != IBurpExtenderCallbacks.TOOL_PROXY) return
+        val messageDetails = messagesToMap(Collections.singleton(messageInfo))
+        val strategy = MessageInfoMatchStrategy.ANY // doesn't really matter since there's only a single message
+
+        configModel.enabledCommentators.filter(Piper.Commentator::getApplyWithListener).forEach { cfgItem ->
+            messageDetails.forEach { (msrc, md) ->
+                if (isToolApplicable(cfgItem.common, msrc, md, strategy)) performCommentator(cfgItem, md)
+            }
+        }
+
+        configModel.enabledHighlighters.filter(Piper.Highlighter::getApplyWithListener).forEach { cfgItem ->
+            messageDetails.forEach { (msrc, md) ->
+                if (isToolApplicable(cfgItem.common, msrc, md, strategy)) performHighlighter(cfgItem, md)
+            }
+        }
     }
 
     private fun Piper.MinimalTool.pipeMessage(rrList: List<RequestResponse>, messageInfo: IHttpRequestResponse, ignoreOutput: Boolean = false) {

@@ -462,10 +462,12 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
         MinimalToolDialog<Piper.Commentator>(commentator.common, parent, "commentator", showScope = true) {
 
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
+    private val cbListener: JCheckBox = createFullWidthCheckBox("Continuously apply to future requests/responses", commentator.applyWithListener, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator = Piper.Commentator.newBuilder().apply {
         common = mt
         if (cbOverwrite.isSelected) overwrite = true
+        if (cbListener.isSelected) applyWithListener = true
     }.build()
 
     override fun buildEnabled(value: Boolean): Piper.Commentator = commentator.buildEnabled(value)
@@ -475,6 +477,7 @@ class HighlighterDialog(private val highlighter: Piper.Highlighter, parent: Comp
         MinimalToolDialog<Piper.Highlighter>(highlighter.common, parent, "highlighter", showScope = true) {
 
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite highlight on items that already have one", highlighter.overwrite, panel, cs)
+    private val cbListener: JCheckBox = createFullWidthCheckBox("Continuously apply to future requests/responses", highlighter.applyWithListener, panel, cs)
     private val cbColor = createLabeledWidget("Set highlight to ", JComboBox(Highlight.values()), panel, cs)
 
     init {
@@ -497,6 +500,7 @@ class HighlighterDialog(private val highlighter: Piper.Highlighter, parent: Comp
         common = mt
         color = cbColor.selectedItem.toString()
         if (cbOverwrite.isSelected) overwrite = true
+        if (cbListener.isSelected) applyWithListener = true
     }.build()
 
     override fun buildEnabled(value: Boolean): Piper.Highlighter = highlighter.buildEnabled(value)
