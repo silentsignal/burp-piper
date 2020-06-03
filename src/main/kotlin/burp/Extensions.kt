@@ -222,7 +222,7 @@ fun <E : Enum<E>> calcEnumSet(enumClass: Class<E>, getter: (E) -> Int, value: In
 fun <S, T> DefaultListModel<S>.map(transform: (S) -> T): Iterable<T> = toIterable().map(transform)
 fun <E> DefaultListModel<E>.toIterable(): Iterable<E> = (0 until size).map(this::elementAt)
 
-class DependencyException(val dependency: String) : RuntimeException("Dependent executable `$dependency` cannot be found in \$PATH")
+class DependencyException(dependency: String) : RuntimeException("Dependent executable `$dependency` cannot be found in \$PATH")
 
 fun Piper.CommandInvocation.checkDependencies() {
     val s = sequence {
