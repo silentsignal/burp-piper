@@ -90,7 +90,7 @@ enum class Highlight(val color: Color?, val textColor: Color = Color.BLACK) {
     val burpValue: String? get() = if (color == null) null else toString()
 
     companion object {
-        private val lookupTable = Highlight.values().associateBy(Highlight::toString)
+        private val lookupTable = values().associateBy(Highlight::toString)
 
         fun fromString(value: String): Highlight? = lookupTable[value]
     }
