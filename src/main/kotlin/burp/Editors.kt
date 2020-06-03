@@ -8,7 +8,7 @@ import kotlin.concurrent.thread
 
 abstract class Editor(private val tool: Piper.MessageViewer,
                       protected val helpers: IExtensionHelpers,
-                      protected val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
+                      private val callbacks: IBurpExtenderCallbacks) : IMessageEditorTab {
     private var msg: ByteArray? = null
 
     override fun getMessage(): ByteArray? = msg
