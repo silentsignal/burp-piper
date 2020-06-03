@@ -57,6 +57,7 @@ enum class RequestResponse(val isRequest: Boolean) {
     }
 }
 
+@Suppress("SpellCheckingInspection")
 enum class BurpTool {
     SUITE, TARGET, PROXY, SPIDER, SCANNER, INTRUDER, REPEATER, SEQUENCER, DECODER, COMPARER, EXTENDER;
 
