@@ -377,12 +377,15 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
     private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource,
                                md: List<MessageInfo>, mims: MessageInfoMatchStrategy, action: () -> Unit): JMenuItem? {
-        if (tool.cmd.passHeaders == msrc.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)) {
+        if (isToolApplicable(tool, msrc, md, mims)) {
             return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}")).apply {
                 addActionListener { action() }
             }
         } else return null
     }
+
+    private fun isToolApplicable(tool: Piper.MinimalTool, msrc: MessageSource, md: List<MessageInfo>, mims: MessageInfoMatchStrategy) =
+            tool.cmd.passHeaders == msrc.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)
 
     private class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
 
