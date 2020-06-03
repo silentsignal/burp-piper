@@ -90,7 +90,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
             configModel.messageViewersModel, callbacks::removeMessageEditorTabFactory, callbacks::registerMessageEditorTabFactory) {
         override fun isModelItemEnabled(item: Piper.MessageViewer): Boolean = item.common.enabled
 
-        override fun modelToBurp(modelItem: Piper.MessageViewer): IMessageEditorTabFactory = IMessageEditorTabFactory() { _, _ ->
+        override fun modelToBurp(modelItem: Piper.MessageViewer): IMessageEditorTabFactory = IMessageEditorTabFactory { _, _ ->
             if (modelItem.usesColors) TerminalEditor(modelItem, helpers, callbacks)
             else TextEditor(modelItem, helpers, callbacks)
         }

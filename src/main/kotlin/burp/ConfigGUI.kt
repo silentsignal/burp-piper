@@ -184,7 +184,7 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     })
 }
 
-class CancelClosingWindow() : RuntimeException()
+class CancelClosingWindow : RuntimeException()
 
 class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window,
                         showPassHeaders: Boolean, purpose: CommandInvocationPurpose, showScope: Boolean) {
