@@ -329,29 +329,23 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
             }
         }
 
-        val commentatorCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
-        val highlighterCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
+        fun <E> addMessageAnnotatorMenuItems(source: List<E>, common: (E) -> Piper.MinimalTool, action: (E, List<MessageInfo>) -> Unit) {
+            val childCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
+
+            source.forEach { cfgItem ->
+                messageDetails.filterApplicable(common(cfgItem)).forEach {(msrc, md) ->
+                    val childMenu = childCategoryMenus.getOrPut(msrc.direction) {
+                        categoryMenus[msrc.direction]?.apply { addSeparator() }
+                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
+                    }
+                    childMenu.add(createMenuItem(common(cfgItem), null) { action(cfgItem, md) })
+                }
+            }
+        }
 
         if (includeCommentators) {
-            configModel.enabledCommentators.forEach { cfgItem ->
-                messageDetails.filterApplicable(cfgItem.common).forEach { (msrc, md) ->
-                    val commentatorMenu = commentatorCategoryMenus.getOrPut(msrc.direction) {
-                        categoryMenus[msrc.direction]?.apply { addSeparator() }
-                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
-                    }
-                    commentatorMenu.add(createMenuItem(cfgItem.common, null) { performCommentator(cfgItem, md) })
-                }
-            }
-
-            configModel.enabledHighlighters.forEach { cfgItem ->
-                messageDetails.filterApplicable(cfgItem.common).forEach { (msrc, md) ->
-                    val highlighterMenu = highlighterCategoryMenus.getOrPut(msrc.direction) {
-                        categoryMenus[msrc.direction]?.apply { addSeparator() }
-                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
-                    }
-                    highlighterMenu.add(createMenuItem(cfgItem.common, null) { performHighlighter(cfgItem, md) })
-                }
-            }
+            addMessageAnnotatorMenuItems(configModel.enabledCommentators, Piper.Commentator::getCommon, ::performCommentator)
+            addMessageAnnotatorMenuItems(configModel.enabledHighlighters, Piper.Highlighter::getCommon, ::performHighlighter)
         }
 
         categoryMenus.values.map(add)
