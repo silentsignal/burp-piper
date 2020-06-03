@@ -45,7 +45,7 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
         return content to fileExtension
     }
 
-    val fileExtension: String? get() {
+    private val fileExtension: String? get() {
         if (url != null) {
             val match = Regex("\\.[a-z0-9]$", RegexOption.IGNORE_CASE).find(url.path)
             if (match != null) {
