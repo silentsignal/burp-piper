@@ -60,6 +60,10 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
         return null
     }
 
+    // make sure noone tries to compare such objects since they have an array member
+    override fun equals(other: Any?): Boolean { throw NotImplementedError() }
+    override fun hashCode(): Int { throw NotImplementedError() }
+
     companion object {
         val mimeTypes: Map<String, Map<String, String>>
 
