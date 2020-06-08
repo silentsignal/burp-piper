@@ -18,8 +18,9 @@ enum class RegExpFlag {
     }
 }
 
-enum class RequestResponse(val isRequest: Boolean) {
-    REQUEST(isRequest = true) {
+enum class RequestResponse(val isRequest: Boolean, val contexts: Set<Byte>) {
+    REQUEST(isRequest = true, contexts = setOf(IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_REQUEST,
+            IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_REQUEST)) {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.request
 
         override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
@@ -33,7 +34,8 @@ enum class RequestResponse(val isRequest: Boolean) {
                 helpers.analyzeRequest(data).headers
     },
 
-    RESPONSE(isRequest = false) {
+    RESPONSE(isRequest = false, contexts = setOf(IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_RESPONSE,
+            IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_RESPONSE)) {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.response
 
         override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {

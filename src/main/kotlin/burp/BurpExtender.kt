@@ -190,7 +190,9 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
             val messages = it.selectedMessages
             if (messages.isNullOrEmpty()) return@registerContextMenuFactory emptyList()
             val topLevel = JMenu(NAME)
-            generateContextMenu(messages.asList(), topLevel::add, includeCommentators = true)
+            val sb = it.selectionBounds
+            val selectionContext = if (sb == null || sb.toSet().size < 2) null else it.invocationContext to sb
+            generateContextMenu(messages.asList(), topLevel::add, selectionContext, includeCommentators = true)
             if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory emptyList()
             return@registerContextMenuFactory Collections.singletonList(topLevel as JMenuItem)
         }
@@ -297,14 +299,22 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     override fun getTabCaption(): String = NAME
     override fun getUiComponent(): Component = tabs
 
-    private data class MessageSource(val direction: RequestResponse, val includeHeaders: Boolean) : Comparable<MessageSource> {
+    private data class MessageSource(val direction: RequestResponse, val region: Region) : Comparable<MessageSource> {
+        enum class Region(val includeHeaders: Boolean) {
+            WHOLE_MESSAGE(true),
+            HTTP_BODY(false),
+            SELECTION(false);
+        }
+
         override fun compareTo(other: MessageSource): Int =
-                compareValuesBy(this, other, MessageSource::direction, MessageSource::includeHeaders)
+                compareValuesBy(this, other, MessageSource::direction, MessageSource::region)
     }
 
-    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (Component) -> Component, includeCommentators: Boolean) {
+    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (Component) -> Component,
+                                    selectionContext: Pair<Byte, IntArray>?, includeCommentators: Boolean) {
         val msize = messages.size
         val plural = if (msize == 1) "" else "s"
+        val selectionMenu = mutableListOf<JMenuItem>()
 
         fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.toLowerCase()}$plural")
 
@@ -312,12 +322,15 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
                                                                     md: List<MessageInfo>) {
             val (first, second) = if (mv == null) (menuItem.common to null) else (mv.common to menuItem.common)
             if (!isToolApplicable(first, msrc, md, MessageInfoMatchStrategy.ALL)) return
-            this.getOrPut(msrc.direction) { createSubMenu(msrc) }.add(createMenuItem(first, second)  {
-                performMenuAction(menuItem, md, mv)
-            })
+            val mi = createMenuItem(first, second)  { performMenuAction(menuItem, md, mv) }
+            if (msrc.region == MessageSource.Region.SELECTION) {
+                selectionMenu.add(mi)
+            } else {
+                this.getOrPut(msrc.direction) { createSubMenu(msrc) }.add(mi)
+            }
         }
 
-        val messageDetails = messagesToMap(messages)
+        val messageDetails = messagesToMap(messages, selectionContext)
         val categoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
 
         for (cfgItem in configModel.enabledMenuItems) {
@@ -353,29 +366,41 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         }
 
         categoryMenus.values.map(add)
+        if (selectionMenu.isNotEmpty()) add(JMenu("Process selection").apply { selectionMenu.map(this::add) })
         add(JMenuItem("Add to queue").apply { addActionListener { queue.add(messages) } })
     }
 
-    private fun messagesToMap(messages: Collection<IHttpRequestResponse>): Map<MessageSource, List<MessageInfo>> {
+    private fun messagesToMap(messages: Collection<IHttpRequestResponse>, selectionContext: Pair<Byte, IntArray>? = null): Map<MessageSource, List<MessageInfo>> {
         val messageDetails = TreeMap<MessageSource, List<MessageInfo>>()
         for (rr in RequestResponse.values()) {
-            val miWithHeaders = ArrayList<MessageInfo>(messages.size)
-            val miWithoutHeaders = ArrayList<MessageInfo>(messages.size)
+            val httpMessages = ArrayList<MessageInfo>(messages.size)
+            val httpBodies = ArrayList<MessageInfo>(messages.size)
+            val selections = ArrayList<MessageInfo>(1)
             messages.forEach {
                 val bytes = rr.getMessage(it) ?: return@forEach
                 val headers = rr.getHeaders(bytes, helpers)
                 val url = try { helpers.analyzeRequest(it).url } catch (_: Exception) { null }
-                miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers, url, it))
+                httpMessages.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers, url, it))
                 val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
                     // if the request has no body, passHeaders=false actions have no use for it
                     val body = bytes.copyOfRange(bo, bytes.size)
-                    miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
+                    httpBodies.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
+                }
+                if (selectionContext != null) {
+                    val (context, bounds) = selectionContext
+                    if (context in rr.contexts) {
+                        val body = bytes.copyOfRange(bounds[0], bounds[1])
+                        selections.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
+                    }
                 }
             }
-            messageDetails[MessageSource(rr, true)] = miWithHeaders
-            if (miWithoutHeaders.isNotEmpty()) {
-                messageDetails[MessageSource(rr, false)] = miWithoutHeaders
+            messageDetails[MessageSource(rr, MessageSource.Region.WHOLE_MESSAGE)] = httpMessages
+            if (httpBodies.isNotEmpty()) {
+                messageDetails[MessageSource(rr, MessageSource.Region.HTTP_BODY)] = httpBodies
+            }
+            if (selections.isNotEmpty()) {
+                messageDetails[MessageSource(rr, MessageSource.Region.SELECTION)] = selections
             }
         }
         return messageDetails
@@ -389,7 +414,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     }
 
     private fun isToolApplicable(tool: Piper.MinimalTool, msrc: MessageSource, md: List<MessageInfo>, mims: MessageInfoMatchStrategy) =
-            tool.cmd.passHeaders == msrc.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)
+            tool.cmd.passHeaders == msrc.region.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)
 
     private class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
 
@@ -442,7 +467,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         private fun addButtons() {
             btnProcess.addActionListener {
                 val pm = JPopupMenu()
-                generateContextMenu(listWidget.selectedValuesList, pm::add, includeCommentators = false)
+                generateContextMenu(listWidget.selectedValuesList, pm::add, selectionContext = null, includeCommentators = false)
                 val b = it.source as Component
                 val loc = b.locationOnScreen
                 pm.show(this, 0, 0)
