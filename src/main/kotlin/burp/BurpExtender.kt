@@ -416,43 +416,45 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     private fun isToolApplicable(tool: Piper.MinimalTool, msrc: MessageSource, md: List<MessageInfo>, mims: MessageInfoMatchStrategy) =
             tool.cmd.passHeaders == msrc.region.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)
 
-    private class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
+    inner class Queue : JPanel(BorderLayout()), ListDataListener, ListSelectionListener {
 
-        private class HttpService(original: IHttpService) : IHttpService {
-            private val host = original.host
-            private val port = original.port
-            private val protocol = original.protocol
+        inner class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
 
-            override fun getHost(): String = host
-            override fun getPort(): Int = port
-            override fun getProtocol(): String = protocol
+            inner class HttpService(original: IHttpService) : IHttpService {
+                private val host = original.host
+                private val port = original.port
+                private val protocol = original.protocol
+
+                override fun getHost(): String = host
+                override fun getPort(): Int = port
+                override fun getProtocol(): String = protocol
+            }
+
+            private val comment = original.comment
+            private val highlight = original.highlight
+            private val httpService = HttpService(original.httpService)
+            private val request = original.request.clone()
+            private val response = original.response.clone()
+
+            override fun getComment(): String = comment
+            override fun getHighlight(): String = highlight
+            override fun getHttpService(): IHttpService = httpService
+            override fun getRequest(): ByteArray = request
+            override fun getResponse(): ByteArray = response
+
+            override fun setComment(comment: String?) {}
+            override fun setHighlight(color: String?) {}
+            override fun setHttpService(httpService: IHttpService?) {}
+            override fun setRequest(message: ByteArray?) {}
+            override fun setResponse(message: ByteArray?) {}
+
+            override fun toString() = toHumanReadable(this)
         }
 
-        private val comment = original.comment
-        private val highlight = original.highlight
-        private val httpService = HttpService(original.httpService)
-        private val request = original.request.clone()
-        private val response = original.response.clone()
-
-        override fun getComment(): String = comment
-        override fun getHighlight(): String = highlight
-        override fun getHttpService(): IHttpService = httpService
-        override fun getRequest(): ByteArray = request
-        override fun getResponse(): ByteArray = response
-
-        override fun setComment(comment: String?) {}
-        override fun setHighlight(color: String?) {}
-        override fun setHttpService(httpService: IHttpService?) {}
-        override fun setRequest(message: ByteArray?) {}
-        override fun setResponse(message: ByteArray?) {}
-    }
-
-    inner class Queue : JPanel(BorderLayout()), ListDataListener, ListCellRenderer<IHttpRequestResponse>, ListSelectionListener {
-        private val model = DefaultListModel<IHttpRequestResponse>()
+        private val model = DefaultListModel<HttpRequestResponse>()
         private val pnToolbar = JPanel()
         private val listWidget = JList(model)
         private val btnProcess = JButton("Process")
-        private val cr = DefaultListCellRenderer()
 
         fun add(values: Iterable<IHttpRequestResponse>) = values.map(::HttpRequestResponse).forEach(model::addElement)
 
@@ -477,12 +479,6 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
             listOf(createRemoveButton(listWidget, model), btnProcess).map(pnToolbar::add)
         }
 
-        override fun getListCellRendererComponent(list: JList<out IHttpRequestResponse>?, value: IHttpRequestResponse, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
-            val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-            cr.text = toHumanReadable(value)
-            return c
-        }
-
         override fun valueChanged(p0: ListSelectionEvent?) { updateBtnEnableDisableState() }
         override fun contentsChanged(p0: ListDataEvent?)   { updateBtnEnableDisableState() }
         override fun intervalAdded  (p0: ListDataEvent?)   { updateBtnEnableDisableState() }
@@ -493,7 +489,6 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         }
 
         init {
-            listWidget.cellRenderer = this
             listWidget.addListSelectionListener(this)
             model.addListDataListener(this)
 
