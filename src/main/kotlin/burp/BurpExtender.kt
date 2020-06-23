@@ -468,15 +468,19 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
 
         private fun addButtons() {
             btnProcess.addActionListener {
-                val pm = JPopupMenu()
-                generateContextMenu(listWidget.selectedValuesList, pm::add, selectionContext = null, includeCommentators = false)
                 val b = it.source as Component
                 val loc = b.locationOnScreen
-                pm.show(this, 0, 0)
-                pm.setLocation(loc.x, loc.y + b.height)
+                showMenu(loc.x, loc.y + b.height)
             }
 
             listOf(createRemoveButton(listWidget, model), btnProcess).map(pnToolbar::add)
+        }
+
+        private fun showMenu(x: Int, y: Int) {
+            val pm = JPopupMenu()
+            generateContextMenu(listWidget.selectedValuesList, pm::add, selectionContext = null, includeCommentators = false)
+            pm.show(this, 0, 0)
+            pm.setLocation(x, y)
         }
 
         override fun valueChanged(p0: ListSelectionEvent?) { updateBtnEnableDisableState() }
