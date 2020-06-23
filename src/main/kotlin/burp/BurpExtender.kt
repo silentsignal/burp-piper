@@ -21,6 +21,8 @@ package burp
 import com.redpois0n.terminal.JTerminal
 import org.zeromq.codec.Z85
 import java.awt.*
+import java.awt.event.MouseEvent
+import java.awt.event.MouseListener
 import java.beans.PropertyChangeListener
 import java.beans.PropertyChangeSupport
 import java.io.File
@@ -416,7 +418,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     private fun isToolApplicable(tool: Piper.MinimalTool, msrc: MessageSource, md: List<MessageInfo>, mims: MessageInfoMatchStrategy) =
             tool.cmd.passHeaders == msrc.region.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)
 
-    inner class Queue : JPanel(BorderLayout()), ListDataListener, ListSelectionListener {
+    inner class Queue : JPanel(BorderLayout()), ListDataListener, ListSelectionListener, MouseListener {
 
         inner class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
 
@@ -483,6 +485,17 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
             pm.setLocation(x, y)
         }
 
+        override fun mouseClicked(event: MouseEvent) {
+            if (event.button == MouseEvent.BUTTON3) {
+                showMenu(event.xOnScreen, event.yOnScreen)
+            }
+        }
+
+        override fun mouseEntered(p0: MouseEvent?) {}
+        override fun mouseExited(p0: MouseEvent?) {}
+        override fun mousePressed(p0: MouseEvent?) {}
+        override fun mouseReleased(p0: MouseEvent?) {}
+
         override fun valueChanged(p0: ListSelectionEvent?) { updateBtnEnableDisableState() }
         override fun contentsChanged(p0: ListDataEvent?)   { updateBtnEnableDisableState() }
         override fun intervalAdded  (p0: ListDataEvent?)   { updateBtnEnableDisableState() }
@@ -494,6 +507,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
 
         init {
             listWidget.addListSelectionListener(this)
+            listWidget.addMouseListener(this)
             model.addListDataListener(this)
 
             addButtons()
