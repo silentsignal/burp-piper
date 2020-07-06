@@ -611,11 +611,18 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
 }
 
 const val CMDLINE_INPUT_FILENAME_PLACEHOLDER = "<INPUT>"
+const val CMDLINE_EMPTY_STRING_PLACEHOLDER = "<EMPTY STRING>"
 
 data class CommandLineParameter(val value: String?) { // null = input file name
     val isInputFileName: Boolean
         get() = value == null
-    override fun toString(): String = if (isInputFileName) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
+    val isEmptyString: Boolean
+        get() = value?.isEmpty() == true
+    override fun toString(): String = when {
+        isInputFileName -> CMDLINE_INPUT_FILENAME_PLACEHOLDER
+        value.isNullOrEmpty() -> CMDLINE_EMPTY_STRING_PLACEHOLDER // empty strings would be rendered as a barely visible 1 to 2 px high item
+        else -> value
+    }
 }
 
 const val PASS_HTTP_HEADERS_NOTE = "<html>Note: if the above checkbox is <font color='red'>unchecked</font>, messages without a body (such as<br>" +
@@ -655,6 +662,9 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
                 if (v.isInputFileName) {
                     c.background = Color.RED
                     c.foreground = if (isSelected) Color.YELLOW else Color.WHITE
+                } else if (v.isEmptyString) {
+                    c.background = Color.YELLOW
+                    c.foreground = if (isSelected) Color.RED else Color.BLUE
                 }
                 return c
             }
@@ -744,7 +754,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
                             btnAdd.doClick()
                             e.consume()
                         }
-                    } else if (e.keyChar == ' ') {
+                    } else if (e.keyChar == ' ' && t.isNotEmpty()) {
                         btnAdd.doClick()
                         e.consume()
                     }
@@ -805,6 +815,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
         val d = tfDependencies.text.replace("\\s".toRegex(), "")
         if (d.isNotEmpty()) addAllRequiredInPath(d.split(','))
         if (paramsModel.isEmpty) throw RuntimeException("The command must contain at least one argument.")
+        if (paramsModel[0].isEmptyString) throw RuntimeException("The first argument (the command) is an empty string")
         val params = paramsModel.map(CommandLineParameter::value)
         addAllPrefix(params.takeWhile(Objects::nonNull))
         if (prefixCount < paramsModel.size) {
