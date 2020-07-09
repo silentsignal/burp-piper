@@ -55,7 +55,7 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
             }
         }
         headers?.filter { it.startsWith("content-type: ", ignoreCase = true) }?.forEach {
-            val parts = it.split(' ')[1].trim(';').split('/')
+            val parts = it.split(' ', ';')[1].split('/')
             val ext = mimeTypes[parts[0]]?.get(parts[1]) ?: return@forEach
             return ".$ext"
         }
