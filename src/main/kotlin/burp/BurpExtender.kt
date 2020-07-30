@@ -21,6 +21,8 @@ package burp
 import com.redpois0n.terminal.JTerminal
 import org.zeromq.codec.Z85
 import java.awt.*
+import java.awt.event.MouseEvent
+import java.awt.event.MouseListener
 import java.beans.PropertyChangeListener
 import java.beans.PropertyChangeSupport
 import java.io.File
@@ -45,7 +47,7 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
         return content to fileExtension
     }
 
-    val fileExtension: String? get() {
+    private val fileExtension: String? get() {
         if (url != null) {
             val match = Regex("\\.[a-z0-9]$", RegexOption.IGNORE_CASE).find(url.path)
             if (match != null) {
@@ -53,12 +55,16 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
             }
         }
         headers?.filter { it.startsWith("content-type: ", ignoreCase = true) }?.forEach {
-            val parts = it.split(' ')[1].trim(';').split('/')
+            val parts = it.split(' ', ';')[1].split('/')
             val ext = mimeTypes[parts[0]]?.get(parts[1]) ?: return@forEach
             return ".$ext"
         }
         return null
     }
+
+    // make sure noone tries to compare such objects since they have an array member
+    override fun equals(other: Any?): Boolean { throw NotImplementedError() }
+    override fun hashCode(): Int { throw NotImplementedError() }
 
     companion object {
         val mimeTypes: Map<String, Map<String, String>>
@@ -74,7 +80,7 @@ data class MessageInfo(val content: ByteArray, val text: String, val headers: Li
     }
 }
 
-class BurpExtender : IBurpExtender, ITab, ListDataListener {
+class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
 
     private lateinit var callbacks: IBurpExtenderCallbacks
     private lateinit var helpers: IExtensionHelpers
@@ -90,7 +96,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             configModel.messageViewersModel, callbacks::removeMessageEditorTabFactory, callbacks::registerMessageEditorTabFactory) {
         override fun isModelItemEnabled(item: Piper.MessageViewer): Boolean = item.common.enabled
 
-        override fun modelToBurp(modelItem: Piper.MessageViewer): IMessageEditorTabFactory = IMessageEditorTabFactory() { _, _ ->
+        override fun modelToBurp(modelItem: Piper.MessageViewer): IMessageEditorTabFactory = IMessageEditorTabFactory { _, _ ->
             if (modelItem.usesColors) TerminalEditor(modelItem, helpers, callbacks)
             else TextEditor(modelItem, helpers, callbacks)
         }
@@ -152,14 +158,17 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
                 registeredInBurp[i] = modelToRegListItem(model[i])
                 remove(currentRegistered ?: continue)
             }
+            saveConfig()
         }
 
         override fun intervalAdded(e: ListDataEvent) {
             for (i in e.index0 .. e.index1) registeredInBurp.add(i, modelToRegListItem(model[i]))
+            saveConfig()
         }
 
         override fun intervalRemoved(e: ListDataEvent) {
             for (i in e.index1 downTo e.index0) remove(registeredInBurp.removeAt(i) ?: continue)
+            saveConfig()
         }
     }
 
@@ -183,13 +192,33 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
             val messages = it.selectedMessages
             if (messages.isNullOrEmpty()) return@registerContextMenuFactory emptyList()
             val topLevel = JMenu(NAME)
-            generateContextMenu(messages.asList(), topLevel::add, includeCommentators = true)
+            val sb = it.selectionBounds
+            val selectionContext = if (sb == null || sb.toSet().size < 2) null else it.invocationContext to sb
+            generateContextMenu(messages.asList(), topLevel::add, selectionContext, includeCommentators = true)
             if (topLevel.subElements.isEmpty()) return@registerContextMenuFactory emptyList()
             return@registerContextMenuFactory Collections.singletonList(topLevel as JMenuItem)
         }
 
         populateTabs(configModel, null)
         callbacks.addSuiteTab(this)
+        callbacks.registerHttpListener(this) // TODO add/remove based on actual demand w.r.t current config
+    }
+
+    override fun processHttpMessage(toolFlag: Int, messageIsRequest: Boolean, messageInfo: IHttpRequestResponse) {
+        if (messageIsRequest || toolFlag != IBurpExtenderCallbacks.TOOL_PROXY) return
+        val messageDetails = messagesToMap(Collections.singleton(messageInfo))
+
+        configModel.enabledCommentators.filter(Piper.Commentator::getApplyWithListener).forEach { cfgItem ->
+            messageDetails.filterApplicable(cfgItem.common).forEach { (_, md) ->
+                performCommentator(cfgItem, md)
+            }
+        }
+
+        configModel.enabledHighlighters.filter(Piper.Highlighter::getApplyWithListener).forEach { cfgItem ->
+            messageDetails.filterApplicable(cfgItem.common).forEach { (_, md) ->
+                performHighlighter(cfgItem, md)
+            }
+        }
     }
 
     private fun Piper.MinimalTool.pipeMessage(rrList: List<RequestResponse>, messageInfo: IHttpRequestResponse, ignoreOutput: Boolean = false) {
@@ -272,152 +301,162 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     override fun getTabCaption(): String = NAME
     override fun getUiComponent(): Component = tabs
 
-    private data class MessageSource(val direction: RequestResponse, val includeHeaders: Boolean) : Comparable<MessageSource> {
+    private data class MessageSource(val direction: RequestResponse, val region: Region) : Comparable<MessageSource> {
+        enum class Region(val includeHeaders: Boolean) {
+            WHOLE_MESSAGE(true),
+            HTTP_BODY(false),
+            SELECTION(false);
+        }
+
         override fun compareTo(other: MessageSource): Int =
-                compareValuesBy(this, other, MessageSource::direction, MessageSource::includeHeaders)
+                compareValuesBy(this, other, MessageSource::direction, MessageSource::region)
     }
 
-    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (Component) -> Component, includeCommentators: Boolean) {
+    private fun generateContextMenu(messages: Collection<IHttpRequestResponse>, add: (Component) -> Component,
+                                    selectionContext: Pair<Byte, IntArray>?, includeCommentators: Boolean) {
         val msize = messages.size
         val plural = if (msize == 1) "" else "s"
+        val selectionMenu = mutableListOf<JMenuItem>()
 
         fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.toLowerCase()}$plural")
 
-        fun EnumMap<RequestResponse, JMenu>.addMenuItemIfNotNull(msrc: MessageSource, child: JMenuItem?) {
-            if (child != null) {
-                this.getOrPut(msrc.direction) { createSubMenu(msrc) }.add(child)
+        fun EnumMap<RequestResponse, JMenu>.addMenuItemIfApplicable(menuItem: Piper.UserActionTool, mv: Piper.MessageViewer?, msrc: MessageSource,
+                                                                    md: List<MessageInfo>) {
+            val (first, second) = if (mv == null) (menuItem.common to null) else (mv.common to menuItem.common)
+            if (!isToolApplicable(first, msrc, md, MessageInfoMatchStrategy.ALL)) return
+            val mi = createMenuItem(first, second)  { performMenuAction(menuItem, md, mv) }
+            if (msrc.region == MessageSource.Region.SELECTION) {
+                selectionMenu.add(mi)
+            } else {
+                this.getOrPut(msrc.direction) { createSubMenu(msrc) }.add(mi)
             }
         }
 
-        val messageDetails = messagesToMap(messages)
+        val messageDetails = messagesToMap(messages, selectionContext)
         val categoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
 
         for (cfgItem in configModel.enabledMenuItems) {
             // TODO check dependencies
             if ((cfgItem.maxInputs != 0 && cfgItem.maxInputs < msize) || cfgItem.minInputs > msize) continue
             for ((msrc, md) in messageDetails) {
-                val menuItem = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ALL) { performMenuAction(cfgItem, md) }
-                categoryMenus.addMenuItemIfNotNull(msrc, menuItem)
+                categoryMenus.addMenuItemIfApplicable(cfgItem, null, msrc, md)
                 if (!cfgItem.common.cmd.passHeaders && !cfgItem.common.hasFilter() && !cfgItem.avoidPipe) {
                     configModel.enabledMessageViewers.forEach { mv ->
-                        categoryMenus.addMenuItemIfNotNull(msrc, createMenuItem(mv.common, cfgItem.common, msrc, md, MessageInfoMatchStrategy.ALL) {
-                            performMenuAction(cfgItem, md, mv)
-                        })
+                        categoryMenus.addMenuItemIfApplicable(cfgItem, mv, msrc, md)
                     }
                 }
             }
         }
 
-        val commentatorCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
-        val highlighterCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
+        fun <E> addMessageAnnotatorMenuItems(source: List<E>, common: (E) -> Piper.MinimalTool, action: (E, List<MessageInfo>) -> Unit) {
+            val childCategoryMenus = EnumMap<RequestResponse, JMenu>(RequestResponse::class.java)
+
+            source.forEach { cfgItem ->
+                messageDetails.filterApplicable(common(cfgItem)).forEach {(msrc, md) ->
+                    val childMenu = childCategoryMenus.getOrPut(msrc.direction) {
+                        categoryMenus[msrc.direction]?.apply { addSeparator() }
+                                ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
+                    }
+                    childMenu.add(createMenuItem(common(cfgItem), null) { action(cfgItem, md) })
+                }
+            }
+        }
 
         if (includeCommentators) {
-            configModel.enabledCommentators.forEach { cfgItem ->
-                messageDetails.forEach { (msrc, md) ->
-                    val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
-                        performCommentator(cfgItem, md)
-                    }
-                    if (item != null) {
-                        val commentatorMenu = commentatorCategoryMenus.getOrPut(msrc.direction) {
-                            categoryMenus[msrc.direction]?.apply { addSeparator() }
-                                    ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
-                        }
-                        commentatorMenu.add(item)
-                    }
-                }
-            }
-
-            configModel.enabledHighlighters.forEach { cfgItem ->
-                messageDetails.forEach { (msrc, md) ->
-                    val item = createMenuItem(cfgItem.common, null, msrc, md, MessageInfoMatchStrategy.ANY) {
-                        performHighlighter(cfgItem, md)
-                    }
-                    if (item != null) {
-                        val highlighterMenu = highlighterCategoryMenus.getOrPut(msrc.direction) {
-                            categoryMenus[msrc.direction]?.apply { addSeparator() }
-                                    ?: createSubMenu(msrc).apply { categoryMenus[msrc.direction] = this }
-                        }
-                        highlighterMenu.add(item)
-                    }
-                }
-            }
+            addMessageAnnotatorMenuItems(configModel.enabledCommentators, Piper.Commentator::getCommon, ::performCommentator)
+            addMessageAnnotatorMenuItems(configModel.enabledHighlighters, Piper.Highlighter::getCommon, ::performHighlighter)
         }
 
         categoryMenus.values.map(add)
+        if (selectionMenu.isNotEmpty()) add(JMenu("Process selection").apply { selectionMenu.map(this::add) })
         add(JMenuItem("Add to queue").apply { addActionListener { queue.add(messages) } })
     }
 
-    private fun messagesToMap(messages: Collection<IHttpRequestResponse>): Map<MessageSource, List<MessageInfo>> {
+    private fun messagesToMap(messages: Collection<IHttpRequestResponse>, selectionContext: Pair<Byte, IntArray>? = null): Map<MessageSource, List<MessageInfo>> {
         val messageDetails = TreeMap<MessageSource, List<MessageInfo>>()
         for (rr in RequestResponse.values()) {
-            val miWithHeaders = ArrayList<MessageInfo>(messages.size)
-            val miWithoutHeaders = ArrayList<MessageInfo>(messages.size)
+            val httpMessages = ArrayList<MessageInfo>(messages.size)
+            val httpBodies = ArrayList<MessageInfo>(messages.size)
+            val selections = ArrayList<MessageInfo>(1)
             messages.forEach {
                 val bytes = rr.getMessage(it) ?: return@forEach
                 val headers = rr.getHeaders(bytes, helpers)
                 val url = try { helpers.analyzeRequest(it).url } catch (_: Exception) { null }
-                miWithHeaders.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers, url, it))
+                httpMessages.add(MessageInfo(bytes, helpers.bytesToString(bytes), headers, url, it))
                 val bo = rr.getBodyOffset(bytes, helpers)
                 if (bo < bytes.size - 1) {
                     // if the request has no body, passHeaders=false actions have no use for it
                     val body = bytes.copyOfRange(bo, bytes.size)
-                    miWithoutHeaders.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
+                    httpBodies.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
+                }
+                if (selectionContext != null) {
+                    val (context, bounds) = selectionContext
+                    if (context in rr.contexts) {
+                        val body = bytes.copyOfRange(bounds[0], bounds[1])
+                        selections.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
+                    }
                 }
             }
-            messageDetails[MessageSource(rr, true)] = miWithHeaders
-            if (miWithoutHeaders.isNotEmpty()) {
-                messageDetails[MessageSource(rr, false)] = miWithoutHeaders
+            messageDetails[MessageSource(rr, MessageSource.Region.WHOLE_MESSAGE)] = httpMessages
+            if (httpBodies.isNotEmpty()) {
+                messageDetails[MessageSource(rr, MessageSource.Region.HTTP_BODY)] = httpBodies
+            }
+            if (selections.isNotEmpty()) {
+                messageDetails[MessageSource(rr, MessageSource.Region.SELECTION)] = selections
             }
         }
         return messageDetails
     }
 
-    private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, msrc: MessageSource,
-                               md: List<MessageInfo>, mims: MessageInfoMatchStrategy, action: () -> Unit): JMenuItem? {
-        if (tool.cmd.passHeaders == msrc.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)) {
-            return JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}")).apply {
-                addActionListener { action() }
-            }
-        } else return null
+    private fun createMenuItem(tool: Piper.MinimalTool, pipe: Piper.MinimalTool?, action: () -> Unit) =
+            JMenuItem(tool.name + (if (pipe == null) "" else " | ${pipe.name}")).apply { addActionListener { action() } }
+
+    private fun Map<MessageSource, List<MessageInfo>>.filterApplicable(tool: Piper.MinimalTool): Map<MessageSource, List<MessageInfo>> = filter {
+        (msrc, md) -> isToolApplicable(tool, msrc, md, MessageInfoMatchStrategy.ANY)
     }
 
-    private class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
+    private fun isToolApplicable(tool: Piper.MinimalTool, msrc: MessageSource, md: List<MessageInfo>, mims: MessageInfoMatchStrategy) =
+            tool.cmd.passHeaders == msrc.region.includeHeaders && tool.isInToolScope(msrc.direction.isRequest) && tool.canProcess(md, mims, helpers, callbacks)
 
-        private class HttpService(original: IHttpService) : IHttpService {
-            private val host = original.host
-            private val port = original.port
-            private val protocol = original.protocol
+    inner class Queue : JPanel(BorderLayout()), ListDataListener, ListSelectionListener, MouseListener {
 
-            override fun getHost(): String = host
-            override fun getPort(): Int = port
-            override fun getProtocol(): String = protocol
+        inner class HttpRequestResponse(original: IHttpRequestResponse) : IHttpRequestResponse {
+
+            inner class HttpService(original: IHttpService) : IHttpService {
+                private val host = original.host
+                private val port = original.port
+                private val protocol = original.protocol
+
+                override fun getHost(): String = host
+                override fun getPort(): Int = port
+                override fun getProtocol(): String = protocol
+            }
+
+            private val comment = original.comment
+            private val highlight = original.highlight
+            private val httpService = HttpService(original.httpService)
+            private val request = original.request.clone()
+            private val response = original.response.clone()
+
+            override fun getComment(): String = comment
+            override fun getHighlight(): String = highlight
+            override fun getHttpService(): IHttpService = httpService
+            override fun getRequest(): ByteArray = request
+            override fun getResponse(): ByteArray = response
+
+            override fun setComment(comment: String?) {}
+            override fun setHighlight(color: String?) {}
+            override fun setHttpService(httpService: IHttpService?) {}
+            override fun setRequest(message: ByteArray?) {}
+            override fun setResponse(message: ByteArray?) {}
+
+            override fun toString() = toHumanReadable(this)
         }
 
-        private val comment = original.comment
-        private val highlight = original.highlight
-        private val httpService = HttpService(original.httpService)
-        private val request = original.request.clone()
-        private val response = original.response.clone()
-
-        override fun getComment(): String = comment
-        override fun getHighlight(): String = highlight
-        override fun getHttpService(): IHttpService = httpService
-        override fun getRequest(): ByteArray = request
-        override fun getResponse(): ByteArray = response
-
-        override fun setComment(comment: String?) {}
-        override fun setHighlight(color: String?) {}
-        override fun setHttpService(httpService: IHttpService?) {}
-        override fun setRequest(message: ByteArray?) {}
-        override fun setResponse(message: ByteArray?) {}
-    }
-
-    inner class Queue : JPanel(BorderLayout()), ListDataListener, ListCellRenderer<IHttpRequestResponse>, ListSelectionListener {
-        private val model = DefaultListModel<IHttpRequestResponse>()
+        private val model = DefaultListModel<HttpRequestResponse>()
         private val pnToolbar = JPanel()
         private val listWidget = JList(model)
         private val btnProcess = JButton("Process")
-        private val cr = DefaultListCellRenderer()
 
         fun add(values: Iterable<IHttpRequestResponse>) = values.map(::HttpRequestResponse).forEach(model::addElement)
 
@@ -431,22 +470,31 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
 
         private fun addButtons() {
             btnProcess.addActionListener {
-                val pm = JPopupMenu()
-                generateContextMenu(listWidget.selectedValuesList, pm::add, includeCommentators = false)
                 val b = it.source as Component
                 val loc = b.locationOnScreen
-                pm.show(this, 0, 0)
-                pm.setLocation(loc.x, loc.y + b.height)
+                showMenu(loc.x, loc.y + b.height)
             }
 
             listOf(createRemoveButton(listWidget, model), btnProcess).map(pnToolbar::add)
         }
 
-        override fun getListCellRendererComponent(list: JList<out IHttpRequestResponse>?, value: IHttpRequestResponse, index: Int, isSelected: Boolean, cellHasFocus: Boolean): Component {
-            val c = cr.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus)
-            cr.text = toHumanReadable(value)
-            return c
+        private fun showMenu(x: Int, y: Int) {
+            val pm = JPopupMenu()
+            generateContextMenu(listWidget.selectedValuesList, pm::add, selectionContext = null, includeCommentators = false)
+            pm.show(this, 0, 0)
+            pm.setLocation(x, y)
         }
+
+        override fun mouseClicked(event: MouseEvent) {
+            if (event.button == MouseEvent.BUTTON3) {
+                showMenu(event.xOnScreen, event.yOnScreen)
+            }
+        }
+
+        override fun mouseEntered(p0: MouseEvent?) {}
+        override fun mouseExited(p0: MouseEvent?) {}
+        override fun mousePressed(p0: MouseEvent?) {}
+        override fun mouseReleased(p0: MouseEvent?) {}
 
         override fun valueChanged(p0: ListSelectionEvent?) { updateBtnEnableDisableState() }
         override fun contentsChanged(p0: ListDataEvent?)   { updateBtnEnableDisableState() }
@@ -458,8 +506,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
         }
 
         init {
-            listWidget.cellRenderer = this
             listWidget.addListSelectionListener(this)
+            listWidget.addMouseListener(this)
             model.addListDataListener(this)
 
             addButtons()
@@ -487,7 +535,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener {
     }
 
     private fun performMenuAction(cfgItem: Piper.UserActionTool, messages: List<MessageInfo>,
-                                  messageViewer: Piper.MessageViewer? = null) {
+                                  messageViewer: Piper.MessageViewer?) {
         thread {
             val (input, tools) = if (messageViewer == null) {
                 messages.map(MessageInfo::asContentExtensionPair) to Collections.singletonList(cfgItem.common)

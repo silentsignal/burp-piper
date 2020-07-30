@@ -184,7 +184,7 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
     })
 }
 
-class CancelClosingWindow() : RuntimeException()
+class CancelClosingWindow : RuntimeException()
 
 class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window,
                         showPassHeaders: Boolean, purpose: CommandInvocationPurpose, showScope: Boolean) {
@@ -462,10 +462,12 @@ class CommentatorDialog(private val commentator: Piper.Commentator, parent: Comp
         MinimalToolDialog<Piper.Commentator>(commentator.common, parent, "commentator", showScope = true) {
 
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite comments on items that already have one", commentator.overwrite, panel, cs)
+    private val cbListener: JCheckBox = createFullWidthCheckBox("Continuously apply to future requests/responses", commentator.applyWithListener, panel, cs)
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.Commentator = Piper.Commentator.newBuilder().apply {
         common = mt
         if (cbOverwrite.isSelected) overwrite = true
+        if (cbListener.isSelected) applyWithListener = true
     }.build()
 
     override fun buildEnabled(value: Boolean): Piper.Commentator = commentator.buildEnabled(value)
@@ -475,6 +477,7 @@ class HighlighterDialog(private val highlighter: Piper.Highlighter, parent: Comp
         MinimalToolDialog<Piper.Highlighter>(highlighter.common, parent, "highlighter", showScope = true) {
 
     private val cbOverwrite: JCheckBox = createFullWidthCheckBox("Overwrite highlight on items that already have one", highlighter.overwrite, panel, cs)
+    private val cbListener: JCheckBox = createFullWidthCheckBox("Continuously apply to future requests/responses", highlighter.applyWithListener, panel, cs)
     private val cbColor = createLabeledWidget("Set highlight to ", JComboBox(Highlight.values()), panel, cs)
 
     init {
@@ -497,6 +500,7 @@ class HighlighterDialog(private val highlighter: Piper.Highlighter, parent: Comp
         common = mt
         color = cbColor.selectedItem.toString()
         if (cbOverwrite.isSelected) overwrite = true
+        if (cbListener.isSelected) applyWithListener = true
     }.build()
 
     override fun buildEnabled(value: Boolean): Piper.Highlighter = highlighter.buildEnabled(value)
@@ -607,12 +611,22 @@ class HeaderMatchDialog(hm: Piper.HeaderMatch, parent: Component) : ConfigDialog
 }
 
 const val CMDLINE_INPUT_FILENAME_PLACEHOLDER = "<INPUT>"
+const val CMDLINE_EMPTY_STRING_PLACEHOLDER = "<EMPTY STRING>"
 
 data class CommandLineParameter(val value: String?) { // null = input file name
     val isInputFileName: Boolean
         get() = value == null
-    override fun toString(): String = if (isInputFileName) CMDLINE_INPUT_FILENAME_PLACEHOLDER else value!!
+    val isEmptyString: Boolean
+        get() = value?.isEmpty() == true
+    override fun toString(): String = when {
+        isInputFileName -> CMDLINE_INPUT_FILENAME_PLACEHOLDER
+        value.isNullOrEmpty() -> CMDLINE_EMPTY_STRING_PLACEHOLDER // empty strings would be rendered as a barely visible 1 to 2 px high item
+        else -> value
+    }
 }
+
+const val PASS_HTTP_HEADERS_NOTE = "<html>Note: if the above checkbox is <font color='red'>unchecked</font>, messages without a body (such as<br>" +
+        "GET/HEAD requests or 204 No Content responses) are <font color='red'>ignored by this tool</font>.</html>"
 
 class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: CommandInvocationPurpose, parent: Component,
                               showPassHeaders: Boolean) : ConfigDialog<Piper.CommandInvocation>(parent, "Command invocation editor") {
@@ -648,6 +662,9 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
                 if (v.isInputFileName) {
                     c.background = Color.RED
                     c.foreground = if (isSelected) Color.YELLOW else Color.WHITE
+                } else if (v.isEmptyString) {
+                    c.background = Color.YELLOW
+                    c.foreground = if (isSelected) Color.RED else Color.BLUE
                 }
                 return c
             }
@@ -737,7 +754,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
                             btnAdd.doClick()
                             e.consume()
                         }
-                    } else if (e.keyChar == ' ') {
+                    } else if (e.keyChar == ' ' && t.isNotEmpty()) {
                         btnAdd.doClick()
                         e.consume()
                     }
@@ -749,7 +766,11 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
 
         InputMethodWidget.create(this, panel, cs, hasFileName, paramsModel)
 
-        cbPassHeaders = if (showPassHeaders) createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs) else null
+        cbPassHeaders = if (showPassHeaders) {
+            val cb = createFullWidthCheckBox("Pass HTTP headers to command", ci.passHeaders, panel, cs)
+            addFullWidthComponent(JLabel(PASS_HTTP_HEADERS_NOTE), panel, cs)
+            cb
+        } else null
 
         addFullWidthComponent(JLabel("Binaries required in PATH: (comma separated)"), panel, cs)
         addFullWidthComponent(tfDependencies, panel, cs)
@@ -794,6 +815,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
         val d = tfDependencies.text.replace("\\s".toRegex(), "")
         if (d.isNotEmpty()) addAllRequiredInPath(d.split(','))
         if (paramsModel.isEmpty) throw RuntimeException("The command must contain at least one argument.")
+        if (paramsModel[0].isEmptyString) throw RuntimeException("The first argument (the command) is an empty string")
         val params = paramsModel.map(CommandLineParameter::value)
         addAllPrefix(params.takeWhile(Objects::nonNull))
         if (prefixCount < paramsModel.size) {

@@ -6,6 +6,7 @@ import java.awt.Color
 import java.util.*
 import java.util.regex.Pattern
 
+@Suppress("UNUSED", "SpellCheckingInspection")
 enum class RegExpFlag {
     CASE_INSENSITIVE, MULTILINE, DOTALL, UNICODE_CASE, CANON_EQ,
     UNIX_LINES, LITERAL, UNICODE_CHARACTER_CLASS, COMMENTS;
@@ -17,8 +18,9 @@ enum class RegExpFlag {
     }
 }
 
-enum class RequestResponse(val isRequest: Boolean) {
-    REQUEST(isRequest = true) {
+enum class RequestResponse(val isRequest: Boolean, val contexts: Set<Byte>) {
+    REQUEST(isRequest = true, contexts = setOf(IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_REQUEST,
+            IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_REQUEST)) {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.request
 
         override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
@@ -32,7 +34,8 @@ enum class RequestResponse(val isRequest: Boolean) {
                 helpers.analyzeRequest(data).headers
     },
 
-    RESPONSE(isRequest = false) {
+    RESPONSE(isRequest = false, contexts = setOf(IContextMenuInvocation.CONTEXT_MESSAGE_EDITOR_RESPONSE,
+            IContextMenuInvocation.CONTEXT_MESSAGE_VIEWER_RESPONSE)) {
         override fun getMessage(rr: IHttpRequestResponse): ByteArray? = rr.response
 
         override fun setMessage(rr: IHttpRequestResponse, value: ByteArray) {
@@ -56,6 +59,7 @@ enum class RequestResponse(val isRequest: Boolean) {
     }
 }
 
+@Suppress("SpellCheckingInspection")
 enum class BurpTool {
     SUITE, TARGET, PROXY, SPIDER, SCANNER, INTRUDER, REPEATER, SEQUENCER, DECODER, COMPARER, EXTENDER;
 
@@ -90,7 +94,7 @@ enum class Highlight(val color: Color?, val textColor: Color = Color.BLACK) {
     val burpValue: String? get() = if (color == null) null else toString()
 
     companion object {
-        private val lookupTable = Highlight.values().associateBy(Highlight::toString)
+        private val lookupTable = values().associateBy(Highlight::toString)
 
         fun fromString(value: String): Highlight? = lookupTable[value]
     }

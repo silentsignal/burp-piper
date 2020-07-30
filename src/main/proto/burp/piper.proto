@@ -100,12 +100,14 @@ message Commentator {
     MinimalTool common = 1;
     // 2 was RequestResponse
     bool overwrite = 3;
+    bool applyWithListener = 4;
 }
 
 message Highlighter {
     MinimalTool common = 1;
     string color = 2;
     bool overwrite = 3;
+    bool applyWithListener = 4;
 }
 
 message Config {
