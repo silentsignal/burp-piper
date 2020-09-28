@@ -86,7 +86,7 @@ menuItems:
   name: radiff2 (two column hexdump diffing)
   minInputs: 2
   maxInputs: 2
-- prefix: [sh, -c, dos2unix | xclip]
+- prefix: [sh, -c, dos2unix | xclip -selection clipboard]
   inputMethod: stdin
   passHeaders: true
   requiredInPath: [dos2unix, xclip]
