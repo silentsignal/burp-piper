@@ -569,6 +569,14 @@ class IntruderPayloadProcessorDialog(private val ipp: Piper.MinimalTool, parent:
     override fun buildEnabled(value: Boolean): Piper.MinimalTool = ipp.buildEnabled(value)
 }
 
+class IntruderPayloadGeneratorDialog(private val ipp: Piper.MinimalTool, parent: Component?) :
+        MinimalToolDialog<Piper.MinimalTool>(ipp, parent, "Intruder payload generator",
+                showPassHeaders = false, showFilter = false) {
+
+    override fun processGUI(mt: Piper.MinimalTool): Piper.MinimalTool = mt
+    override fun buildEnabled(value: Boolean): Piper.MinimalTool = ipp.buildEnabled(value)
+}
+
 class MacroDialog(private val macro: Piper.MinimalTool, parent: Component?) :
         MinimalToolDialog<Piper.MinimalTool>(macro, parent, "macro") {
 

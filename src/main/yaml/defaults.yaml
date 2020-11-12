@@ -110,3 +110,10 @@ commentators:
 - prefix: [sha256sum]
   inputMethod: stdin
   name: SHA-256
+intruderPayloadGenerators:
+- prefix: [seq, '5']
+  inputMethod: stdin
+  name: seq
+- prefix: [python3, /path/to/exrex.py, 'foobar[a-c]{1,2}[0-9]']
+  inputMethod: stdin
+  name: exrex
