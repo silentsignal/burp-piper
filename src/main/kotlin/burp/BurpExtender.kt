@@ -25,6 +25,7 @@ import java.awt.event.MouseEvent
 import java.awt.event.MouseListener
 import java.beans.PropertyChangeListener
 import java.beans.PropertyChangeSupport
+import java.io.BufferedReader
 import java.io.File
 import java.net.URL
 import java.time.LocalDateTime
@@ -140,6 +141,49 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         }
     }
 
+    private inner class IntruderPayloadGeneratorManager : RegisteredToolManager<Piper.MinimalTool, IIntruderPayloadGeneratorFactory>(
+            configModel.intruderPayloadGeneratorsModel, callbacks::removeIntruderPayloadGeneratorFactory, callbacks::registerIntruderPayloadGeneratorFactory) {
+        override fun isModelItemEnabled(item: Piper.MinimalTool): Boolean = item.enabled
+
+        override fun modelToBurp(modelItem: Piper.MinimalTool): IIntruderPayloadGeneratorFactory = object : IIntruderPayloadGeneratorFactory {
+            override fun createNewInstance(attack: IIntruderAttack?): IIntruderPayloadGenerator {
+                return object : IIntruderPayloadGenerator {
+                    var process: Process? = null
+                    var reader: BufferedReader? = null
+
+                    override fun reset() {
+                        reader?.close()
+                        process?.destroy()
+                        process = null
+                        reader = null
+                    }
+
+                    override fun getNextPayload(baseValue: ByteArray?): ByteArray =
+                            stdout.readLine().toByteArray(charset = Charsets.ISO_8859_1)
+
+                    override fun hasMorePayloads(): Boolean {
+                        val p = process
+                        return p == null || p.isAlive || stdout.ready()
+                    }
+
+                    private val stdout: BufferedReader
+                        get() {
+                            val currentReader = reader
+                            return if (currentReader == null) {
+                                val p = modelItem.cmd.execute(ByteArray(0)).first
+                                process = p
+                                val newReader = p.inputStream.bufferedReader(charset = Charsets.ISO_8859_1)
+                                reader = newReader
+                                newReader
+                            } else currentReader
+                        }
+                }
+            }
+
+            override fun getGeneratorName(): String = modelItem.name
+        }
+    }
+
     private abstract inner class RegisteredToolManager<M, B>(private val model: DefaultListModel<M>,
                                                     private val remove: (B) -> Unit,
                                                     private val add: (B) -> Unit) : ListDataListener {
@@ -184,6 +228,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         configModel.macrosModel.addListDataListener(MacroManager())
         configModel.httpListenersModel.addListDataListener(HttpListenerManager())
         configModel.intruderPayloadProcessorsModel.addListDataListener(IntruderPayloadProcessorManager())
+        configModel.intruderPayloadGeneratorsModel.addListDataListener(IntruderPayloadGeneratorManager())
 
         configModel.addPropertyChangeListener(PropertyChangeListener { saveConfig() })
 
@@ -283,6 +328,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
                 ::CommentatorDialog, Piper.Commentator::getDefaultInstance, ::commentatorFromMap, Piper.Commentator::toMap))
         tabs.addTab("Intruder payload processors", MinimalToolListEditor(cfg.intruderPayloadProcessorsModel, parent,
                 ::IntruderPayloadProcessorDialog, Piper.MinimalTool::getDefaultInstance, ::minimalToolFromMap, Piper.MinimalTool::toMap))
+        tabs.addTab("Intruder payload generators", MinimalToolListEditor(cfg.intruderPayloadGeneratorsModel, parent,
+                ::IntruderPayloadGeneratorDialog, Piper.MinimalTool::getDefaultInstance, ::minimalToolFromMap, Piper.MinimalTool::toMap))
         tabs.addTab("Highlighters", MinimalToolListEditor(cfg.highlightersModel, parent,
                 ::HighlighterDialog, Piper.Highlighter::getDefaultInstance, ::highlighterFromMap, Piper.Highlighter::toMap))
         tabs.addTab("Queue", queue)
@@ -623,6 +670,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
     val commentatorsModel = DefaultListModel<Piper.Commentator>()
     val intruderPayloadProcessorsModel = DefaultListModel<Piper.MinimalTool>()
     val highlightersModel = DefaultListModel<Piper.Highlighter>()
+    val intruderPayloadGeneratorsModel = DefaultListModel<Piper.MinimalTool>()
 
     private var _developer = config.developer
     var developer: Boolean
@@ -647,6 +695,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
         fillDefaultModel(config.commentatorList,                           commentatorsModel)
         fillDefaultModel(config.intruderPayloadProcessorList, intruderPayloadProcessorsModel)
         fillDefaultModel(config.highlighterList,                           highlightersModel)
+        fillDefaultModel(config.intruderPayloadGeneratorList, intruderPayloadGeneratorsModel)
     }
 
     fun serialize(): Piper.Config = Piper.Config.newBuilder()
@@ -657,6 +706,7 @@ class ConfigModel(config: Piper.Config = Piper.Config.getDefaultInstance()) {
             .addAllCommentator(commentatorsModel.toIterable())
             .addAllIntruderPayloadProcessor(intruderPayloadProcessorsModel.toIterable())
             .addAllHighlighter(highlightersModel.toIterable())
+            .addAllIntruderPayloadGenerator(intruderPayloadGeneratorsModel.toIterable())
             .setDeveloper(developer)
             .build()
 }

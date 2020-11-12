@@ -20,6 +20,7 @@ fun configFromYaml(value: String): Piper.Config {
         copyListOfStructured("commentators", b::addCommentator, ::commentatorFromMap)
         copyListOfStructured("intruderPayloadProcessors", b::addIntruderPayloadProcessor, ::minimalToolFromMap)
         copyListOfStructured("highlighters", b::addHighlighter, ::highlighterFromMap)
+        copyListOfStructured("intruderPayloadGenerators", b::addIntruderPayloadGenerator, ::minimalToolFromMap)
     }
     return b.build()
 }
@@ -239,6 +240,7 @@ fun Piper.Config.toSettings(): Map<String, Any> = mutableMapOf<String, Any>().ap
     add("intruderPayloadProcessors", intruderPayloadProcessorList, Piper.MinimalTool::toMap)
     add("httpListeners", httpListenerList, Piper.HttpListener::toMap)
     add("commentators", commentatorList, Piper.Commentator::toMap)
+    add("intruderPayloadGenerators", intruderPayloadGeneratorList, Piper.MinimalTool::toMap)
 }
 
 fun <E> MutableMap<String, Any>.add(key: String, value: List<E>, transform: (E) -> Any) {

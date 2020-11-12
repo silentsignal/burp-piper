@@ -86,7 +86,7 @@ menuItems:
   name: radiff2 (two column hexdump diffing)
   minInputs: 2
   maxInputs: 2
-- prefix: [sh, -c, dos2unix | xclip]
+- prefix: [sh, -c, dos2unix | xclip -selection clipboard]
   inputMethod: stdin
   passHeaders: true
   requiredInPath: [dos2unix, xclip]
@@ -110,3 +110,15 @@ commentators:
 - prefix: [sha256sum]
   inputMethod: stdin
   name: SHA-256
+intruderPayloadProcessors:
+- prefix: [sh, -c, dd if=/dev/urandom of=/dev/stdout bs=1 count=`shuf -i1-100 -n1` status=none]
+  inputMethod: stdin
+  requiredInPath: [dd, shuf]
+  name: replace with /dev/urandom
+intruderPayloadGenerators:
+- prefix: [seq, '5']
+  inputMethod: stdin
+  name: seq
+- prefix: [python3, /path/to/exrex.py, 'foobar[a-c]{1,2}[0-9]']
+  inputMethod: stdin
+  name: exrex

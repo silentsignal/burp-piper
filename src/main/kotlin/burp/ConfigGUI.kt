@@ -187,7 +187,7 @@ fun <E> JList<E>.addDoubleClickListener(listener: (Int) -> Unit) {
 class CancelClosingWindow : RuntimeException()
 
 class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, cs: GridBagConstraints, w: Window,
-                        showPassHeaders: Boolean, purpose: CommandInvocationPurpose, showScope: Boolean) {
+                        showPassHeaders: Boolean, purpose: CommandInvocationPurpose, showScope: Boolean, showFilter: Boolean) {
     private val tfName = createLabeledTextField("Name: ", tool.name, panel, cs)
     private val lsScope: JComboBox<ConfigMinimalToolScope>? = if (showScope) createLabeledWidget("Can handle... ",
             JComboBox(ConfigMinimalToolScope.values()).apply { selectedItem = ConfigMinimalToolScope.fromScope(tool.scope) }, panel, cs) else null
@@ -221,7 +221,7 @@ class MinimalToolWidget(tool: Piper.MinimalTool, private val panel: Container, c
     }
 
     init {
-        ccmw.buildGUI(panel, cs)
+        if (showFilter) ccmw.buildGUI(panel, cs)
         cciw.buildGUI(panel, cs)
         cbEnabled = createFullWidthCheckBox("Enabled", tool.enabled, panel, cs)
     }
@@ -394,10 +394,11 @@ abstract class ConfigDialog<E>(private val parent: Component?, private val capti
 
 abstract class MinimalToolDialog<E>(private val common: Piper.MinimalTool, parent: Component?, noun: String,
                                     showPassHeaders: Boolean = true, showScope: Boolean = false,
+                                    showFilter: Boolean = true,
                                     purpose: CommandInvocationPurpose = CommandInvocationPurpose.SELF_FILTER) :
         ConfigDialog<E>(parent, if (common.name.isEmpty()) "Add $noun" else "Edit $noun \"${common.name}\"") {
     private val mtw = MinimalToolWidget(common, panel, cs, this, showPassHeaders = showPassHeaders,
-            purpose = purpose, showScope = showScope)
+            purpose = purpose, showScope = showScope, showFilter = showFilter)
 
     override fun processGUI(): E = processGUI(mtw.toMinimalTool())
 
@@ -563,6 +564,14 @@ private fun createSpinner(caption: String, initial: Int, minimum: Int, panel: Co
 
 class IntruderPayloadProcessorDialog(private val ipp: Piper.MinimalTool, parent: Component?) :
         MinimalToolDialog<Piper.MinimalTool>(ipp, parent, "Intruder payload processor", showPassHeaders = false) {
+
+    override fun processGUI(mt: Piper.MinimalTool): Piper.MinimalTool = mt
+    override fun buildEnabled(value: Boolean): Piper.MinimalTool = ipp.buildEnabled(value)
+}
+
+class IntruderPayloadGeneratorDialog(private val ipp: Piper.MinimalTool, parent: Component?) :
+        MinimalToolDialog<Piper.MinimalTool>(ipp, parent, "Intruder payload generator",
+                showPassHeaders = false, showFilter = false) {
 
     override fun processGUI(mt: Piper.MinimalTool): Piper.MinimalTool = mt
     override fun buildEnabled(value: Boolean): Piper.MinimalTool = ipp.buildEnabled(value)

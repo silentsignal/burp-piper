@@ -119,6 +119,7 @@ message Config {
     bool developer = 6;
     repeated MinimalTool intruderPayloadProcessor = 7;
     repeated Highlighter highlighter = 8;
+    repeated MinimalTool intruderPayloadGenerator = 9;
 }
 
 message MimeTypes {
