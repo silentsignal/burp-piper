@@ -110,6 +110,11 @@ commentators:
 - prefix: [sha256sum]
   inputMethod: stdin
   name: SHA-256
+intruderPayloadProcessors:
+- prefix: [sh, -c, dd if=/dev/urandom of=/dev/stdout bs=1 count=`shuf -i1-100 -n1` status=none]
+  inputMethod: stdin
+  requiredInPath: [dd, shuf]
+  name: replace with /dev/urandom
 intruderPayloadGenerators:
 - prefix: [seq, '5']
   inputMethod: stdin
