@@ -3,10 +3,10 @@ ExtensionType: 1
 Name: Piper
 RepoName: piper
 ScreenVersion: 0.7
-SerialVersion: 8
+SerialVersion: 9
 MinPlatformVersion: 0
 ProOnly: False
 Author: Andras Veres-Szentkiralyi
 ShortDescription: Easily integrate external tools into Burp
 EntryPoint: build/libs/piper.jar
-BuildCommand: ./gradlew build
+BuildCommand: ./gradlew build -x test
