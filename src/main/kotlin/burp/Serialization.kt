@@ -240,6 +240,7 @@ fun Piper.Config.toSettings(): Map<String, Any> = mutableMapOf<String, Any>().ap
     add("intruderPayloadProcessors", intruderPayloadProcessorList, Piper.MinimalTool::toMap)
     add("httpListeners", httpListenerList, Piper.HttpListener::toMap)
     add("commentators", commentatorList, Piper.Commentator::toMap)
+    add("highlighters", highlighterList, Piper.Highlighter::toMap)
     add("intruderPayloadGenerators", intruderPayloadGeneratorList, Piper.MinimalTool::toMap)
 }
 
