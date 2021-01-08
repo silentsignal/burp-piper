@@ -248,3 +248,16 @@ fun Window.repack() {
     val loc = location
     setLocation(loc.x + ((oldWidth - width) / 2), loc.y)
 }
+
+fun Piper.Config.updateEnabled(value: Boolean): Piper.Config {
+    return Piper.Config.newBuilder()
+            .addAllMacro                   (macroList                   .map { it.buildEnabled(value) })
+            .addAllMenuItem                (menuItemList                .map { it.buildEnabled(value) })
+            .addAllMessageViewer           (messageViewerList           .map { it.buildEnabled(value) })
+            .addAllHttpListener            (httpListenerList            .map { it.buildEnabled(value) })
+            .addAllCommentator             (commentatorList             .map { it.buildEnabled(value) })
+            .addAllIntruderPayloadProcessor(intruderPayloadProcessorList.map { it.buildEnabled(value) })
+            .addAllIntruderPayloadGenerator(intruderPayloadGeneratorList.map { it.buildEnabled(value) })
+            .addAllHighlighter             (highlighterList             .map { it.buildEnabled(value) })
+            .build()
+}

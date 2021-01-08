@@ -751,16 +751,8 @@ private fun importConfig(fmt: ConfigFormat, cfg: ConfigModel, parent: Component?
 
 private fun loadDefaultConfig(): Piper.Config {
     // TODO use more efficient Protocol Buffers encoded version
-    val cfg = configFromYaml(BurpExtender::class.java.classLoader
-            .getResourceAsStream("defaults.yaml").reader().readText())
-    return Piper.Config.newBuilder()
-            .addAllMacro                   (cfg.macroList                   .map { it.buildEnabled() })
-            .addAllMenuItem                (cfg.menuItemList                .map { it.buildEnabled() })
-            .addAllMessageViewer           (cfg.messageViewerList           .map { it.buildEnabled() })
-            .addAllHttpListener            (cfg.httpListenerList            .map { it.buildEnabled() })
-            .addAllCommentator             (cfg.commentatorList             .map { it.buildEnabled() })
-            .addAllIntruderPayloadProcessor(cfg.intruderPayloadProcessorList.map { it.buildEnabled() })
-            .build()
+    return configFromYaml(BurpExtender::class.java.classLoader
+            .getResourceAsStream("defaults.yaml").reader().readText()).updateEnabled(true)
 }
 
 private fun handleGUI(process: Process, tools: List<Piper.MinimalTool>) {
