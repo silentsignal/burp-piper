@@ -588,7 +588,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
                     ConfigFormat.PROTOBUF
                 }
                 val configFile = File(env)
-                return fmt.parse(configFile.readBytes())
+                return fmt.parse(configFile.readBytes()).updateEnabled(true)
             } else if (serialized != null) {
                 return Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
             } else {
