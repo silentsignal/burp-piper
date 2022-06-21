@@ -43,6 +43,7 @@ import kotlin.concurrent.thread
 
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
+const val CONFIG_ENV_VAR = "PIPER_CONFIG"
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?, val url: URL?, val hrr: IHttpRequestResponse? = null) {
     val asContentExtensionPair: Pair<ByteArray, String?> get() {
@@ -578,13 +579,25 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
 
     private fun loadConfig(): Piper.Config {
         val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
-        return if (serialized == null)
-        {
+        val env = System.getenv(CONFIG_ENV_VAR)
+        try {
+            if (env != null) { 
+                val fmt = if (env.endsWith(".yml") || env.endsWith(".yaml")){
+                    ConfigFormat.YAML 
+                } else {
+                    ConfigFormat.PROTOBUF
+                }
+                val configFile = File(env)
+                return fmt.parse(configFile.readBytes())
+            } else if (serialized != null) {
+                return Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
+            } else {
+                throw Exception("Fallback to default config")
+            }
+        } catch (e: Exception) {
             val cfgMod = loadDefaultConfig()
             saveConfig(cfgMod)
-            cfgMod
-        } else {
-            Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
+            return cfgMod
         }
     }
 
