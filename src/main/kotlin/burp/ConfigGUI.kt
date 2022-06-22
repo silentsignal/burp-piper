@@ -983,7 +983,7 @@ class EnumSetWidget<E : Enum<E>>(set: Set<E>, panel: Container, cs: GridBagConst
                 cs.gridx = 0
             }
             cb
-        }.toMap() as Map<E, JCheckBox>
+        }.toMap()
     }
 }
 

@@ -191,7 +191,7 @@ fun Map<String, Any>.stringSequence(key: String, required: Boolean = true): Iter
                 is String -> return@map it
                 else -> throw RuntimeException("Invalid value for $key: $it")
             }
-        } as List<String>
+        }
         else -> throw RuntimeException("Invalid value for $key: $value")
     }
 }
@@ -205,7 +205,7 @@ fun Map<String, Any>.intSequence(key: String): Iterable<Int> {
                 is Int -> return@map it
                 else -> throw RuntimeException("Invalid value for $key: $it")
             }
-        } as List<Int>
+        }
         else -> throw RuntimeException("Invalid value for $key: $value")
     }
 }
