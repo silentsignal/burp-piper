@@ -232,7 +232,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         configModel.intruderPayloadProcessorsModel.addListDataListener(IntruderPayloadProcessorManager())
         configModel.intruderPayloadGeneratorsModel.addListDataListener(IntruderPayloadGeneratorManager())
 
-        configModel.addPropertyChangeListener(PropertyChangeListener { saveConfig() })
+        configModel.addPropertyChangeListener({ saveConfig() })
 
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
@@ -342,7 +342,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     private fun createDeveloperUI(cfg: ConfigModel): Component =
             JCheckBox("show user interface elements suited for developers").apply {
                 isSelected = cfg.developer
-                cfg.addPropertyChangeListener(PropertyChangeListener { isSelected = cfg.developer })
+                cfg.addPropertyChangeListener({ isSelected = cfg.developer })
                 addChangeListener { cfg.developer = isSelected }
             }
 
