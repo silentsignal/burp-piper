@@ -450,7 +450,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
                             bytes.copyOfRange(bounds[0], bounds[1])
                         } catch (ex: Exception) {
                             // What happened here?
-                            ex.printStackTrace(PrintStream(callbacks.getStderr()))
+                            ex.printStackTrace(PrintStream(callbacks.stderr))
                             bytes.copyOfRange(bounds[0], bounds[1])
                         }
                         selections.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
