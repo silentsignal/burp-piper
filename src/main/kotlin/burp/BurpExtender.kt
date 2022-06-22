@@ -578,9 +578,8 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     }
 
     private fun loadConfig(): Piper.Config {
-        val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
-        val env = System.getenv(CONFIG_ENV_VAR)
         try {
+            val env = System.getenv(CONFIG_ENV_VAR)
             if (env != null) { 
                 val fmt = if (env.endsWith(".yml") || env.endsWith(".yaml")){
                     ConfigFormat.YAML 
@@ -589,11 +588,14 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
                 }
                 val configFile = File(env)
                 return fmt.parse(configFile.readBytes()).updateEnabled(true)
-            } else if (serialized != null) {
+            } 
+
+            val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
+            if (serialized != null) {
                 return Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
-            } else {
-                throw Exception("Fallback to default config")
             }
+
+            throw Exception("Fallback to default config")
         } catch (e: Exception) {
             val cfgMod = loadDefaultConfig()
             saveConfig(cfgMod)
