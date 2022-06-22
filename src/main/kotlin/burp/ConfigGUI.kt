@@ -111,7 +111,7 @@ open class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Componen
         val selectionNotEmpty = si.isNotEmpty()
         btnCopy.isEnabled = selectionNotEmpty
         btnEnableDisable.isEnabled = selectionNotEmpty
-        val maxIndex = si.max()
+        val maxIndex = si.maxOrNull()
         btnEnableDisable.text = if (maxIndex == null || maxIndex >= model.size()) TOGGLE_DEFAULT else
         {
             val states = listWidget.selectedValuesList.map { dialog(it, parent).isToolEnabled() }.toSet()
