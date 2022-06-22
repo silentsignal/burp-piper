@@ -10,7 +10,7 @@ Execute `./gradlew build` and you'll have the plugin ready in
 Known issues
 ------------
 
- - Terminal emulator ignores background color when _Look and feel_ is set
+ - The terminal emulator ignores background color when _Look and feel_ is set
    to _Nimbus_, see https://bugs.openjdk.java.net/browse/JDK-8058704
 
 License
