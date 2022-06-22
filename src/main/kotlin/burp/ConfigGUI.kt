@@ -660,7 +660,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
     }
 
     init {
-        val lsParams = JList<CommandLineParameter>(paramsModel)
+        val lsParams = JList(paramsModel)
         lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
         lsParams.font = monospaced12
 
