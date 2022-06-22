@@ -13,6 +13,20 @@ Known issues
  - The terminal emulator ignores background color when _Look and feel_ is set
    to _Nimbus_, see https://bugs.openjdk.java.net/browse/JDK-8058704
 
+Security
+--------
+
+Piper configurations can be exported and imported. As configurations define 
+commands to be executed on the user's machine, importing malicious 
+configurations is a security risk. 
+
+Piper disables configurations loaded via the GUI to prevent exploitation, and 
+unexpected behavior (e.g.: modification of HTTP messages). To support 
+automation, Piper enables configurations loaded via the `PIPER_CONFIG` 
+environment variable, so extra care must be taken in this use case. 
+
+Users should always review configurations before importing or enabling them. 
+
 License
 -------
 
