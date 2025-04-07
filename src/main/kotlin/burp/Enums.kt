@@ -142,8 +142,8 @@ enum class ConfigFormat {
     },
 
     PROTOBUF {
-        override fun parse(blob: ByteArray): Piper.Config = Piper.Config.parseFrom(blob)
-        override fun serialize(config: Piper.Config): ByteArray = config.toByteArray()
+        override fun parse(blob: ByteArray): Piper.Config = Piper.Config.parseFrom(blob).updateEnabled(false)
+        override fun serialize(config: Piper.Config): ByteArray = config.updateEnabled(false).toByteArray()
         override val fileExtension: String
             get() = "pb"
     };
