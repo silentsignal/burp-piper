@@ -268,7 +268,7 @@ fun Piper.UserActionTool.toMap(): Map<String, Any> {
 fun Piper.HttpListener.toMap(): Map<String, Any> {
     val m = this.common.toMap()
     if (this.tool != 0) m["tool"] = this.toolSet.toSortedStringList()
-    m["scope"] = this.scope.name.toLowerCase()
+    m["scope"] = this.scope.name.lowercase()
     if (this.ignoreOutput) m["ignoreOutput"] = true
     return m
 }
@@ -292,7 +292,7 @@ fun Piper.MinimalTool.toMap(): MutableMap<String, Any> {
     val m = this.cmd.toMap()
     m["name"] = this.name!!
     if (this.hasFilter()) m["filter"] = this.filter.toMap()
-    if (this.scope != Piper.MinimalTool.Scope.REQUEST_RESPONSE) m["scope"] = this.scope.name.toLowerCase()
+    if (this.scope != Piper.MinimalTool.Scope.REQUEST_RESPONSE) m["scope"] = this.scope.name.lowercase()
     return m
 }
 
@@ -314,7 +314,7 @@ fun Piper.CommandInvocation.toMap(): MutableMap<String, Any> {
     val m = mutableMapOf<String, Any>()
     m["prefix"] = this.prefixList
     if (this.postfixCount > 0) m["postfix"] = this.postfixList
-    m["inputMethod"] = this.inputMethod.name.toLowerCase()
+    m["inputMethod"] = this.inputMethod.name.lowercase()
     if (this.passHeaders) m["passHeaders"] = true
     if (this.requiredInPathCount > 0) m["requiredInPath"] = this.requiredInPathList
     if (this.exitCodeCount > 0) m["exitCode"] = this.exitCodeList

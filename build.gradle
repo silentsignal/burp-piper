@@ -16,44 +16,45 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-apply plugin: 'java'
-apply plugin: 'kotlin'
-apply plugin: 'com.google.protobuf'
-
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 buildscript {
-    ext.kotlin_version = '1.4.10'
+    ext.kotlin_version = '2.3.0'
+    ext.protobuf_version = '0.9.6'
 
     repositories {
         mavenCentral()
     }
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.5'
+        classpath "com.google.protobuf:protobuf-gradle-plugin:$protobuf_version"
     }
 }
 
+plugins {
+	id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
+	id 'java'
+	id 'com.google.protobuf' version "$protobuf_version"
+}
+
+java { toolchain { languageVersion = JavaLanguageVersion.of(8) } }
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    compile "com.google.protobuf:protobuf-lite:3.0.0"
-    compile "org.snakeyaml:snakeyaml-engine:1.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation "com.google.protobuf:protobuf-java:4.32.0"
+    implementation "org.snakeyaml:snakeyaml-engine:1.0"
 
-    compile 'net.portswigger.burp.extender:burp-extender-api:1.7.22'
-    compile 'com.esotericsoftware:minlog:1.3'
+    implementation 'net.portswigger.burp.extender:burp-extender-api:1.7.22'
+    implementation 'com.esotericsoftware:minlog:1.3'
 
-    testCompile "org.testng:testng:6.9.10"
+    testImplementation "org.testng:testng:6.9.10"
 }
 
 jar {
     sourceSets {
-        sourceSets.main.java.srcDirs += 'build/generated/source/proto/main/java'
+        sourceSets.main.java.srcDirs += '${protobuf.generatedFilesBaseDir}/main/java'
     }
     from('src/main/yaml') {
         include('*.yaml')
@@ -62,33 +63,20 @@ jar {
 		include('mime.pb')
 	}
     from {
-        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
 
 protobuf {
-    protoc { artifact = 'com.google.protobuf:protoc:3.0.0' }
-    plugins {
-        javalite {
-            artifact = 'com.google.protobuf:protoc-gen-javalite:3.0.0'
-        }
-    }
-    generateProtoTasks {
-        all().each { task ->
-            task.builtins {
-                remove java
-            }
-            task.plugins {
-                javalite { }
-            }
-        }
-    }
+    protoc { artifact = 'com.google.protobuf:protoc:4.32.0' }
 }
 
 sourceSets {
     main {
         java {
-            srcDirs += file("${protobuf.generatedFilesBaseDir}/main/javalite")
+            srcDirs += file("${protobuf.generatedFilesBaseDir}/main/java")
         }
     }
 }
+
+tasks.named("compileKotlin") { dependsOn("generateProto") }

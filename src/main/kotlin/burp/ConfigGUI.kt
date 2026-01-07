@@ -930,7 +930,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         if (any { c -> c in 'g'..'z' || c in 'G'..'Z' }) {
             throw NumberFormatException("contains non-hexadecimal letters (maybe typo?)")
         }
-        chunked(2, ::parseHexByte).toByteArray()
+        hexToByteArray()
     }
 
     fun getByteString(): ByteString = if (isASCII) ByteString.copyFromUtf8(tf.text) else try {
@@ -947,11 +947,6 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         cs.gridx = 3 ; panel.add(rbHex,   cs)
     }
 }
-
-private fun parseHexByte(cs: CharSequence): Byte = (parseHexNibble(cs[0]) shl 4 or parseHexNibble(cs[1])).toByte()
-
-private fun parseHexNibble(c: Char): Int = if (c in '0'..'9') (c - '0')
-else ((c.toLowerCase() - 'a') + 0xA)
 
 class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints) {
     private val tfPattern = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)

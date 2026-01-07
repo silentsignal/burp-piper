@@ -33,7 +33,7 @@ video](https://vimeo.com/401007109).
 Building
 --------
 
-Execute `./gradlew build` and you'll have the plugin ready in
+Execute `./gradlew assemble` and you'll have the plugin ready in
 `build/libs/burp-piper.jar`
 
 Known issues

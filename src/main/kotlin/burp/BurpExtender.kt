@@ -367,7 +367,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         val plural = if (msize == 1) "" else "s"
         val selectionMenu = mutableListOf<JMenuItem>()
 
-        fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.toLowerCase()}$plural")
+        fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.lowercase()}$plural")
 
         fun EnumMap<RequestResponse, JMenu>.addMenuItemIfApplicable(menuItem: Piper.UserActionTool, mv: Piper.MessageViewer?, msrc: MessageSource,
                                                                     md: List<MessageInfo>) {
