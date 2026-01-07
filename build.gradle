@@ -33,6 +33,7 @@ plugins {
 	id 'org.jetbrains.kotlin.jvm' version "$kotlin_version"
 	id 'java'
 	id 'com.google.protobuf' version "$protobuf_version"
+	id 'com.gradleup.shadow' version "9.3.1"
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(8) } }
@@ -52,31 +53,14 @@ dependencies {
     testImplementation "org.testng:testng:6.9.10"
 }
 
-jar {
-    sourceSets {
-        sourceSets.main.java.srcDirs += '${protobuf.generatedFilesBaseDir}/main/java'
-    }
-    from('src/main/yaml') {
-        include('*.yaml')
-    }
-	from('static') {
-		include('mime.pb')
-	}
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
+tasks.shadowJar {
+    archiveBaseName.set("burp-piper")
+    archiveClassifier.set("") // ensures the JAR is just burp-piper.jar, not burp-piper-all.jar
+    archiveVersion.set("")    // omit version if you want a clean filename
 }
 
 protobuf {
     protoc { artifact = 'com.google.protobuf:protoc:4.32.0' }
-}
-
-sourceSets {
-    main {
-        java {
-            srcDirs += file("${protobuf.generatedFilesBaseDir}/main/java")
-        }
-    }
 }
 
 tasks.named("compileKotlin") { dependsOn("generateProto") }
