@@ -3,7 +3,7 @@ ExtensionType: 1
 Name: Piper
 RepoName: piper
 ScreenVersion: 0.8
-SerialVersion: 12
+SerialVersion: 13
 MinPlatformVersion: 2
 ProOnly: False
 Author: Andras Veres-Szentkiralyi
