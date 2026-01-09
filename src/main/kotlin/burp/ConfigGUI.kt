@@ -111,7 +111,7 @@ open class MinimalToolListEditor<E>(model: DefaultListModel<E>, parent: Componen
         val selectionNotEmpty = si.isNotEmpty()
         btnCopy.isEnabled = selectionNotEmpty
         btnEnableDisable.isEnabled = selectionNotEmpty
-        val maxIndex = si.max()
+        val maxIndex = si.maxOrNull()
         btnEnableDisable.text = if (maxIndex == null || maxIndex >= model.size()) TOGGLE_DEFAULT else
         {
             val states = listWidget.selectedValuesList.map { dialog(it, parent).isToolEnabled() }.toSet()
@@ -660,7 +660,7 @@ class CommandInvocationDialog(ci: Piper.CommandInvocation, private val purpose: 
     }
 
     init {
-        val lsParams = JList<CommandLineParameter>(paramsModel)
+        val lsParams = JList(paramsModel)
         lsParams.selectionMode = ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
         lsParams.font = monospaced12
 
@@ -930,7 +930,7 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         if (any { c -> c in 'g'..'z' || c in 'G'..'Z' }) {
             throw NumberFormatException("contains non-hexadecimal letters (maybe typo?)")
         }
-        chunked(2, ::parseHexByte).toByteArray()
+        hexToByteArray()
     }
 
     fun getByteString(): ByteString = if (isASCII) ByteString.copyFromUtf8(tf.text) else try {
@@ -947,11 +947,6 @@ class HexASCIITextField(private val tf: JTextField = JTextField(),
         cs.gridx = 3 ; panel.add(rbHex,   cs)
     }
 }
-
-private fun parseHexByte(cs: CharSequence): Byte = (parseHexNibble(cs[0]) shl 4 or parseHexNibble(cs[1])).toByte()
-
-private fun parseHexNibble(c: Char): Int = if (c in '0'..'9') (c - '0')
-else ((c.toLowerCase() - 'a') + 0xA)
 
 class RegExpWidget(regex: Piper.RegularExpression, panel: Container, cs: GridBagConstraints) {
     private val tfPattern = createLabeledTextField("Matches regular expression: ", regex.pattern, panel, cs)
@@ -983,7 +978,7 @@ class EnumSetWidget<E : Enum<E>>(set: Set<E>, panel: Container, cs: GridBagConst
                 cs.gridx = 0
             }
             cb
-        }.toMap() as Map<E, JCheckBox>
+        }.toMap()
     }
 }
 

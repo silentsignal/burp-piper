@@ -14,7 +14,7 @@ enum class RegExpFlag {
     val value = Pattern::class.java.getField(name).getInt(null)
 
     override fun toString(): String {
-        return name.toLowerCase().replace('_', ' ')
+        return name.lowercase().replace('_', ' ')
     }
 }
 
@@ -66,7 +66,7 @@ enum class BurpTool {
     val value = IBurpExtenderCallbacks::class.java.getField("TOOL_$name").getInt(null)
 
     override fun toString(): String {
-        return name.toLowerCase().capitalize()
+        return name.lowercase().replaceFirstChar(Char::uppercase)
     }
 }
 
@@ -89,7 +89,7 @@ enum class Highlight(val color: Color?, val textColor: Color = Color.BLACK) {
     MAGENTA(Color(0xFF, 0x64, 0xFF)             ),
     GRAY(   Color(0xB4, 0xB4, 0xB4)             );
 
-    override fun toString(): String = super.toString().toLowerCase()
+    override fun toString(): String = super.toString().lowercase()
 
     val burpValue: String? get() = if (color == null) null else toString()
 
@@ -108,7 +108,7 @@ enum class ConfigHttpListenerScope(val hls: Piper.HttpListenerScope, val inputLi
         override fun toString(): String = "HTTP responses with request prepended"
     };
 
-    override fun toString(): String = "HTTP ${hls.toString().toLowerCase()}s"
+    override fun toString(): String = "HTTP ${hls.toString().lowercase()}s"
 
     companion object {
         fun fromHttpListenerScope(hls: Piper.HttpListenerScope): ConfigHttpListenerScope = values().first { it.hls == hls }

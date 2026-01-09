@@ -43,6 +43,7 @@ import kotlin.concurrent.thread
 
 const val NAME = "Piper"
 const val EXTENSION_SETTINGS_KEY = "settings"
+const val CONFIG_ENV_VAR = "PIPER_CONFIG"
 
 data class MessageInfo(val content: ByteArray, val text: String, val headers: List<String>?, val url: URL?, val hrr: IHttpRequestResponse? = null) {
     val asContentExtensionPair: Pair<ByteArray, String?> get() {
@@ -231,7 +232,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         configModel.intruderPayloadProcessorsModel.addListDataListener(IntruderPayloadProcessorManager())
         configModel.intruderPayloadGeneratorsModel.addListDataListener(IntruderPayloadGeneratorManager())
 
-        configModel.addPropertyChangeListener(PropertyChangeListener { saveConfig() })
+        configModel.addPropertyChangeListener({ saveConfig() })
 
         callbacks.setExtensionName(NAME)
         callbacks.registerContextMenuFactory {
@@ -341,7 +342,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     private fun createDeveloperUI(cfg: ConfigModel): Component =
             JCheckBox("show user interface elements suited for developers").apply {
                 isSelected = cfg.developer
-                cfg.addPropertyChangeListener(PropertyChangeListener { isSelected = cfg.developer })
+                cfg.addPropertyChangeListener({ isSelected = cfg.developer })
                 addChangeListener { cfg.developer = isSelected }
             }
 
@@ -366,7 +367,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
         val plural = if (msize == 1) "" else "s"
         val selectionMenu = mutableListOf<JMenuItem>()
 
-        fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.toLowerCase()}$plural")
+        fun createSubMenu(msrc: MessageSource) : JMenu = JMenu("Process $msize ${msrc.direction.name.lowercase()}$plural")
 
         fun EnumMap<RequestResponse, JMenu>.addMenuItemIfApplicable(menuItem: Piper.UserActionTool, mv: Piper.MessageViewer?, msrc: MessageSource,
                                                                     md: List<MessageInfo>) {
@@ -449,7 +450,7 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
                             bytes.copyOfRange(bounds[0], bounds[1])
                         } catch (ex: Exception) {
                             // What happened here?
-                            ex.printStackTrace(PrintStream(callbacks.getStderr()))
+                            ex.printStackTrace(PrintStream(callbacks.stderr))
                             bytes.copyOfRange(bounds[0], bounds[1])
                         }
                         selections.add(MessageInfo(body, helpers.bytesToString(body), headers, url, it))
@@ -577,14 +578,28 @@ class BurpExtender : IBurpExtender, ITab, ListDataListener, IHttpListener {
     }
 
     private fun loadConfig(): Piper.Config {
-        val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
-        return if (serialized == null)
-        {
+        try {
+            val env = System.getenv(CONFIG_ENV_VAR)
+            if (env != null) { 
+                val fmt = if (env.endsWith(".yml") || env.endsWith(".yaml")){
+                    ConfigFormat.YAML 
+                } else {
+                    ConfigFormat.PROTOBUF
+                }
+                val configFile = File(env)
+                return fmt.parse(configFile.readBytes()).updateEnabled(true)
+            } 
+
+            val serialized = callbacks.loadExtensionSetting(EXTENSION_SETTINGS_KEY)
+            if (serialized != null) {
+                return Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
+            }
+
+            throw Exception("Fallback to default config")
+        } catch (e: Exception) {
             val cfgMod = loadDefaultConfig()
             saveConfig(cfgMod)
-            cfgMod
-        } else {
-            Piper.Config.parseFrom(decompress(unpad4(Z85.Z85Decoder(serialized))))
+            return cfgMod
         }
     }
 
