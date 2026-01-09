@@ -7,6 +7,7 @@ SerialVersion: 13
 MinPlatformVersion: 2
 ProOnly: False
 Author: Andras Veres-Szentkiralyi
-ShortDescription: Easily integrate external tools into Burp
+ShortDescription: Integrate external command-line tools by piping HTTP requests and responses through external programs, enabling Unix-style tool composition.
 EntryPoint: burp-piper.jar
 BuildCommand: ./gradlew shadowJar
+SupportedProducts: Pro, Community
