@@ -9,4 +9,4 @@ ProOnly: False
 Author: Andras Veres-Szentkiralyi
 ShortDescription: Easily integrate external tools into Burp
 EntryPoint: build/libs/piper.jar
-BuildCommand: ./gradlew build -x test
+BuildCommand: ./gradlew shadowJar
