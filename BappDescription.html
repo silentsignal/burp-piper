@@ -1,13 +1,32 @@
-<p>Piper makes integrating external tools into Burp easier.</p>
-<p> In true Unix
-fashion, small things that do one thing and do it well can be connected
-together like building blocks to aid quick experimentation. By lowering
-the level of coupling, any programming language can be used as long as
-it can accept inputs on the standard input or as command line
-parameters.</p>
-<p>Extending message editors for new formats or integrating a
-better comparator/diff tool is as simple as filling a short form with
-the command line and some details with sensible defaults.</p>
-<p>Useful configs
-can be shared using the the textual YAML format, the defaults already
-contain some simple examples.</p>
+<p>
+    Piper integrates external tools and command-line programs into Burp Suite through configurable pipelines. The
+    extension passes HTTP requests and responses to external programs and feeds the execution results back into Burp,
+    enabling Unix-style tool composition without writing Java extensions.
+</p>
+
+<h2>Features</h2>
+<ul>
+    <li>Add custom message viewers that format HTTP content using external programs (e.g., render Protobuf with <code
+            class="InlineCode">protoc</code>)</li>
+    <li>Generate and process Intruder payloads with external tools like John the Ripper or custom scripts</li>
+    <li>Highlight and comment on proxy items based on output from command-line programs (e.g., hash requests with <code
+            class="InlineCode">sha256sum</code>)</li>
+    <li>Transform HTTP messages with custom encryption or encoding through external Python scripts</li>
+    <li>Invoke external tools from context menus, such as diff utilities for comparing requests</li>
+    <li>Configure tool pipelines in any language that accepts stdin input or command-line parameters</li>
+    <li>Export and import configurations in YAML format for sharing and reuse</li>
+</ul>
+
+<h2>Usage</h2>
+<ol>
+    <li>Open the Piper tab and configure a tool by specifying its command line and integration type (message viewer,
+        commentator, highlighter, context menu item, payload generator, payload processor, HTTP listener, or macro)</li>
+    <li>Enable the configuration using the toggle button in the interface</li>
+    <li>Access the integration from the relevant Burp context (e.g., Proxy History for commentators and highlighters,
+        message editor tabs for custom viewers, Intruder for payload tools)</li>
+    <li>View output in the designated location based on tool type: comments appear in Proxy History, message viewers add
+        new editor tabs, and HTTP listeners transform messages in transit</li>
+    <li>Optionally export configurations to YAML files for sharing</li>
+</ol>
+
+<p><strong>Note:</strong> Review imported configurations carefully before enabling them.</p>
