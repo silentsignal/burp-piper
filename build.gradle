@@ -57,6 +57,7 @@ tasks.shadowJar {
     archiveBaseName.set("burp-piper")
     archiveClassifier.set("") // ensures the JAR is just burp-piper.jar, not burp-piper-all.jar
     archiveVersion.set("")    // omit version if you want a clean filename
+    relocate "com.google.protobuf", "piper.shaded.protobuf"
 }
 
 protobuf {
